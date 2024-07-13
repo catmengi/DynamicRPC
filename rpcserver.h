@@ -38,3 +38,14 @@ struct client_thread{
     struct rpcserver* serv;
 };
 
+
+
+struct rpcserver* rpcserver_create(uint16_t port);
+void rpcserver_start(struct rpcserver* rpcserver);
+void rpcserver_free(struct rpcserver* serv);
+
+int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
+                          enum rpctypes rtype, enum rpctypes* argstype,
+                          uint8_t argsamm, void* pstorage,int perm);
+void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name);
+void rpcserver_load_keys(struct rpcserver* serv, char* filename);
