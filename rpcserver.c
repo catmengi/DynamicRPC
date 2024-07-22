@@ -212,6 +212,8 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
 }
 int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code){
     void** callargs = calloc(cfn->nargs, sizeof(void*));
+    assert(callargs);
+    uint8_t j = 0;;
     struct tqueque* rpcbuff_upd = tqueque_create();
     struct tqueque* rpcbuff_free = tqueque_create();
     assert(rpcbuff_upd);
@@ -224,7 +226,6 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
     }
     free(check);
     assert(callargs != NULL && call->args_amm != 0);
-    uint8_t j = 0;
     for(uint8_t i = 0; i < cfn->nargs; i++){
         if(cfn->argtypes[i] == PSTORAGE){
             callargs[i] = calloc(1,sizeof(void*));
@@ -238,7 +239,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
             *(void**)callargs[i] = serv->interfunc;
             continue;
         }
-        if(j < call->args_amm){
+        if(j <= call->args_amm){
             if(call->args[j].type == RPCBUFF){
                 callargs[i] = calloc(1,sizeof(void*));
                 assert(callargs[i]);
@@ -370,7 +371,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
 
     }
     for(uint8_t i = 0; i < ret->resargs_amm; i++){
-        if(ret->resargs[i].flag == RPCBUFF){
+        if(ret->resargs[i].type == RPCBUFF){
             struct rpcbuff* buf = tqueque_pop(rpcbuff_upd,NULL,NULL);
             if(!buf) break;
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
@@ -420,7 +421,16 @@ void* rpcserver_client_thread(void* arg){
         free(credbuf);
         if(is_authed){
             repl.msg_type = OK;
+            struct rpctype perm = {0};
+            int32_to_type(user_perm,&perm);
+            repl.payload = malloc((repl.payload_len = type_buflen(&perm)));
+            assert(repl.payload);
+            type_to_arr(repl.payload,&perm);
             rpcmsg_write_to_fd(&repl,thrd->client_fd); repl.msg_type = 0;
+            free(repl.payload);
+            free(perm.data);
+            repl.payload = NULL;
+            repl.payload_len = 0;
             printf("%s: auth ok, OK is replied to client\n",__PRETTY_FUNCTION__);
             while(thrd->serv->stop == 0){
                 repl.msg_type = 0; repl.payload = NULL; repl.payload_len = 0;
@@ -428,7 +438,10 @@ void* rpcserver_client_thread(void* arg){
                 struct rpccall call = {0}; struct rpcret ret = {0};
                 if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) < 0) {printf("%s: client disconected badly\n",__PRETTY_FUNCTION__);goto exit;}
                 switch(gotmsg.msg_type){
-                    case DISCON: {free(gotmsg.payload);printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__); goto exit;}
+                    case DISCON:
+                                    free(gotmsg.payload);
+                                    printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__);
+                                    goto exit;
                     case CALL:
                                     if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
                                         printf("%s: internal server error or server closing\n",__PRETTY_FUNCTION__);
@@ -523,7 +536,6 @@ void* rpcserver_client_thread(void* arg){
 
 exit:
     if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
-    //hashtable_remove_entry(thrd->serv->threads,thrd->key,strlen(thrd->key) + 1);
     struct rpcmsg lreply = {DISCON,0,NULL,0};
     rpcmsg_write_to_fd(&lreply,thrd->client_fd);
     close(thrd->client_fd);
@@ -607,6 +619,7 @@ void rpcserver_load_keys(struct rpcserver* serv, char* filename){
     }
     char buf[512] = {0};
     while(fgets(buf,sizeof(buf),keys)){
+        /*yet another shit text parser*/
         size_t i = 0;
         for(i = 0; i < sizeof(buf) && buf[i] != '"'; i++);
         if(i == sizeof(buf) - 1) continue;

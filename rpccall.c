@@ -13,18 +13,19 @@ int is_rpctypes_equal(enum rpctypes* frst, size_t frstlen, enum rpctypes* scnd, 
     if((frst && !scnd) || (!frst && scnd)) return 0;
     if(!frst && !scnd) return 1;
     uint8_t j = 0;
-    for(uint8_t i = 0; i < frstlen; i++){
-        if(j >= scndlen && (j != 0 && scndlen != 0)) return 0;
-        if(frst[i] == scnd[j]){j++; continue;}
+    for(uint8_t i = 0; i < frstlen && j < scndlen; i++){
+        if(frst[i] == SIZEDBUF && scnd[j] == SIZEDBUF){
+            j++; i++;
+            continue;
+        }
+        if(frst[i] == scnd[j]){ j++; continue;}
         if(frst[i] != scnd[j]){
             if(frst[i] == PSTORAGE || frst[i] == INTERFUNC){
                 continue;
-            }
-        }
-        if(frst[i] == SIZEDBUF && scnd[j] == SIZEDBUF){
-            j++; i++;
+            }else return 0;
         }
     }
+    if(j > scndlen) return 0;
     return 1;
 }
 size_t rpctypes_get_buflen(struct rpctype* rpctypes,uint8_t rpctypes_len){

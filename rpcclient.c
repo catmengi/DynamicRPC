@@ -1,6 +1,9 @@
 #include "rpccall.h"
 #include "rpcmsg.h"
 #include <assert.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "rpcpack.h"
@@ -9,16 +12,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
-int main(){
-   int sockfd, portno, n;
+struct rpccon{
+   int fd;
+   int perm;
+};
+
+int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
+   if(!host || !key)
+      return -1;
+   int sockfd;
    struct sockaddr_in serv_addr;
    struct hostent *server;
 
-   char buffer[256];
-
-
-   portno = 2077;
 
    /* Create a socket point */
    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -28,7 +35,7 @@ int main(){
       exit(1);
    }
 
-   server = gethostbyname("localhost");
+   server = gethostbyname(host);
 
    if (server == NULL) {
       fprintf(stderr,"ERROR, no such host\n");
@@ -45,58 +52,151 @@ int main(){
       perror("ERROR connecting");
       exit(1);
    }
-   struct rpctype type;
-   create_sizedbuf_type(strdup("hello da fuck"),strlen("hello da fuck") + 1,1,&type);
-   char* typer = malloc(type_buflen(&type)); type_to_arr(typer,&type);
-   struct rpcmsg msg = {CON, 0,NULL,0};
-   rpcmsg_write_to_fd(&msg,sockfd);
-   struct rpcmsg auth = {AUTH,type_buflen(&type),typer};
-   rpcmsg_write_to_fd(&auth,sockfd);
-   get_rpcmsg_from_fd(&msg,sockfd);
-   if(msg.msg_type != OK) {printf("failed the auth\n"); return 0;}
-   for(;;){
-      msg.msg_type = CALL;
-      size_t index[1] = {52};
-      struct rpcbuff* buf;
-      struct rpctype* ll = calloc(4,sizeof(*ll)); create_rpcbuff_type(buf = rpcbuff_create(index,sizeof(index) / sizeof(index[0]),1),0,&ll[0]);
-      create_sizedbuf_type("hello fda world",sizeof("hello fda world"),0,&ll[1]);
-      uint64_to_type(525252,&ll[2]);
-      create_str_type("42 братуха",0,&ll[3]);
-      _rpcbuff_free(buf);
-      struct rpccall call = {"buft",4,ll};
-      msg.payload = rpccall_to_buf(&call,&msg.payload_len);
-      struct rpcmsg got = {0};
-      rpcmsg_write_to_fd(&msg,sockfd);
-      rpctypes_free(call.args,call.args_amm);
-      free(msg.payload);
-      get_rpcmsg_from_fd(&got,sockfd);
-      if(got.msg_type == OK){
-         msg.msg_type = READY;
-         rpcmsg_write_to_fd(&msg,sockfd);
-      }else if(got.msg_type == NOFN || got.msg_type == LPERM || got.msg_type == BAD){
-         printf("bad thing happened\n");
-         msg.msg_type = DISCON;
-         rpcmsg_write_to_fd(&msg,sockfd);
-         return 0;
-      }
-      got.payload = NULL;
-      get_rpcmsg_from_fd(&got,sockfd);
-      if(got.payload == NULL) {puts("why");printf("%d\n",got.msg_type);close(sockfd);return 1;}
-      struct rpcret ret = {0};buf_to_rpcret(&ret,got.payload);
-      struct rpcbuff* buf2 = unpack_rpcbuff_type(&ret.ret);
-      index[0] = 0;
-      for(;index[0] < buf2->dimsizes[0]; index[0]++){
-        // printf("%lu:%s\n",index[0],rpcbuff_getlast_from(buf2,index,sizeof(index) / sizeof(index[0]),NULL));
-      }
-      printf("%p: ret->resargs\n",ret.resargs);
-      _rpcbuff_free(buf2);
-      free(ret.ret.data);
-      rpctypes_free(ret.resargs,ret.resargs_amm);
-      puts("\n\n\n\n calling next time \n\n\n\n");
+   struct rpcmsg req = {0};
+   struct rpcmsg ans = {0};
+   req.msg_type = CON;
+   if(rpcmsg_write_to_fd(&req,sockfd) == -1){
+      perror("connection error");
+      return 2;
+   }
+   struct rpctype auth = {0};
+   create_sizedbuf_type(key,strlen(key) + 1,0,&auth);
+   req.msg_type = AUTH;
+   req.payload = malloc((req.payload_len = type_buflen(&auth)));
+   assert(req.payload);
+   type_to_arr(req.payload,&auth);
+   if(rpcmsg_write_to_fd(&req,sockfd) == -1){
+      free(auth.data);
+      free(req.payload);
+      perror("connection error");
+      return 2;
+   }
+   free(auth.data);
+   free(req.payload);
+   if(get_rpcmsg_from_fd(&ans,sockfd) != 0){
+      perror("connection error");
+      return 3;
+   }
+   if(ans.msg_type != OK) {
+      free(ans.payload);
+      puts("bad auth");
+      return 4;
+   }
+   arr_to_type(ans.payload,&auth);
+   con->perm = type_to_int32(&auth);
+   free(ans.payload);
+   free(auth.data);
+   con->fd = sockfd;
+   return 0;
 }
-      msg.msg_type = DISCON;
-      msg.payload = NULL;
-      msg.payload_len = 0;
-      rpcmsg_write_to_fd(&msg,sockfd);
-   close(sockfd);
+int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,struct rpcret* fnret,...){
+   va_list vargs;
+   void* tmp; //tmp variable for storing va_arg;
+   va_start(vargs, fnret);
+   struct rpctype* args = calloc(rpctypes_len,sizeof(*args));
+   assert(args);
+   for(uint8_t i = 0; i < rpctypes_len; i++){
+      if(rpctypes[i] == CHAR){
+         char ch = va_arg(vargs,int);
+         char_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == UINT16){
+         uint16_t ch = va_arg(vargs,int);
+         uint16_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == INT16){
+         int16_t ch = va_arg(vargs,int);
+         int16_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == UINT32){
+         uint32_t ch = va_arg(vargs,uint32_t);
+         uint32_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == INT32){
+         int32_t ch = va_arg(vargs,int32_t);
+         int32_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == UINT64){
+         uint64_t ch = va_arg(vargs,uint64_t);
+         uint64_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == INT64){
+         int64_t ch = va_arg(vargs,int64_t);
+         int64_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == FLOAT){
+         double ch = va_arg(vargs,double);
+         float_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == DOUBLE){
+         double ch = va_arg(vargs,double);
+         double_to_type(ch,&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == STR){
+         char* ch = va_arg(vargs,char*);
+         assert(flags);
+         create_str_type(ch,flags[i],&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == SIZEDBUF){
+         char* ch = va_arg(vargs,char*);
+         assert(flags);
+         uint64_t buflen = va_arg(vargs,uint64_t);
+         create_sizedbuf_type(ch,buflen,flags[i],&args[i]);
+         continue;
+      }
+      if(rpctypes[i] == RPCBUFF){
+         struct rpcbuff* buf = va_arg(vargs,struct rpcbuff*);
+         assert(flags);
+         create_rpcbuff_type(buf,flags[i],&args[i]);
+         continue;
+      }
+   }
+   struct rpccall call = {fn,rpctypes_len,args};
+   struct rpcmsg req = {0};
+   struct rpcmsg ans = {0};
+   req.msg_type = CALL;
+   req.payload = rpccall_to_buf(&call,&req.payload_len);
+   if(rpcmsg_write_to_fd(&req,con->fd) < 0){
+      perror("error on calling fn");
+      return 1;
+   }
+   free(req.payload);
+   rpctypes_free(args,rpctypes_len);
+   if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
+      perror("error on recive");
+      return 2;
+   };
+   if(ans.msg_type != OK){
+      if(ans.msg_type == LPERM){
+         puts("too low permissions for this function");
+         return LPERM;
+      }
+      if(ans.msg_type == NOFN){
+         puts("no such function");
+         return NOFN;
+      }
+   }
+   memset(&req,0,sizeof(req));
+   req.msg_type = READY;
+   rpcmsg_write_to_fd(&req,con->fd);
+   get_rpcmsg_from_fd(&ans,con->fd);
+   if(ans.msg_type != RET){
+      if(ans.msg_type == BAD){
+         puts("bad function arguments");
+         return BAD;
+      }
+   }
+   buf_to_rpcret(fnret,ans.payload);
+   free(ans.payload);
+   return 0;
 }
