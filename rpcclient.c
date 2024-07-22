@@ -29,34 +29,32 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
 
    /* Create a socket point */
    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-   if (sockfd < 0) {
-      perror("ERROR opening socket");
+   if (sockfd <= 0) {
+      perror("ERROR opening socket");close(sockfd);
       return -1;
    }
 
    server = gethostbyname(host);
 
    if (server == NULL) {
-      fprintf(stderr,"ERROR, no such host\n");
+      fprintf(stderr,"ERROR, no such host\n");close(sockfd);
       return -1;
    }
-
    bzero((char *) &serv_addr, sizeof(serv_addr));
    serv_addr.sin_family = AF_INET;
    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(portno);
-
    /* Now connect to the server */
-   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
       perror("ERROR connecting");
+      close(sockfd);
       return -1;
    }
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
    req.msg_type = CON;
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 2;
    }
    struct rpctype auth = {0};
@@ -68,18 +66,18 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
       free(auth.data);
       free(req.payload);
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 2;
    }
    free(auth.data);
    free(req.payload);
    if(get_rpcmsg_from_fd(&ans,sockfd) != 0){
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 3;
    }
    if(ans.msg_type != OK) {
       free(ans.payload);
-      puts("bad auth");
+      puts("bad auth");close(sockfd);
       return 4;
    }
    arr_to_type(ans.payload,&auth);
