@@ -35,7 +35,7 @@ ssize_t rpc_read(int fd,char* buf,size_t len,struct rpccon* con){
 int main(){
    int perm;
    struct rpccon con;
-   rpcserver_connect("localhost","hello da fuck",2077,&con);
+   rpcserver_connect("localhost","hello world!",2077,&con);
    int fd = rpc_open("keys.txt",O_RDWR,&con);
    char buf[256] = {0};
    rpc_read(fd,buf,256,&con);
