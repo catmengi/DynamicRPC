@@ -13,7 +13,7 @@ int rpc_open(char* pathname,int mode, struct rpccon* con){
     char flag[sizeof(types)/sizeof(types[0])] = {0};
     flag[0] = 0;
     struct rpcret ret = {0};
-    rpcclient_call(con,"open",types,flag,sizeof(types) / sizeof(types[0]),&ret,"keys.txt",O_RDWR);
+    rpcclient_call(con,"open",types,flag,sizeof(types) / sizeof(types[0]),&ret,pathname,mode);
     int retfd = type_to_int32(&ret.ret);
     free(ret.ret.data);
     return retfd;
