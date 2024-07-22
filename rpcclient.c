@@ -32,14 +32,14 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
 
    if (sockfd < 0) {
       perror("ERROR opening socket");
-      exit(1);
+      return -1;
    }
 
    server = gethostbyname(host);
 
    if (server == NULL) {
       fprintf(stderr,"ERROR, no such host\n");
-      exit(0);
+      return -1;
    }
 
    bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -50,7 +50,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    /* Now connect to the server */
    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
       perror("ERROR connecting");
-      exit(1);
+      return -1;
    }
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
