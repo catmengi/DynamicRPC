@@ -145,7 +145,7 @@ struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint8_t rpc
     assert(tque);
     uint8_t res_i = 0;
     for(uint8_t i = 0; i < rpctypes_len; i++){
-        if(res_i <= resargs_len) {
+        if(res_i < resargs_len) {
             if(rpctypes[i].flag == 1){
                 resargs[res_i] = rpctypes[i];
                 res_i++;
