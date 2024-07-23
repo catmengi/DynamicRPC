@@ -153,7 +153,7 @@ int double_to_type(double pdouble,struct rpctype* type){
 char type_to_char(struct rpctype* type){
     char c;
     char* tmp = __type_to_bytearr(type,sizeof(char),CHAR);
-    assert(tmp);
+    if(!tmp) return 0;
     c = *tmp;
     free(tmp);
 
@@ -163,7 +163,7 @@ char type_to_char(struct rpctype* type){
 int16_t type_to_int16(struct rpctype* type){
     int16_t c;
     char* tmp = __type_to_bytearr(type,sizeof(int16_t),INT16);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(int16_t));
     c = be16_to_cpu(c);
     free(tmp);
@@ -173,7 +173,7 @@ int16_t type_to_int16(struct rpctype* type){
 uint16_t type_to_uint16(struct rpctype* type){
     uint16_t c;
     char* tmp = __type_to_bytearr(type,sizeof(uint16_t),UINT16);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(uint16_t));
     c = be16_to_cpu(c);
     free(tmp);
@@ -183,7 +183,7 @@ uint16_t type_to_uint16(struct rpctype* type){
 int32_t type_to_int32(struct rpctype* type){
     int32_t c;
     char* tmp = __type_to_bytearr(type,sizeof(int32_t),INT32);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(int32_t));
     c = be32_to_cpu(c);
     free(tmp);
@@ -193,7 +193,7 @@ int32_t type_to_int32(struct rpctype* type){
 uint32_t type_to_uint32(struct rpctype* type){
     uint32_t c;
     char* tmp = __type_to_bytearr(type,sizeof(uint32_t),UINT32);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(uint32_t));
     c = be32_to_cpu(c);
     free(tmp);
@@ -203,7 +203,7 @@ uint32_t type_to_uint32(struct rpctype* type){
 int64_t type_to_int64(struct rpctype* type){
     int64_t c;
     char* tmp = __type_to_bytearr(type,sizeof(int64_t),INT64);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(int64_t));
     c = be64_to_cpu(c);
     free(tmp);
@@ -213,7 +213,7 @@ int64_t type_to_int64(struct rpctype* type){
 uint64_t type_to_uint64(struct rpctype* type){
     uint64_t c;
     char* tmp = __type_to_bytearr(type,sizeof(uint64_t),UINT64);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(uint64_t));
     c = be64_to_cpu(c);
     free(tmp);
@@ -223,7 +223,7 @@ uint64_t type_to_uint64(struct rpctype* type){
 float type_to_float(struct rpctype* type){
     float c;
     char* tmp = __type_to_bytearr(type,sizeof(float),FLOAT);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(float));
     c = be32_to_cpu(c);
     free(tmp);
@@ -234,7 +234,7 @@ float type_to_float(struct rpctype* type){
 double type_to_double(struct rpctype* type){
     double c;
     char* tmp = __type_to_bytearr(type,sizeof(double),DOUBLE);
-    assert(tmp);
+    if(!tmp) return 0;
     memcpy(&c,tmp,sizeof(double));
     c = be64_to_cpu(c);
     free(tmp);

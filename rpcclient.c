@@ -18,7 +18,6 @@ struct rpccon{
    int fd;
    int perm;
 };
-
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(!host || !key)
       return -1;
@@ -29,34 +28,32 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
 
    /* Create a socket point */
    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-   if (sockfd < 0) {
-      perror("ERROR opening socket");
+   if (sockfd <= 0) {
+      perror("ERROR opening socket");close(sockfd);
       return -1;
    }
 
    server = gethostbyname(host);
 
    if (server == NULL) {
-      fprintf(stderr,"ERROR, no such host\n");
+      fprintf(stderr,"ERROR, no such host\n");close(sockfd);
       return -1;
    }
-
    bzero((char *) &serv_addr, sizeof(serv_addr));
    serv_addr.sin_family = AF_INET;
    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(portno);
-
    /* Now connect to the server */
-   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
       perror("ERROR connecting");
+      close(sockfd);
       return -1;
    }
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
    req.msg_type = CON;
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 2;
    }
    struct rpctype auth = {0};
@@ -68,18 +65,18 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
       free(auth.data);
       free(req.payload);
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 2;
    }
    free(auth.data);
    free(req.payload);
    if(get_rpcmsg_from_fd(&ans,sockfd) != 0){
-      perror("connection error");
+      perror("connection error");close(sockfd);
       return 3;
    }
    if(ans.msg_type != OK) {
       free(ans.payload);
-      puts("bad auth");
+      puts("bad auth");close(sockfd);
       return 4;
    }
    arr_to_type(ans.payload,&auth);
@@ -167,34 +164,27 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    req.msg_type = CALL;
    req.payload = rpccall_to_buf(&call,&req.payload_len);
    if(rpcmsg_write_to_fd(&req,con->fd) < 0){
-      perror("error on calling fn");
+      rpctypes_free(args,rpctypes_len);
+      free(req.payload);
       return 1;
    }
    free(req.payload);
    rpctypes_free(args,rpctypes_len);
    if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
-      perror("error on recive");
       return 2;
    };
    if(ans.msg_type != OK){
-      if(ans.msg_type == LPERM){
-         puts("too low permissions for this function");
-         return LPERM;
-      }
-      if(ans.msg_type == NOFN){
-         puts("no such function");
-         return NOFN;
-      }
+      return ans.msg_type;
    }
    memset(&req,0,sizeof(req));
    req.msg_type = READY;
    rpcmsg_write_to_fd(&req,con->fd);
    get_rpcmsg_from_fd(&ans,con->fd);
    if(ans.msg_type != RET){
-      if(ans.msg_type == BAD){
-         puts("bad function arguments");
-         return BAD;
-      }
+      if(ans.msg_type == DISCON){
+          close(con->fd);
+          return DISCON;
+      }else return ans.msg_type;
    }
    buf_to_rpcret(fnret,ans.payload);
    free(ans.payload);

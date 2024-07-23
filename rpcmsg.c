@@ -18,7 +18,7 @@ ssize_t rpcmsg_write_to_fd(struct rpcmsg* msg, int fd){
     uint64_t be64_payload_len = cpu_to_be64(msg->payload_len);
     char type = msg->msg_type;
     ssize_t sent = 0;
-    if(errno != 0) return -1;
+    errno = 0;
     sent += send(fd, &type, sizeof(char),MSG_NOSIGNAL);
     if(errno != 0) return -1;
     sent += send(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL);
@@ -43,7 +43,7 @@ int get_rpcmsg_from_fd(struct rpcmsg* msg ,int fd){
     char type;
     recv(fd,&type,sizeof(char),MSG_NOSIGNAL);
     msg->msg_type = type;
-    uint64_t be64_payload_len;
+    uint64_t be64_payload_len = 0;
     recv(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL);
     msg->payload_len = be64_to_cpu(be64_payload_len);
     msg->payload = NULL;
