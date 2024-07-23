@@ -510,10 +510,7 @@ void* rpcserver_client_thread(void* arg){
                                             goto exit;
                                         }
                                         rpcmsg_write_to_fd(&repl,thrd->client_fd);
-                                        if(ret.resargs == NULL)
-                                            rpctypes_free(call.args,call.args_amm);
-                                        else
-                                            rpctypes_free(ret.resargs,ret.resargs_amm);
+                                        rpctypes_free(ret.resargs,ret.resargs_amm);
                                         free(repl.payload);
                                         if(ret.ret.data) free(ret.ret.data);
                                         break;
