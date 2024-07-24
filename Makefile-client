@@ -1,2 +1,0 @@
-default:
-	gcc -g  -o testc hashtable.c/hashtable.c rpcclient.c rpcbuff.c tqueque/tqueque.c rpcpack.c rpcmsg.c rpccall.c testclient.c -Wall #-fsanitize=address
