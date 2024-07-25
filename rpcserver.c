@@ -408,17 +408,17 @@ void* rpcserver_client_thread(void* arg){
     if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
         struct rpctype type;
-        char* credbuf = unpack_sizedbuf_type(arr_to_type(gotmsg.payload,&type),&credlen);
+        uint64_t hash = type_to_uint64(arr_to_type(gotmsg.payload,&type));
         free(gotmsg.payload);
-        if(credbuf != NULL){
+        if(hash != 0){
             int* gotusr = NULL;
-            if(hashtable_get(thrd->serv->users,credbuf,credlen,(void**)&gotusr) == 0){
+            if(hashtable_get_by_hash(thrd->serv->users,hash,(void**)&gotusr) == 0){
                 assert(gotusr);
                 is_authed = 1;
                 user_perm = *gotusr;
             }
         }
-        free(credbuf);
+        free(type.data);
         if(is_authed){
             repl.msg_type = OK;
             struct rpctype perm = {0};

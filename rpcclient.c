@@ -18,6 +18,16 @@ struct rpccon{
    int fd;
    int perm;
 };
+
+uint64_t _hash_fnc(char* str,uint32_t keylen){
+  uint64_t h = (525201411107845655ull);
+  for (int i =0; i < keylen; i++,str++){
+        h ^= *str;
+        h *= 0x5bd1e9955bd1e995;
+        h ^= h >> 47;
+  }
+  return h;
+}
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(!host || !key)
       return -1;
@@ -57,7 +67,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
       return 2;
    }
    struct rpctype auth = {0};
-   create_sizedbuf_type(key,strlen(key) + 1,0,&auth);
+   uint64_to_type(_hash_fnc(key,strlen(key) + 1),&auth);
    req.msg_type = AUTH;
    req.payload = malloc((req.payload_len = type_buflen(&auth)));
    assert(req.payload);

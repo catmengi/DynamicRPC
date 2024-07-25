@@ -26,3 +26,4 @@ int hashtable_remove_entry(hashtable_t ht,char* key,uint32_t keylen);           
 void hashtable_free(hashtable_t ht);                                                                                        /*remove hashtable and free all keys, dont affect data*/
 
 int hashtable_iterate(struct hashtable* ht,void (*callback)(void* vptr));
+int hashtable_get_by_hash(struct hashtable* ht, uint64_t hash, void** out);
