@@ -9,7 +9,7 @@
 
 int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type){
     assert(rpcbuff);
-    size_t buflen = 0;
+    uint64_t buflen = 0;
     type->type = RPCBUFF;
     type->flag = flag;
     type->data = rpcbuff_to_arr(rpcbuff,&buflen);

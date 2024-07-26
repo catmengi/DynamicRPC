@@ -4,6 +4,7 @@
 #define RPCTYPES_H
 #include "rpctypes.h"
 #endif
+#define RPCPACK_H
 struct packdim_arr{
     uint64_t len;
     char* data;

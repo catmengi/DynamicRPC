@@ -3,6 +3,7 @@
 #define RPCTYPES_H
 #include "rpctypes.h"
 #endif
+#define RPCCALL_H
 struct rpccall{
     char* fn_name;
     uint8_t args_amm;

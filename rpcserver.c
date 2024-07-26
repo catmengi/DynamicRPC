@@ -1,5 +1,9 @@
 #include "rpcserver.h"
+#ifndef RPCPACK_H
 #include "rpcpack.h"
+#endif
+#include <unistd.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -18,6 +22,7 @@
 #define DEFAULT_CLIENT_TIMEOUT 1
 #define DEFAULT_MAXIXIMUM_CLIENT 512
 #define _GNU_SOURCE
+#define RPCSERVER
 
 enum rpctypes* ffi_types_to_rpctypes(ffi_type** ffi_types, size_t ffi_types_amm){
     if(!ffi_types) return NULL;
@@ -105,13 +110,18 @@ struct rpcserver* rpcserver_create(uint16_t port){
     struct sockaddr_in address;
     int opt = 1;
     // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP)) < 0) {
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
+    int status = fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_NONBLOCK);
 
+    if (status == -1){
+    perror("calling fcntl");
+    // handle the error.  By the way, I've never seen fcntl fail in this way
+    }
     if (setsockopt(server_fd, SOL_SOCKET,
-                SO_REUSEADDR | SO_REUSEPORT, &opt,
+                SO_REUSEADDR, &opt,
                 sizeof(opt))) {
         perror("setsockopt");
         exit(EXIT_FAILURE);

@@ -9,7 +9,7 @@
 #include <string.h>
 #include "rpctypes.h"
 
-struct rpcbuff* rpcbuff_create(size_t* dimsizes,size_t dimsizes_len,size_t lastdim_len){
+struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len){
     struct __rpcbuff_el* md_array = calloc(1,sizeof(struct __rpcbuff_el));
     struct rpcbuff* cont = NULL;
     if(dimsizes != NULL || dimsizes_len == 0){
@@ -18,9 +18,9 @@ struct rpcbuff* rpcbuff_create(size_t* dimsizes,size_t dimsizes_len,size_t lastd
     }
     assert(md_array);
     if(dimsizes_len > 0){
-        cont->dimsizes = calloc(dimsizes_len, sizeof(size_t));
+        cont->dimsizes = calloc(dimsizes_len, sizeof(uint64_t));
         assert(cont->dimsizes);
-        memcpy(cont->dimsizes,dimsizes, sizeof(size_t) *dimsizes_len);
+        memcpy(cont->dimsizes,dimsizes, sizeof(uint64_t) *dimsizes_len);
     }
     cont->dimsizes_len = dimsizes_len;
     cont->start = md_array;
@@ -29,14 +29,14 @@ struct rpcbuff* rpcbuff_create(size_t* dimsizes,size_t dimsizes_len,size_t lastd
         struct tqueque* que = tqueque_create();
         assert(que);
         assert(tqueque_push(que,md_array,sizeof(struct __rpcbuff_el*),NULL) == 0);
-        for(size_t i = 0; i < dimsizes_len; i++){
+        for(uint64_t i = 0; i < dimsizes_len; i++){
             struct __rpcbuff_el* cur = NULL;
-            size_t iter = tqueque_get_tagamm(que,NULL);
-            for(size_t j = 0; j < iter; j++){
+            uint64_t iter = tqueque_get_tagamm(que,NULL);
+            for(uint64_t j = 0; j < iter; j++){
                 cur = tqueque_pop(que,NULL,NULL);
                 cur->childs = calloc(dimsizes[i],sizeof(struct __rpcbuff_el));
                 assert(cur->childs);
-                for(size_t k = 0; k <dimsizes[i]; k++){
+                for(uint64_t k = 0; k <dimsizes[i]; k++){
                     assert(tqueque_push(que,&cur->childs[k], sizeof(struct __rpcbuff_el*), NULL) == 0);
                 }
             }
@@ -59,12 +59,12 @@ void _rpcbuff_free(struct rpcbuff* rpcbuff){
     struct tqueque* fque = tqueque_create();
     assert(tque != NULL && fque != NULL);
     tqueque_push(tque,rpcbuff->start,sizeof(struct __rpcbuff_el*),NULL);
-    for(size_t i = 0; i < rpcbuff->dimsizes_len; i++){
-        size_t iter = tqueque_get_tagamm(tque,NULL);
-        for(size_t j = 0; j < iter; j++){
+    for(uint64_t i = 0; i < rpcbuff->dimsizes_len; i++){
+        uint64_t iter = tqueque_get_tagamm(tque,NULL);
+        for(uint64_t j = 0; j < iter; j++){
             struct __rpcbuff_el* cur = tqueque_pop(tque,NULL,NULL);
             tqueque_push(fque,cur->childs,sizeof(struct __rpcbuff_el*),NULL);
-            for(size_t k = 0; k < rpcbuff->dimsizes[i]; k++){
+            for(uint64_t k = 0; k < rpcbuff->dimsizes[i]; k++){
                 if(cur->childs[k].endpoint != NULL)  tqueque_push(fque,cur->childs[k].endpoint,sizeof(struct __rpcbuff_el*),NULL);
                 tqueque_push(tque,&cur->childs[k],sizeof(struct __rpcbuff_el*),NULL);
             }
@@ -81,13 +81,13 @@ void _rpcbuff_free(struct rpcbuff* rpcbuff){
     free(rpcbuff->dimsizes);
     free(rpcbuff);
 }
-char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, size_t* index, size_t index_len,size_t* outlen){
+char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen){
     assert(rpcbuff);
     assert(rpcbuff->start);
     if(rpcbuff->dimsizes_len != index_len) return NULL;
     if(rpcbuff->dimsizes_len != 0 && index == NULL) return NULL;
     struct __rpcbuff_el* cur = rpcbuff->start;
-    for(size_t i = 0; i < rpcbuff->dimsizes_len; i++){
+    for(uint64_t i = 0; i < rpcbuff->dimsizes_len; i++){
         if(index[i] >= rpcbuff->dimsizes[i]) return NULL;
         cur = &cur->childs[index[i]];
     }
@@ -100,20 +100,20 @@ char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, size_t* index, size_t index
     if(outlen) *outlen = cur->elen;
     return cur->endpoint;
 }
-struct __rpcbuff_el* __rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, size_t* index, size_t index_len){
+struct __rpcbuff_el* __rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len){
     assert(rpcbuff);
     assert(rpcbuff->start);
     if(rpcbuff->dimsizes_len != index_len) return NULL;
     if(rpcbuff->dimsizes_len != 0 && index == NULL) return NULL;
     struct __rpcbuff_el* cur = rpcbuff->start;
-    for(size_t i = 0; i < rpcbuff->dimsizes_len; i++){
+    for(uint64_t i = 0; i < rpcbuff->dimsizes_len; i++){
         if(index[i] >= rpcbuff->dimsizes[i]) return NULL;
         cur = &cur->childs[index[i]];
     }
     if(cur == NULL) return NULL;
     return cur;
 }
-int rpcbuff_pushto(struct rpcbuff* rpcbuff, size_t* index, size_t index_len, char* data, size_t data_len){
+int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, char* data, uint64_t data_len){
     assert(rpcbuff);
     struct __rpcbuff_el* got = __rpcbuff_el_getlast_from(rpcbuff,index,index_len);
     assert(got);
@@ -133,10 +133,10 @@ int rpcbuff_pushto(struct rpcbuff* rpcbuff, size_t* index, size_t index_len, cha
 }
 struct _prpcbuff_dim{
     char* data;
-    size_t elen;
+    uint64_t elen;
     struct _prpcbuff_dim* next;
 };
-char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,size_t* buflen){
+char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,uint64_t* buflen){
     assert(rpcbuff);
     struct tqueque* tque = tqueque_create();
     struct tqueque* fque = tqueque_create();
@@ -145,11 +145,11 @@ char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,size_t* buflen){
     if(rpcbuff->dimsizes_len == 0 || rpcbuff->dimsizes == NULL){
         tqueque_push(fque,rpcbuff->start,sizeof(struct __rpcbuff_el*),NULL);
     }
-    for(size_t i = 0; i < rpcbuff->dimsizes_len; i++){
-        size_t iter = tqueque_get_tagamm(tque,NULL);
-        for(size_t j = 0; j < iter; j++){
+    for(uint64_t i = 0; i < rpcbuff->dimsizes_len; i++){
+        uint64_t iter = tqueque_get_tagamm(tque,NULL);
+        for(uint64_t j = 0; j < iter; j++){
             struct __rpcbuff_el* cur = tqueque_pop(tque,NULL,NULL);
-            for(size_t k = 0; k < rpcbuff->dimsizes[i]; k++){
+            for(uint64_t k = 0; k < rpcbuff->dimsizes[i]; k++){
                 if(cur->childs[k].endpoint != NULL) tqueque_push(fque,&cur->childs[k],sizeof(struct __rpcbuff_el*),NULL);
                 tqueque_push(tque,&cur->childs[k],sizeof(struct __rpcbuff_el*),NULL);
             }
@@ -172,7 +172,7 @@ char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,size_t* buflen){
             cur->elen = fcur->elen;
         }
         cur = start;
-        size_t outbuflen = sizeof(uint64_t)+sizeof(uint64_t)+(sizeof(uint64_t) * (rpcbuff->dimsizes_len)) + 1;
+        uint64_t outbuflen = sizeof(uint64_t)+sizeof(uint64_t)+(sizeof(uint64_t) * (rpcbuff->dimsizes_len)) + 1;
         while(cur){
             if(cur->data == (char*)0xCAFE) outbuflen++;
             else outbuflen += (sizeof(uint64_t) + cur->elen + 1);
@@ -190,7 +190,7 @@ char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,size_t* buflen){
         servdata += sizeof(uint64_t);
         memcpy(servdata, &lastdim_len_be64, sizeof(uint64_t));
         servdata += sizeof(uint64_t);
-        for(size_t i = 0; i <rpcbuff->dimsizes_len; i++){
+        for(uint64_t i = 0; i <rpcbuff->dimsizes_len; i++){
             uint64_t be64 = cpu_to_be64(rpcbuff->dimsizes[i]);
             memcpy(servdata, &be64, sizeof(uint64_t));
             servdata += sizeof(uint64_t);
@@ -224,8 +224,8 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
     uint64_t lastdim_len_be64; memcpy(&lastdim_len_be64,buf,sizeof(uint64_t));
     buf += sizeof(uint64_t);
     uint64_t lastdim_len = be64_to_cpu(lastdim_len_be64);
-    size_t dimdata[dimsizes_len];
-    for(size_t i = 0; i < dimsizes_len; i++){
+    uint64_t dimdata[dimsizes_len];
+    for(uint64_t i = 0; i < dimsizes_len; i++){
         uint64_t be64;memcpy(&be64, buf, sizeof(uint64_t));
         buf += sizeof(uint64_t);
         dimdata[i] = be64_to_cpu(be64);
@@ -238,11 +238,11 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
         tqueque_push(fque,rpcbuff->start,sizeof(struct __rpcbuff_el*),NULL);
     }
     tqueque_push(tque,rpcbuff->start,sizeof(struct __rpcbuff_el*),NULL);
-    for(size_t i = 0; i < rpcbuff->dimsizes_len; i++){
-        size_t iter = tqueque_get_tagamm(tque,NULL);
-        for(size_t j = 0; j < iter; j++){
+    for(uint64_t i = 0; i < rpcbuff->dimsizes_len; i++){
+        uint64_t iter = tqueque_get_tagamm(tque,NULL);
+        for(uint64_t j = 0; j < iter; j++){
             struct __rpcbuff_el* cur = tqueque_pop(tque,NULL,NULL);
-            for(size_t k = 0; k < rpcbuff->dimsizes[i]; k++){
+            for(uint64_t k = 0; k < rpcbuff->dimsizes[i]; k++){
                 if(cur->childs[k].endpoint != NULL) tqueque_push(fque,&cur->childs[k],sizeof(struct __rpcbuff_el*),NULL);
                 tqueque_push(tque,&cur->childs[k],sizeof(struct __rpcbuff_el*),NULL);
             }
