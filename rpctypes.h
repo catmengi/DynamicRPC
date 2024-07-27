@@ -16,10 +16,6 @@ enum rpctypes{
     SIZEDBUF = 12, //1D array that will pass uint64_t typed value as his len in next arg: "void*, uint64_t"
     PSTORAGE = 13,
     INTERFUNC = 14,
-
-
-
-    SMELLOFSHIT //type is used to determine bad data
 };
 
 struct __rpcbuff_el{
