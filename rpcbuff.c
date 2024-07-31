@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "rpctypes.h"
-
+#include "hashtable.c/hashtable.h"
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len){
     struct __rpcbuff_el* md_array = calloc(1,sizeof(struct __rpcbuff_el));
     struct rpcbuff* cont = NULL;
@@ -265,3 +265,4 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
     tqueque_free(tque); tqueque_free(fque);
     return rpcbuff;
 }
+

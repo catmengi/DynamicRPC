@@ -9,6 +9,8 @@ struct packdim_arr{
     uint64_t len;
     char* data;
 };
+int create_rpcstruct_type(struct rpcstruct* rpcstruct, char flag, struct rpctype* type);
+struct rpcstruct* unpack_rpcstruct_type(struct rpctype* type);
 int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type);
 struct rpcbuff* unpack_rpcbuff_type(struct rpctype* type);
 int create_sizedbuf_type(char* buf, uint64_t buflen, char flag,struct rpctype* type);

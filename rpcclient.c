@@ -98,7 +98,6 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
 }
 int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,struct rpcret* fnret,...){
    va_list vargs;
-   void* tmp; //tmp variable for storing va_arg;
    va_start(vargs, fnret);
    struct rpctype* args = calloc(rpctypes_len,sizeof(*args));
    assert(args);

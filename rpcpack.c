@@ -6,7 +6,22 @@
 #include <assert.h>
 #include <string.h>
 #include <libubox/utils.h>
-
+int create_rpcstruct_type(struct rpcstruct* rpcstruct, char flag, struct rpctype* type){
+    assert(rpcstruct);
+    uint64_t buflen = 0;
+    type->type = RPCSTRUCT;
+    type->flag = flag;
+    type->data = rpcstruct_to_buf(rpcstruct,&buflen);
+    type->datalen = cpu_to_be64(buflen);
+    return 0;
+}
+struct rpcstruct* unpack_rpcstruct_type(struct rpctype* type){
+    assert(type);
+    if(type->type != RPCSTRUCT) return NULL;
+    struct rpcstruct* rpcstruct = malloc(sizeof(*rpcstruct)); assert(rpcstruct);
+    buf_to_rpcstruct(type->data,rpcstruct);
+    return rpcstruct;
+}
 int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type){
     assert(rpcbuff);
     uint64_t buflen = 0;

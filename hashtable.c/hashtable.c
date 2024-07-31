@@ -769,4 +769,19 @@ int hashtable_iterate(struct hashtable* ht,void (*callback)(void* vptr))
     }
     return 0;
 }
-
+int hashtable_iterate_wkey(struct hashtable* ht,void* usr,void (*callback)(char*,void* vptr,void* usr,size_t iter))
+{
+    assert(ht); assert(callback);
+    struct ht_llist* tmp_l = ht->llist_head;
+    size_t iter = 0;
+    while(tmp_l){
+        struct ht_entry* tmp_e = tmp_l->entry;
+        while(tmp_e){
+            callback(tmp_e->key,tmp_e->data,usr,iter);
+            tmp_e = tmp_e->next;
+            iter++;
+        }
+        tmp_l = tmp_l->next;
+    }
+    return 0;
+}
