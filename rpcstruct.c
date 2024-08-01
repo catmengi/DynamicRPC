@@ -166,8 +166,6 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen){
     assert(rpctypes_to_buf(types,rpcstruct->count,packed) == 0);
     rpctypes_free(types,rpcstruct->count);
     *buflen = rpcbuflen;
-    rpcstruct->count = 0;
-    rpcstruct->ht = NULL;
     return packed;
 }
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){

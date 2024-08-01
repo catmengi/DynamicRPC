@@ -411,14 +411,14 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
             if(!buf) break;
             create_rpcstruct_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
-            rpcstruct_free(buf);
+            rpcstruct_free(buf);free(buf);
         }
     }
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
     void* buf = NULL;
     while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) rpcstruct_free(buf);
+    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(_rpcstruct_free);
     free(fnret);
@@ -430,6 +430,8 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
 exit:
     while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
     while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
+    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(rpcbuff_upd);
     for(uint8_t i = 0; i < cfn->nargs; i++){

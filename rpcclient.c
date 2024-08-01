@@ -1,4 +1,5 @@
 #include "rpccall.h"
+#include "hashtable.c/hashtable.h"
 #include "rpcmsg.h"
 #include <assert.h>
 #include <stdint.h>
@@ -19,15 +20,7 @@ struct rpccon{
    int perm;
 };
 
-uint64_t _hash_fnc(char* str,uint32_t keylen){
-  uint64_t h = (525201411107845655ull);
-  for (int i =0; i < keylen; i++,str++){
-        h ^= *str;
-        h *= 0x5bd1e9955bd1e995;
-        h ^= h >> 47;
-  }
-  return h;
-}
+
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(!host || !key)
       return -1;
@@ -39,7 +32,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    /* Create a socket point */
    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
    if (sockfd <= 0) {
-      perror("ERROR opening socket");close(sockfd);
+      close(sockfd);
       return -1;
    }
 
@@ -55,7 +48,6 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    serv_addr.sin_port = htons(portno);
    /* Now connect to the server */
    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
-      perror("ERROR connecting");
       close(sockfd);
       return -1;
    }
@@ -63,7 +55,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    struct rpcmsg ans = {0};
    req.msg_type = CON;
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
-      perror("connection error");close(sockfd);
+      close(sockfd);
       return 2;
    }
    struct rpctype auth = {0};
@@ -75,18 +67,18 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(rpcmsg_write_to_fd(&req,sockfd) == -1){
       free(auth.data);
       free(req.payload);
-      perror("connection error");close(sockfd);
+      close(sockfd);
       return 2;
    }
    free(auth.data);
    free(req.payload);
    if(get_rpcmsg_from_fd(&ans,sockfd) != 0){
-      perror("connection error");close(sockfd);
+      close(sockfd);
       return 3;
    }
    if(ans.msg_type != OK) {
       free(ans.payload);
-      puts("bad auth");close(sockfd);
+      close(sockfd);
       return 4;
    }
    arr_to_type(ans.payload,&auth);
@@ -98,6 +90,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
 }
 int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,struct rpcret* fnret,...){
    va_list vargs;
+   void* tmp; //tmp variable for storing va_arg;
    va_start(vargs, fnret);
    struct rpctype* args = calloc(rpctypes_len,sizeof(*args));
    assert(args);
