@@ -201,4 +201,5 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
 void rpcclient_discon(struct rpccon* con){
    struct rpcmsg msg = {DISCON,0,0,0};
    rpcmsg_write_to_fd(&msg,con->fd);
+   close(con->fd);
 }
