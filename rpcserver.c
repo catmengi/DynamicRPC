@@ -430,7 +430,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
 exit:
     while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
     while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) {rpcstruct_free(buf); free(buf);}
     while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(rpcbuff_upd);
