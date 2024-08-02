@@ -198,3 +198,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    free(ans.payload);
    return 0;
 }
+void rpcclient_discon(struct rpccon* con){
+   struct rpcmsg msg = {DISCON,0,0,0};
+   rpcmsg_write_to_fd(&msg,con->fd);
+}
