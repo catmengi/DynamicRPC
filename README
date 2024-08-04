@@ -1,0 +1,208 @@
+libCRPC is a pure-C rpc client-server framework
+Main features of libCRPC is:
+    - No specific function prototype
+    - Support of ressending arguments of function back to client
+    - Support for unknown dimensity at compile time array with API (rpcbuff)
+    - Support of hashtable-like structs API (rpcstruct)
+    - Usage of libffi for function call
+
+
+Rpc types:
+    header file "rpctypes.h"
+    VOID = 0, //Only for return type! Exist of this in call args will cause assert
+    CHAR = 1,// C char type
+    STR = 2, // C char* type
+    UINT16 = 3, // stdint uint16_t
+    INT16 = 4,  // stdint int16_t
+    UINT32 = 5, // stdint uint32_t
+    INT32 = 6,  // stdint int32_t
+    UINT64 = 7, // stdint uint64_t
+    INT64 = 8,  // stdint int64_t
+    FLOAT = 9,  // C float
+    DOUBLE = 10,// C double
+    RPCBUFF = 11,
+    SIZEDBUF = 12, //1D array that will pass uint64_t typed value as his len in next arg: "char*, uint64_t", in server function proto UINT64 must be next e.g "SIZEDBUF,UINT64"
+    on client just "SIZEDBUF"
+
+    PSTORAGE = 13, //Function local storage, void*
+    INTERFUNC = 14,//Storage global for all functions, void*
+    RPCSTRUCT = 15 //Rpcstruct
+
+Server API:
+    header file "rpcserver.h"
+    struct rpcserver* rpcserver_create(uint16_t port);  "allocate and create server at specified port"
+
+    void rpcserver_start(struct rpcserver* rpcserver);  "create server threads and start it"
+
+    void rpcserver_free(struct rpcserver* serv);        "stop and deallocates server"
+
+    int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
+                            enum rpctypes rtype, enum rpctypes* argstype,
+                            uint8_t argsamm, void* pstorage,int perm);
+    "
+    registrate function pointer in server with following things:
+        - fn_name: name of function visible on client side
+        - rtype: function return type
+        - argstype: function prototype array
+        - pstorage: local storage for PSTORAGE type, this storage is only for this function
+        - perm: function permission, -1 is a root perm, if client permission lower than function req server will reject this call
+    Return 0 on success
+    "
+
+
+    void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name); "de-registers following fn"
+
+    void rpcserver_load_keys(struct rpcserver* serv, char* filename); "Load keys for server with following format ("key"perm) e.g "hello?"123   "
+
+
+Client API:
+    header file: "rpcclient.h"
+
+    struct rpcret{
+        uint8_t resargs_amm;
+        struct rpctype* resargs; /*args that was resended*/
+        struct rpctype ret; /*libffi limitations support only one ret*/
+    };
+
+
+    int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con);
+    "
+    This functions connects to server at host,portno with key, fd and your perm will be stored into con
+        - host: ip or domen of server
+        - key: your key on server, based on it you you'll get perm or be disconned
+        - portno: TCP port of server
+        - con: output pointer ti rpccon struct
+    Return 0 on success
+    "
+
+    int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,struct rpcret* fnret,...);
+    "
+    This function calls function specified by fn on the server
+        - con: connected rpcserver
+        - fn: fn name on server
+        - rpctypes: function prototype used to get data from varargs
+        - flags: flags array for ressending supported types "str,sizedbuf,rpcbuff,rpcstruct", must be same size as rpctypes
+        - rpctypes_len: len of rpctypes and flags
+        - fnret: structure for rpc function return and resent args, ret need to be unpacked manualy
+        - varagrs: values or pointers of data that needs to be packed and passed to rpc server
+                   NOTE: SIZEDBUF is needs to be passed to varargs as char*,uint64_t (esp32 version, uint32_t)
+    "
+
+    void rpcclient_discon(struct rpccon* con); "disconnects from server and closes FD"
+
+
+
+
+Rpcbuff API:
+    header file: "rpctypes.h"
+
+    struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len);
+    "
+    creates and returns rpcbuff struct:
+        - dimsizes: array that describes size of dimensions
+        - dimsizes_len: ammount of dimensions
+        - lastdim_len: default endpoint len if it wasnt pushed previosly
+    "
+
+    char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen);
+    "
+    get endpoint of array at dimension specified by index
+        - index: array that specify dimension
+        - index_len: len of index
+        - outlen: output pointer, here will be passed len of specified endpoint
+    return endpoint
+    "
+
+    int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, char* data, uint64_t data_len);
+    "
+    Pushes data array to rpcbuff and copy it (original can be edited or freed)
+        - index: array that specify dimension
+        - index_len: len of index
+        - data: data array that will be pushed to rpcbuff,
+        - data_len: len of data
+    return 0 on success
+    "
+
+    void _rpcbuff_free(struct rpcbuff* rpcbuff); "Free rpcbuff, MUST NOT BE CALLED FROM RPCSERVER CALLEE FUNCTION"
+
+
+Rpcstruct API:
+    header file: "rpctypes.h"
+
+    void rpcstruct_free(struct rpcstruct* rpcstruct); "Frees internals of rpcstruct since it may be allocated on stack, if it was on heap free rpcstruct pointer yourself"
+
+    char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, uint64_t* fields_len); "Returns fields of rpcstruct, fields_len is out pointer that will contain ammount of fields"
+
+    int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key); "Remove field immedialty, return 0 on success"
+
+    int rpcstruct_set_flag(struct rpcstruct* rpcstruct, char* key, char flag);
+    "Set flag of type contained in rpcstruct, if flag was set to zero that type will not be in packed rpcstruct on resend args or return"
+
+    int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
+    "
+    Get value at key in rpcstruct
+        - key: key of value
+        - type: type of value at key
+        - out: output pointer for value stored at key
+        - obuflen: output len of sizedbuf type ONLY
+    return 0 on success
+    "
+    int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
+    "
+    Set value from arg to key, arg will be packed automaticly
+        - key: key of value
+        - type: type of value used to pack arg
+        - arg: pointer to type that will be packed
+        - typelen: len of sizedbuf ONLY
+    return 0 on success
+    "
+
+    int rpcstruct_create(struct rpcstruct* rpcstruct);
+    "
+    Allocates internals of rpcstruct
+        - rpcstruct: pointer to rpcstruct which internals will be allocated, can be on stack
+    return 0 on stack
+    "
+
+
+
+Rpc pack API:
+    header file "rpcpack.h"
+
+    This functions packs data to rpctype
+    First argument is type to be packed
+    - type: - rpctype* output pointer,
+    - flag: 1 if rpctype must be resent
+    - SIZEDBUF ONLY: len, this parametr indicates len of packed data
+    Return 0 on success
+        int create_rpcstruct_type(struct rpcstruct* rpcstruct, char flag, struct rpctype* type);
+        int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type);
+        int create_sizedbuf_type(char* buf, uint64_t buflen, char flag,struct rpctype* type);
+        int create_str_type(char* str,char flag,struct rpctype* type);
+        int char_to_type(char c,struct rpctype* type);
+        int int16_to_type(int16_t i16,struct rpctype* type);
+        int uint16_to_type(uint16_t i16,struct rpctype* type);
+        int int32_to_type(int32_t i32,struct rpctype* type);
+        int uint32_to_type(uint32_t i32,struct rpctype* type);
+        int int64_to_type(uint64_t i64,struct rpctype* type);
+        int uint64_to_type(int64_t i64,struct rpctype* type);
+        int float_to_type(float pfloat,struct rpctype* type);
+        int double_to_type(double pdouble,struct rpctype* type);
+
+    This functions unpacks data from rpctype
+    First argument is type that needs to be unpacked(type)
+    - SIZEDBUF ONLY: len: output pointer that will store len of sizedbuf
+    return value or pointer
+        char type_to_char(struct rpctype* type);
+        int16_t type_to_int16(struct rpctype* type);
+        uint16_t type_to_uint16(struct rpctype* type);
+        int32_t type_to_int32(struct rpctype* type);
+        uint32_t type_to_uint32(struct rpctype* type);
+        int64_t type_to_int64(struct rpctype* type);
+        uint64_t type_to_uint64(struct rpctype* type);
+        float type_to_float(struct rpctype* type);
+        double type_to_double(struct rpctype* type);
+        struct rpcstruct* unpack_rpcstruct_type(struct rpctype* type);
+        struct rpcbuff* unpack_rpcbuff_type(struct rpctype* type);
+        void* unpack_sizedbuf_type(struct rpctype* type,uint64_t* len);
+        char* unpack_str_type(struct rpctype* type);
