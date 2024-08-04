@@ -115,12 +115,6 @@ struct rpcserver* rpcserver_create(uint16_t port){
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
-    int status = fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_NONBLOCK);
-
-    if (status == -1){
-    perror("calling fcntl");
-    // handle the error.  By the way, I've never seen fcntl fail in this way
-    }
     if (setsockopt(server_fd, SOL_SOCKET,
                 SO_REUSEADDR, &opt,
                 sizeof(opt))) {
@@ -175,6 +169,7 @@ void rpcserver_free(struct rpcserver* serv){
     serv->interfunc = NULL;
     free(serv->reliverargs);
     pthread_mutex_unlock(&serv->edit);
+    shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
     pthread_join(serv->accept_thread,NULL);
     pthread_join(serv->reliver,NULL);
@@ -622,7 +617,7 @@ void* rpcserver_dispatcher(void* vserv){
     while(serv->stop == 0){
         if(serv->clientcount < DEFAULT_MAXIXIMUM_CLIENT){
             fd = accept(serv->sfd, (struct sockaddr*)&addr,&addrlen);
-                if(fd < 0) {usleep(10000);continue;}
+                if(fd < 0) break;
                 printf("%s: got client from %s\n",__PRETTY_FUNCTION__,inet_ntoa(addr.sin_addr));
                 serv->is_incon = 1;
                 struct rpcmsg msg = {0};
