@@ -583,7 +583,7 @@ void* rpcserver_dispatcher_reliver(void* args){
     void** rargs = args;
     struct rpcserver* serv = (struct rpcserver*)rargs[0];
     int sleep_iter = 0;
-    while(1 && serv->stop == 0){
+    while(serv->stop == 0){
         if(serv->is_incon != 0){
             int* fd = serv->reliverargs[1];
             printf("%s: server picked up client, now waiting\n",__PRETTY_FUNCTION__);
@@ -614,7 +614,7 @@ void* rpcserver_dispatcher(void* vserv){
     serv->reliverargs[1] = &fd;
     unsigned int addrlen = 0;
     printf("%s: dispatcher started\n",__PRETTY_FUNCTION__);
-    while(1){
+    while(serv->stop == 0){
         if(serv->clientcount < DEFAULT_MAXIXIMUM_CLIENT){
             fd = accept(serv->sfd, (struct sockaddr*)&addr,&addrlen);
                 if(fd < 0) break;
