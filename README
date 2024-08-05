@@ -75,7 +75,7 @@ Client API:
     Return 0 on success
     "
 
-    int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,struct rpcret* fnret,...);
+    int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...);
     "
     This function calls function specified by fn on the server
         - con: connected rpcserver
@@ -83,9 +83,10 @@ Client API:
         - rpctypes: function prototype used to get data from varargs
         - flags: flags array for ressending supported types "str,sizedbuf,rpcbuff,rpcstruct", must be same size as rpctypes
         - rpctypes_len: len of rpctypes and flags
-        - fnret: structure for rpc function return and resent args, ret need to be unpacked manualy
+        - fnret: is a pointer to function return variable
         - varagrs: values or pointers of data that needs to be packed and passed to rpc server
                    NOTE: SIZEDBUF is needs to be passed to varargs as char*,uint64_t (esp32 version, uint32_t)
+                   NOTE N2: resent args will be unpacked and updated automaticly
     "
 
     void rpcclient_discon(struct rpccon* con); "disconnects from server and closes FD"
