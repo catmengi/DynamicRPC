@@ -155,7 +155,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
          char* ch = va_arg(vargs,char*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
-         if(flag == 1) resargs_upd[j] = ch; j++;
+         if(flag == 1) {resargs_upd[j] = ch; j++;}
          create_str_type(ch,flag,&args[i]);
          continue;
       }
@@ -163,8 +163,8 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
          char* ch = va_arg(vargs,char*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
-         if(flag == 1) resargs_upd[j] = ch; j++;
-         uint64_t buflen = va_arg(vargs,uint64_t);
+         if(flag == 1) {resargs_upd[j] = ch; j++;}
+         uint64_t buflen = va_arg(vargs,unsigned int);
          create_sizedbuf_type(ch,buflen,flag,&args[i]);
          continue;
       }
@@ -173,7 +173,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
          assert(flags);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
-         if(flag == 1) resargs_upd[j] = buf; j++;
+         if(flag == 1) {resargs_upd[j] = buf; j++;}
          create_rpcbuff_type(buf,flag,&args[i]);
          continue;
       }
@@ -182,10 +182,9 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
          assert(flags);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
-         if(flag == 1) resargs_upd[j] = buf; j++;
+         if(flag == 1) {resargs_upd[j] = buf; j++;}
          create_rpcstruct_type(buf,flag,&args[i]);
          continue;
-      }
    }
    struct rpccall call = {fn,rpctypes_len,args};
    struct rpcmsg req = {0};
