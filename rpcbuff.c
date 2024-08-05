@@ -53,7 +53,7 @@ struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t
     assert(md_array->endpoint);
     return cont;
 }
-void _rpcbuff_free(struct rpcbuff* rpcbuff){
+void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff){
     assert(rpcbuff);
     struct tqueque* tque = tqueque_create();
     struct tqueque* fque = tqueque_create();
@@ -79,8 +79,12 @@ void _rpcbuff_free(struct rpcbuff* rpcbuff){
     tqueque_free(fque);
     free(rpcbuff->start);
     free(rpcbuff->dimsizes);
+}
+void _rpcbuff_free(struct rpcbuff* rpcbuff){
+    __rpcbuff_free_N_F_C(rpcbuff);
     free(rpcbuff);
 }
+
 char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen){
     assert(rpcbuff);
     assert(rpcbuff->start);

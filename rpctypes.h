@@ -60,3 +60,4 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
 int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
 int rpcstruct_create(struct rpcstruct* rpcstruct);
+void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff);

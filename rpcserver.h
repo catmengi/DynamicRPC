@@ -4,6 +4,7 @@
 #include <stddef.h>
 #ifndef RPCCALL_H
 #define RPCCALL_H
+#pragma  once
 #include "rpccall.h"
 #endif
 #include <ffi.h>
