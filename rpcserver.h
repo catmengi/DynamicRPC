@@ -44,6 +44,7 @@ struct client_thread{
 struct rpcserver* rpcserver_create(uint16_t port);
 void rpcserver_start(struct rpcserver* rpcserver);
 void rpcserver_free(struct rpcserver* serv);
+void rpcserver_stop(struct rpcserver* serv);
 
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
                           enum rpctypes rtype, enum rpctypes* argstype,
