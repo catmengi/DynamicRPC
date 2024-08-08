@@ -1,7 +1,7 @@
+#pragma once
 #include <stdint.h>
 #ifndef RPCTYPES_H
 #define RPCTYPES_H
-#pragma once
 #include "rpctypes.h"
 #endif
 #define RPCCALL_H
