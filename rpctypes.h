@@ -1,3 +1,4 @@
+#pragma once
 #include <stdint.h>
 #include <sys/types.h>
 #include "hashtable.c/hashtable.h"
