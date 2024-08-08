@@ -185,6 +185,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
          if(flag == 1) {resargs_upd[j] = buf; j++;}
          create_rpcstruct_type(buf,flag,&args[i]);
          continue;
+      }
    }
    struct rpccall call = {fn,rpctypes_len,args};
    struct rpcmsg req = {0};
