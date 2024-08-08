@@ -36,6 +36,8 @@ Server API:
 
     void rpcserver_free(struct rpcserver* serv);        "stop and deallocates server"
 
+    void rpcserver_stop(struct rpcserver* serv);        "stops but DONT deallocates server"
+
     int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
                             enum rpctypes rtype, enum rpctypes* argstype,
                             uint8_t argsamm, void* pstorage,int perm);
