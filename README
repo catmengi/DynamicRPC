@@ -1,5 +1,5 @@
 DynamicRPC is a pure-C rpc client-server framework
-Main features of libCRPC is:
+Main features of DynamicRPC is:
     - No specific function prototype
     - Support of ressending arguments of function back to client
     - Support for unknown dimensity at compile time array with API (rpcbuff)
