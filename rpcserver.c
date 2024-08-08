@@ -139,6 +139,7 @@ struct rpcserver* rpcserver_create(uint16_t port){
     return rpcserver;
 }
 void rpcserver_start(struct rpcserver* rpcserver){
+    rpcserver->stop = 0;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     rpcserver->reliverargs = malloc(sizeof(void*) * 2);
