@@ -175,6 +175,18 @@ void rpcserver_free(struct rpcserver* serv){
     pthread_join(serv->reliver,NULL);
     free(serv);
 }
+void rpcserver_stop(struct rpcserver* serv){
+    if(!serv) return;
+    serv->stop = 1;
+    while(serv->clientcount > 0) {printf("%s:clients last:%llu\n",__PRETTY_FUNCTION__,serv->clientcount); sleep(1);}
+    pthread_mutex_lock(&serv->edit);
+    free(serv->reliverargs);
+    pthread_mutex_unlock(&serv->edit);
+    shutdown(serv->sfd,SHUT_RD);
+    close(serv->sfd);
+    pthread_join(serv->accept_thread,NULL);
+    pthread_join(serv->reliver,NULL);
+}
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
                           enum rpctypes rtype, enum rpctypes* argstype,
                           uint8_t argsamm, void* pstorage,int perm){
