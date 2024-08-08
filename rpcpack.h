@@ -1,14 +1,8 @@
+#pragma once
 #include <stdint.h>
 #include <sys/types.h>
-#ifndef RPCTYPES_H
-#define RPCTYPES_H
 #include "rpctypes.h"
-#endif
-#define RPCPACK_H
-struct packdim_arr{
-    uint64_t len;
-    char* data;
-};
+
 int create_rpcstruct_type(struct rpcstruct* rpcstruct, char flag, struct rpctype* type);
 struct rpcstruct* unpack_rpcstruct_type(struct rpctype* type);
 int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type);
