@@ -463,7 +463,6 @@ void* rpcserver_client_thread(void* arg){
                 switch(gotmsg.msg_type){
                     case PING:
                                     free(gotmsg.payload);
-                                    puts("ping");
                                     break;
                     case DISCON:
                                     free(gotmsg.payload);
