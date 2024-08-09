@@ -1,4 +1,5 @@
 #include "rpcserver.h"
+#include <asm-generic/socket.h>
 #ifndef RPCPACK_H
 #include "rpcpack.h"
 #endif
@@ -23,26 +24,6 @@
 #define DEFAULT_MAXIXIMUM_CLIENT 512
 #define _GNU_SOURCE
 #define RPCSERVER
-
-enum rpctypes* ffi_types_to_rpctypes(ffi_type** ffi_types, size_t ffi_types_amm){
-    if(!ffi_types) return NULL;
-    enum rpctypes* out = malloc(ffi_types_amm * sizeof(enum rpctypes));
-    assert(out);
-    for(size_t i = 0; i <ffi_types_amm; i++){
-        if(ffi_types[i] == &ffi_type_void){out[i] = VOID; continue;}
-        if(ffi_types[i] == &ffi_type_sint8){out[i] = CHAR; continue;}
-        if(ffi_types[i] == &ffi_type_uint16){out[i] = UINT16; continue;}
-        if(ffi_types[i] == &ffi_type_sint16){out[i] = INT16; continue;}
-        if(ffi_types[i] == &ffi_type_uint32){out[i] = UINT32; continue;}
-        if(ffi_types[i] == &ffi_type_sint32){out[i] = INT32; continue;}
-        if(ffi_types[i] == &ffi_type_uint64){out[i] = UINT64; continue;}
-        if(ffi_types[i] == &ffi_type_sint64){out[i] = INT64; continue;}
-        if(ffi_types[i] == &ffi_type_float){out[i] = FLOAT; continue;}
-        if(ffi_types[i] == &ffi_type_double){out[i] = DOUBLE; continue;}
-        if(ffi_types[i] == &ffi_type_pointer){out[i] = RPCBUFF; continue;}
-    }
-    return out;
-}
 ffi_type** rpctypes_to_ffi_types(enum rpctypes* rpctypes,size_t rpctypes_amm){
     if(!rpctypes) return NULL;
     ffi_type** out = calloc(rpctypes_amm, sizeof(ffi_type*));
@@ -454,6 +435,10 @@ void* rpcserver_client_thread(void* arg){
     thrd->serv->clientcount++;
     int user_perm = 0;
     int is_authed = 0;
+    struct timeval time;
+    time.tv_sec = 5;
+    time.tv_usec = 0;
+    assert(setsockopt(thrd->client_fd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
     if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
         struct rpctype type;
@@ -487,6 +472,9 @@ void* rpcserver_client_thread(void* arg){
                 struct rpccall call = {0}; struct rpcret ret = {0};
                 if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) < 0) {printf("%s: client disconected badly\n",__PRETTY_FUNCTION__);goto exit;}
                 switch(gotmsg.msg_type){
+                    case PING:
+                                    free(gotmsg.payload);
+                                    break;
                     case DISCON:
                                     free(gotmsg.payload);
                                     printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__);
