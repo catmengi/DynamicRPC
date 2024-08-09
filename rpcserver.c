@@ -119,9 +119,6 @@ void rpcserver_start(struct rpcserver* rpcserver){
     rpcserver->stop = 0;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    rpcserver->reliverargs = malloc(sizeof(void*) * 2);
-    assert(rpcserver->reliverargs);
-    rpcserver->reliverargs[0] = rpcserver;
     if(pthread_create(&rpcserver->accept_thread, &attr,rpcserver_dispatcher,rpcserver)) exit(-1);
     pthread_attr_destroy(&attr);
 }
@@ -144,7 +141,6 @@ void rpcserver_free(struct rpcserver* serv){
     hashtable_free(serv->users);
     serv->fn_ht = NULL;
     serv->interfunc = NULL;
-    free(serv->reliverargs);
     pthread_mutex_unlock(&serv->edit);
     shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
@@ -572,10 +568,8 @@ exit:
 void* rpcserver_dispatcher(void* vserv){
     struct rpcserver* serv = (struct rpcserver*)vserv;
     assert(serv);
-    serv->is_incon = 0;
     struct sockaddr_in addr = {0};
     int fd = 0;
-    serv->reliverargs[1] = &fd;
     unsigned int addrlen = 0;
     printf("%s: dispatcher started\n",__PRETTY_FUNCTION__);
     while(serv->stop == 0){
@@ -604,8 +598,6 @@ void* rpcserver_dispatcher(void* vserv){
                     }else {printf("%s: client not connected\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
                 }else{printf("%s: wrong info from client\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
                 if(msg.payload) free(msg.payload);
-                serv->is_incon = 0;
-
         }else{printf("%s:server overloaded\n",__PRETTY_FUNCTION__); sleep(1);}
     }
     printf("%s: dispatcher stopped\n",__PRETTY_FUNCTION__);
