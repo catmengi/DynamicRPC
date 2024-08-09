@@ -233,6 +233,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
           return DISCON;
       }else return ans.msg_type;
    }
+   pthread_mutex_unlock(&con->send);
    buf_to_rpcret(&ret,ans.payload);
    free(ans.payload);
    assert(resargs_updl == ret.resargs_amm);
@@ -316,7 +317,6 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    free(resargs_upd);
    free(ret.ret.data);
    rpctypes_free(ret.resargs,ret.resargs_amm);
-   pthread_mutex_unlock(&con->send);
    return 0;
 }
 void rpcclient_discon(struct rpccon* con){
