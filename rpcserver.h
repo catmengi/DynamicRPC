@@ -16,9 +16,7 @@ struct rpcserver{
     int sfd;
     int stop;
     pthread_mutex_t edit;
-    int is_incon;
     pthread_t accept_thread;
-    void** reliverargs;
     hashtable_t fn_ht;
     hashtable_t users;
     atomic_ullong clientcount;
