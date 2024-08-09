@@ -152,7 +152,6 @@ void rpcserver_stop(struct rpcserver* serv){
     serv->stop = 1;
     while(serv->clientcount > 0) {printf("%s:clients last:%llu\n",__PRETTY_FUNCTION__,serv->clientcount); sleep(1);}
     pthread_mutex_lock(&serv->edit);
-    free(serv->reliverargs);
     pthread_mutex_unlock(&serv->edit);
     shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
