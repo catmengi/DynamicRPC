@@ -79,7 +79,6 @@ enum rpctypes ffi_type_to_rpctype(ffi_type* ffi_type){
         return VOID;
 }
 
-void* rpcserver_dispatcher_reliver(void* args);
 void* rpcserver_dispatcher(void* vserv);
 
 struct rpcserver* rpcserver_create(uint16_t port){
@@ -124,7 +123,6 @@ void rpcserver_start(struct rpcserver* rpcserver){
     assert(rpcserver->reliverargs);
     rpcserver->reliverargs[0] = rpcserver;
     if(pthread_create(&rpcserver->accept_thread, &attr,rpcserver_dispatcher,rpcserver)) exit(-1);
-    if(pthread_create(&rpcserver->reliver, &attr,rpcserver_dispatcher_reliver,rpcserver->reliverargs)) exit(-1);
     pthread_attr_destroy(&attr);
 }
 void __rpcserver_fn_free_callback(void* cfn){
@@ -151,7 +149,6 @@ void rpcserver_free(struct rpcserver* serv){
     shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
     pthread_join(serv->accept_thread,NULL);
-    pthread_join(serv->reliver,NULL);
     free(serv);
 }
 void rpcserver_stop(struct rpcserver* serv){
@@ -164,7 +161,6 @@ void rpcserver_stop(struct rpcserver* serv){
     shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
     pthread_join(serv->accept_thread,NULL);
-    pthread_join(serv->reliver,NULL);
 }
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
                           enum rpctypes rtype, enum rpctypes* argstype,
@@ -432,10 +428,6 @@ void* rpcserver_client_thread(void* arg){
     thrd->serv->clientcount++;
     int user_perm = 0;
     int is_authed = 0;
-    struct timeval time;
-    time.tv_sec = 5;
-    time.tv_usec = 0;
-    assert(setsockopt(thrd->client_fd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
     if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
         struct rpctype type;
@@ -471,6 +463,7 @@ void* rpcserver_client_thread(void* arg){
                 switch(gotmsg.msg_type){
                     case PING:
                                     free(gotmsg.payload);
+                                    puts("ping");
                                     break;
                     case DISCON:
                                     free(gotmsg.payload);
@@ -577,32 +570,6 @@ exit:
 }
 
 /*this function must run in another thread*/
-void* rpcserver_dispatcher_reliver(void* args){
-    void** rargs = args;
-    struct rpcserver* serv = (struct rpcserver*)rargs[0];
-    int sleep_iter = 0;
-    while(serv->stop == 0){
-        if(serv->is_incon != 0){
-            int* fd = serv->reliverargs[1];
-            printf("%s: server picked up client, now waiting\n",__PRETTY_FUNCTION__);
-            if (sleep_iter >= DEFAULT_CLIENT_TIMEOUT){
-                printf("%s: dispatcher died, starting a new one\n",__PRETTY_FUNCTION__);
-                pthread_cancel(serv->accept_thread);
-                serv->accept_thread = 0;
-                close(*fd);
-                pthread_attr_t attr;
-                pthread_attr_init(&attr);
-                if(pthread_create(&serv->accept_thread, &attr,rpcserver_dispatcher,serv)) exit(-1);
-                pthread_attr_destroy(&attr);
-                sleep_iter = 0;
-            }
-            sleep_iter++;
-        }
-        sleep(1);
-    }
-    printf("%s: server stopped, exiting\n",__PRETTY_FUNCTION__);
-    pthread_exit(NULL);
-}
 void* rpcserver_dispatcher(void* vserv){
     struct rpcserver* serv = (struct rpcserver*)vserv;
     assert(serv);
@@ -617,10 +584,13 @@ void* rpcserver_dispatcher(void* vserv){
             fd = accept(serv->sfd, (struct sockaddr*)&addr,&addrlen);
                 if(fd < 0) break;
                 printf("%s: got client from %s\n",__PRETTY_FUNCTION__,inet_ntoa(addr.sin_addr));
-                serv->is_incon = 1;
+                struct timeval time;
+                time.tv_sec = 5;
+                time.tv_usec = 0;
+                assert(setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
+                assert(setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&time,sizeof(time)) == 0);
                 struct rpcmsg msg = {0};
                 if(get_rpcmsg_from_fd(&msg,fd) == 0){
-                    serv->is_incon = 0;
                     printf("%s: got msg from client\n",__PRETTY_FUNCTION__);
                     if(msg.msg_type == CON){
                         printf("%s: connection ok,passing to client_thread to auth\n",__PRETTY_FUNCTION__);
