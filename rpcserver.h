@@ -18,7 +18,6 @@ struct rpcserver{
     pthread_mutex_t edit;
     int is_incon;
     pthread_t accept_thread;
-    pthread_t reliver;
     void** reliverargs;
     hashtable_t fn_ht;
     hashtable_t users;
