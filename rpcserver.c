@@ -1,8 +1,5 @@
 #include "rpcserver.h"
-#include <asm-generic/socket.h>
-#ifndef RPCPACK_H
 #include "rpcpack.h"
-#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
