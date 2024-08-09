@@ -1,3 +1,4 @@
+#pragma once
 #define ALLOC_ERR 2
 #define ARG_ERR 1
 #define ENOTFOUND 4
