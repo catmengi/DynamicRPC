@@ -15,14 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
-
-struct rpccon{
-   int fd;
-   int perm;
-   int stop;
-   pthread_t ping;
-   pthread_mutex_t send;
-};
+#include "rpcclient.h"
 
 void* rpccon_keepalive(void* arg){
    struct rpccon* con = arg;
