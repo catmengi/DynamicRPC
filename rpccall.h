@@ -28,6 +28,7 @@ enum rpcmsg_type{
     NONREADY = 8,
     DISCON = 9,
     LPERM = 10,
+    PING = 11,
     //LSFN = 11
 };
 struct rpcmsg{
