@@ -1,5 +1,6 @@
 #include "rpccall.h"
 #include "hashtable.c/hashtable.h"
+#include <pthread.h>
 #include "rpcmsg.h"
 #include <assert.h>
 #include <stdint.h>
@@ -18,8 +19,23 @@
 struct rpccon{
    int fd;
    int perm;
+   int stop;
+   pthread_t ping;
+   pthread_mutex_t send;
 };
 
+void* rpccon_keepalive(void* arg){
+   struct rpccon* con = arg;
+   while(!con->stop){
+      pthread_mutex_lock(&con->send);
+      struct rpcmsg msg = {PING,0,0,0};
+      rpcmsg_write_to_fd(&msg,con->fd);
+      pthread_mutex_unlock(&con->send);
+      sleep(3);
+   }
+   pthread_detach(pthread_self());
+   return NULL;
+}
 
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(!host || !key)
@@ -27,6 +43,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    int sockfd;
    struct sockaddr_in serv_addr;
    struct hostent *server;
+   con->stop = 0;
 
 
    /* Create a socket point */
@@ -86,9 +103,12 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    free(ans.payload);
    free(auth.data);
    con->fd = sockfd;
+   pthread_mutex_init(&con->send,NULL);
+   pthread_create(&con->ping,NULL,rpccon_keepalive,con);
    return 0;
 }
 int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...){
+   pthread_mutex_lock(&con->send);
    va_list vargs;
    void** resargs_upd = NULL;
    uint8_t resargs_updl = 0;
@@ -195,14 +215,17 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    if(rpcmsg_write_to_fd(&req,con->fd) < 0){
       rpctypes_free(args,rpctypes_len);
       free(req.payload);
+      pthread_mutex_unlock(&con->send);
       return 1;
    }
    free(req.payload);
    rpctypes_free(args,rpctypes_len);
    if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
+      pthread_mutex_unlock(&con->send);
       return 2;
    };
    if(ans.msg_type != OK){
+      pthread_mutex_unlock(&con->send);
       return ans.msg_type;
    }
    memset(&req,0,sizeof(req));
@@ -212,6 +235,8 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    if(ans.msg_type != RET){
       if(ans.msg_type == DISCON){
           close(con->fd);
+          con->stop = 1;
+          pthread_mutex_unlock(&con->send);
           return DISCON;
       }else return ans.msg_type;
    }
@@ -298,9 +323,11 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    free(resargs_upd);
    free(ret.ret.data);
    rpctypes_free(ret.resargs,ret.resargs_amm);
+   pthread_mutex_unlock(&con->send);
    return 0;
 }
 void rpcclient_discon(struct rpccon* con){
+   con->stop = 1;
    struct rpcmsg msg = {DISCON,0,0,0};
    rpcmsg_write_to_fd(&msg,con->fd);
    close(con->fd);
