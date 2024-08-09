@@ -1,3 +1,4 @@
+#pragma once
 #include <sys/types.h>
 #include <pthread.h>
 struct tqueque_el{
