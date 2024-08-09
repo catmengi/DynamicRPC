@@ -3,6 +3,9 @@
 struct rpccon{
    int fd;
    int perm;
+   int stop;
+   pthread_t ping;
+   pthread_mutex_t send;
 };
 
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con);
