@@ -117,10 +117,7 @@ struct rpcserver* rpcserver_create(uint16_t port){
 }
 void rpcserver_start(struct rpcserver* rpcserver){
     rpcserver->stop = 0;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    if(pthread_create(&rpcserver->accept_thread, &attr,rpcserver_dispatcher,rpcserver)) exit(-1);
-    pthread_attr_destroy(&attr);
+    assert(pthread_create(&rpcserver->accept_thread, NULL,rpcserver_dispatcher,rpcserver) == 0)
 }
 void __rpcserver_fn_free_callback(void* cfn){
     struct fn* fn = (struct fn*)cfn;
@@ -591,9 +588,7 @@ void* rpcserver_dispatcher(void* vserv){
                         thrd->client_fd = fd;
                         thrd->serv = serv;
                         pthread_t client_thread = 0;
-                        pthread_attr_t attr; pthread_attr_init(&attr);
-                        pthread_create(&client_thread,&attr,rpcserver_client_thread,thrd);
-                        pthread_attr_destroy(&attr);
+                        assert(pthread_create(&client_thread,NULL,rpcserver_client_thread,thrd) == 0);
                     }else {printf("%s: client not connected\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
                 }else{printf("%s: wrong info from client\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
                 if(msg.payload) free(msg.payload);
