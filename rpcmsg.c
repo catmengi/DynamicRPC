@@ -42,10 +42,10 @@ int get_rpcmsg_from_fd(struct rpcmsg* msg ,int fd){
     if(fd < 0) return 1;
     memset(msg,0,sizeof(*msg));
     char type;
-    recv(fd,&type,sizeof(char),MSG_NOSIGNAL);
+    if(recv(fd,&type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
     msg->msg_type = type;
     uint64_t be64_payload_len = 0;
-    recv(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL);
+    if(recv(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL) <= 0) return 1;
     msg->payload_len = be64_to_cpu(be64_payload_len);
     msg->payload = NULL;
     if(msg->payload_len > 0)msg->payload = calloc(msg->payload_len, sizeof(char));
