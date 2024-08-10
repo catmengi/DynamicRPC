@@ -60,13 +60,6 @@ Server API:
 Client API:
     header file: "rpcclient.h"
 
-    struct rpcret{
-        uint8_t resargs_amm;
-        struct rpctype* resargs; /*args that was resended*/
-        struct rpctype ret; /*libffi limitations support only one ret*/
-    };
-
-
     int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con);
     "
     This functions connects to server at host,portno with key, fd and your perm will be stored into con
