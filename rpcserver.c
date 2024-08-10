@@ -117,7 +117,7 @@ struct rpcserver* rpcserver_create(uint16_t port){
 }
 void rpcserver_start(struct rpcserver* rpcserver){
     rpcserver->stop = 0;
-    assert(pthread_create(&rpcserver->accept_thread, NULL,rpcserver_dispatcher,rpcserver) == 0)
+    assert(pthread_create(&rpcserver->accept_thread, NULL,rpcserver_dispatcher,rpcserver) == 0);
 }
 void __rpcserver_fn_free_callback(void* cfn){
     struct fn* fn = (struct fn*)cfn;
