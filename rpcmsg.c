@@ -23,7 +23,7 @@ ssize_t rpcmsg_write_to_fd(struct rpcmsg* msg, int fd){
     sent += n = send(fd, &type, sizeof(char),MSG_NOSIGNAL);
     if(errno != 0 || n <= 0) return -1;
     sent += n = send(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL);
-    if(errno != 0) return -1;
+    if(errno != 0 || n <= 0) return -1;
     size_t bufsize = msg->payload_len;
     const char *pbuffer = (const char*) msg->payload;
     while (bufsize > 0)
