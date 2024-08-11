@@ -20,13 +20,13 @@ Rpc types:
     INT64 = 8,  // stdint int64_t
     FLOAT = 9,  // C float
     DOUBLE = 10,// C double
-    RPCBUFF = 11,
+    RPCBUFF = 11, //Cant be return! (currently)
     SIZEDBUF = 12, //1D array that will pass uint64_t typed value as his len in next arg: "char*, uint64_t", in server function proto UINT64 must be next e.g "SIZEDBUF,UINT64"
-    on client just "SIZEDBUF"
+    on client just "SIZEDBUF" Cant be return!
 
     PSTORAGE = 13, //Function local storage, void*
     INTERFUNC = 14,//Storage global for all functions, void*
-    RPCSTRUCT = 15 //Rpcstruct
+    RPCSTRUCT = 15 //Rpcstruct Cant be return(currently)
 
 Server API:
     header file "rpcserver.h"
