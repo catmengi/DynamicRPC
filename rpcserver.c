@@ -520,13 +520,6 @@ void* rpcserver_client_thread(void* arg){
                                         }
                                         free(call.fn_name);
                                         repl.payload = rpcret_to_buf(&ret,&repl.payload_len);
-                                        if(repl.payload == NULL){
-                                            if(ret.resargs == NULL) rpctypes_free(call.args,call.args_amm);
-                                            else rpctypes_free(ret.resargs,ret.resargs_amm);
-                                            if(ret.ret.data) free(ret.ret.data);
-                                            printf("%s: internal server error\n",__PRETTY_FUNCTION__);
-                                            goto exit;
-                                        }
                                         rpcmsg_write_to_fd(&repl,thrd->client_fd);
                                         rpctypes_free(ret.resargs,ret.resargs_amm);
                                         free(repl.payload);
