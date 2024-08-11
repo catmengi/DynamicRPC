@@ -362,7 +362,8 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
         }else if(rtype == STR && *(void**)fnret == NULL){
             ret->ret.type = VOID;
         }
-
+        
+        /* REMOVED BECAUSE POSSIBLE MEMORY LEAK
         if(rtype == RPCBUFF && *(void**)fnret != NULL){
             create_rpcbuff_type(*(struct rpcbuff**)fnret,0,&ret->ret);
         }
@@ -373,6 +374,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
         }
         else if(rtype == RPCSTRUCT && *(void**)fnret == NULL)
             ret->ret.type = VOID;
+        */
     }
     for(uint8_t i = 0; i < ret->resargs_amm; i++){
         if(ret->resargs[i].type == RPCBUFF){
