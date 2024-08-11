@@ -45,6 +45,7 @@ struct rpcstruct{
 };
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len);  /*lastdim_len set default last dimension len(rpcbuff_getlast_from create this size lastdim if
                                                                                                 this  endpoint wasnt writen by rpcbuff_pushto), but rpcbuff_pushto will fit bigger data*/
+void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff); //same as _rpcbuff_free but dont free struct rpcbuff* (only internals of it)
 void _rpcbuff_free(struct rpcbuff* rpcbuff);
 char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen);
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, char* data, uint64_t data_len);
