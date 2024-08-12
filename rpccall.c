@@ -9,24 +9,29 @@
 #include <stdlib.h>
 #include <assert.h>
 
-int is_rpctypes_equal(enum rpctypes* frst, size_t frstlen, enum rpctypes* scnd, uint8_t scndlen){
-    if((frst && !scnd) || (!frst && scnd)) return 0;
-    if(!frst && !scnd) return 1;
-    uint8_t j = 0;
-    for(uint8_t i = 0; i < frstlen && j < scndlen; i++){
-        if(frst[i] == SIZEDBUF && scnd[j] == SIZEDBUF){
-            j++; i++;
-            continue;
-        }
-        if(frst[i] == scnd[j]){ j++; continue;}
-        if(frst[i] != scnd[j]){
-            if(frst[i] == PSTORAGE || frst[i] == INTERFUNC){
-                continue;
-            }else return 0;
-        }
+int is_rpctypes_equal(enum rpctypes* serv, size_t servlen, enum rpctypes* client, uint8_t clientlen){
+    if((serv && !client) || (!serv && client)) return 0;
+    if(!serv && !client) return 1;
+    struct tqueque* check_que = tqueque_create();
+    assert(check_que);
+    size_t newservlen = 0;
+    for(size_t i = 0; i < servlen;i++){
+        assert(tqueque_push(check_que,&serv[i],sizeof(enum rpctypes),NULL) == 0);
+        if(serv[i] == SIZEDBUF) i++;
+        newservlen++;
     }
-    if(j > scndlen) return 0;
-    return 1;
+    if(newservlen != clientlen) return 0;
+    enum rpctypes* newserv = calloc(newservlen,sizeof(enum rpctypes));
+    assert(newserv);
+    for(size_t i = 0; i < newservlen; i++){
+        newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
+    }
+    int ret = 1;
+    for(size_t i = 0; i < clientlen; i++)
+        if(newserv[i] != client[i]) {ret = 0;break;}
+    tqueque_free(check_que);
+    free(newserv);
+    return ret;
 }
 size_t rpctypes_get_buflen(struct rpctype* rpctypes,uint8_t rpctypes_len){
     size_t len = sizeof(uint16_t);
