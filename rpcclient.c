@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include "rpcclient.h"
+#include "rpctypes.h"
 
 void* rpccon_keepalive(void* arg){
    struct rpccon* con = arg;
@@ -317,6 +318,38 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    free(ret.ret.data);
    rpctypes_free(ret.resargs,ret.resargs_amm);
    return 0;
+}
+char** rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
+   pthread_mutex_lock(&con->send);
+   struct rpcmsg req = {LSFN,0,0,0};
+   struct rpcmsg ans = {0};
+   rpcmsg_write_to_fd(&req,con->fd);
+   get_rpcmsg_from_fd(&ans,con->fd);
+   if(ans.msg_type != LSFN){
+      pthread_mutex_unlock(&con->send);
+      if(ans.msg_type == DISCON){
+          close(con->fd);
+          con->stop = 1;
+      }
+      return NULL;
+   }
+   struct rpcstruct* lsfn;
+   struct rpctype otype;
+   arr_to_type(ans.payload,&otype);
+   free(ans.payload);
+   assert((lsfn = unpack_rpcstruct_type(&otype)) != NULL);
+   free(otype.data);
+   char** fns = rpcstruct_get_fields(lsfn,fn_len);
+   char** copied_fns = calloc(*fn_len,sizeof(char*));
+   assert(copied_fns);
+   for(uint64_t i = 0; i < *fn_len; i++){
+      copied_fns[i] = malloc(strlen(fns[i]) + 1);
+      assert(copied_fns[i]);
+      strcpy(copied_fns[i],fns[i]);
+   }
+   free(fns);
+   rpcstruct_free(lsfn); free(lsfn);
+   return copied_fns;
 }
 void rpcclient_discon(struct rpccon* con){
    con->stop = 1;

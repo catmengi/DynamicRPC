@@ -7,7 +7,11 @@ struct rpccon{
    pthread_t ping;
    pthread_mutex_t send;
 };
-
+struct rpcclient_fn_info{
+   char* name;
+   int perm;
+};
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con);
 int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...);
 void rpcclient_discon(struct rpccon* con);
+char** rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len);

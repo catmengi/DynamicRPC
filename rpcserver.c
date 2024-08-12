@@ -520,6 +520,7 @@ void* rpcserver_client_thread(void* arg){
                                     repl.payload = __rpcserver_lsfn(thrd->serv,&repl.payload_len,user_perm);
                                     repl.msg_type = LSFN;
                                     rpcmsg_write_to_fd(&repl,thrd->client_fd);
+                                    free(repl.payload);
                                     break;
                     case PING:
                                     free(gotmsg.payload);
