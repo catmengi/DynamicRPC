@@ -75,7 +75,7 @@ void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff){
     while((fcur = tqueque_pop(fque,NULL,NULL)) != NULL){
         if(fcur != (void*)0xCAFE) free(fcur);
     }
-    if(rpcbuff->dimsizes == NULL) free(rpcbuff->start->endpoint);
+    if(rpcbuff->dimsizes == NULL) if(rpcbuff->start->endpoint != (void*)0xCAFE) free(rpcbuff->start->endpoint);
     tqueque_free(fque);
     free(rpcbuff->start);
     free(rpcbuff->dimsizes);
