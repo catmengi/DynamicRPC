@@ -209,13 +209,13 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       rpctypes_free(args,rpctypes_len);
       free(req.payload);
       pthread_mutex_unlock(&con->send);
-      return 1;
+      return 10;
    }
    free(req.payload);
    rpctypes_free(args,rpctypes_len);
    if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
       pthread_mutex_unlock(&con->send);
-      return 2;
+      return 20;
    };
    if(ans.msg_type != OK){
       pthread_mutex_unlock(&con->send);
@@ -280,7 +280,6 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    if(type == UINT32){
       uint32_t ch = type_to_uint32(&ret.ret);
       *(uint32_t*)fnret = ch;
-      return 0;
    }
    if(type == INT32){
       int32_t ch = type_to_int32(&ret.ret);
