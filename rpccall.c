@@ -85,7 +85,7 @@ char* rpccall_to_buf(struct rpccall* rpccall, uint64_t* buflen){
     assert(rpccall->fn_name);
     assert(buflen);
     uint64_t argsbuflen = rpctypes_get_buflen(rpccall->args,rpccall->args_amm);
-    *buflen = (strlen(rpccall->fn_name) + 1) + argsbuflen + sizeof(uint64_t) + 1;
+    *buflen = (strlen(rpccall->fn_name) + 1) + argsbuflen + sizeof(uint64_t);
     char* buf = malloc(*buflen);
     assert(buf);
     char* write = buf;
