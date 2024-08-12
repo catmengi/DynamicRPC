@@ -349,6 +349,7 @@ char** rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
    }
    free(fns);
    rpcstruct_free(lsfn); free(lsfn);
+   pthread_mutex_unlock(&con->send);
    return copied_fns;
 }
 void rpcclient_discon(struct rpccon* con){
