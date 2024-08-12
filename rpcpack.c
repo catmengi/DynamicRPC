@@ -39,7 +39,7 @@ struct rpcbuff* unpack_rpcbuff_type(struct rpctype* type){
 int create_sizedbuf_type(char* buf, uint64_t buflen, char flag,struct rpctype* type){
     type->type = SIZEDBUF;
     type->flag = flag;
-    type->data = malloc(buflen); assert(type->data);
+    type->data = calloc(buflen,sizeof(char)); assert(type->data);
     memcpy(type->data, buf, buflen);
     type->datalen = cpu_to_be64(buflen);
     return 0;
