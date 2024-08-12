@@ -1,4 +1,6 @@
 #include "rpcserver.h"
+#include "hashtable.c/hashtable.h"
+#include "rpccall.h"
 #include "rpcpack.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -15,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include "rpcmsg.h"
+#include "rpctypes.h"
 #include <libubox/utils.h>
 #include <unistd.h>
 #define DEFAULT_CLIENT_TIMEOUT 1
@@ -175,7 +178,7 @@ int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
     fnr->personal = pstorage;
     fnr->perm = perm;
     ffi_type** argstype_ffi = rpctypes_to_ffi_types(argstype,argsamm);
-    if(argstype_ffi == NULL) return 2;
+    if(argstype_ffi == NULL && argstype != NULL) return 2;
     fnr->ffi_type_free = argstype_ffi;
     ffi_type* rtype_ffi = rpctype_to_ffi_type(rtype);
     if(ffi_prep_cif(&fnr->cif,FFI_DEFAULT_ABI,fnr->nargs,rtype_ffi,argstype_ffi) != FFI_OK) return 1;
@@ -451,6 +454,28 @@ exit:
     free(callargs);
     return 1;
 }
+void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unused){
+
+    void** usr = Pusr;
+    int32_t perm = ((struct fn*)fn)->perm;
+    if(*(int*)usr[0] > perm || *(int*)usr[0] == -1)
+        assert(rpcstruct_set(usr[1],key,INT32,&perm,0) == 0);
+}
+char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
+    struct rpcstruct lsfn;
+    assert(rpcstruct_create(&lsfn) == 0);
+    void** callback_data[2] = {(void*)&user_perm,(void*)&lsfn};
+    hashtable_iterate_wkey(serv->fn_ht,callback_data,__rpcserver_lsfn_create_callback);
+    struct rpctype otype;
+    create_rpcstruct_type(&lsfn,0,&otype);
+    rpcstruct_free(&lsfn);
+    *outlen = type_buflen(&otype);
+    char* out = malloc(*outlen);
+    assert(out);
+    type_to_arr(out,&otype);
+    free(otype.data);
+    return out;
+}
 void* rpcserver_client_thread(void* arg){
     struct client_thread* thrd = (struct client_thread*)arg;
     struct rpcmsg gotmsg = {0},repl = {0};
@@ -490,6 +515,12 @@ void* rpcserver_client_thread(void* arg){
                 struct rpccall call = {0}; struct rpcret ret = {0};
                 if(get_rpcmsg_from_fd(&gotmsg,thrd->client_fd) < 0) {printf("%s: client disconected badly\n",__PRETTY_FUNCTION__);goto exit;}
                 switch(gotmsg.msg_type){
+                    case LSFN:
+                                    printf("%s: client requested list of registred functions!\n",__PRETTY_FUNCTION__);
+                                    repl.payload = __rpcserver_lsfn(thrd->serv,&repl.payload_len,user_perm);
+                                    repl.msg_type = LSFN;
+                                    rpcmsg_write_to_fd(&repl,thrd->client_fd);
+                                    break;
                     case PING:
                                     free(gotmsg.payload);
                                     break;

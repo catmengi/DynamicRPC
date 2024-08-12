@@ -29,7 +29,7 @@ enum rpcmsg_type{
     DISCON = 9,
     LPERM = 10,
     PING = 11,
-    //LSFN = 11
+    LSFN = 12,
 };
 struct rpcmsg{
     enum rpcmsg_type msg_type;
