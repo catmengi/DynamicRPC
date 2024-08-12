@@ -394,7 +394,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 void* ptr = tqueque_pop(rpcstruct_upd,NULL,NULL);
                 if(ptr == *(struct rpcstruct**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcstruct_upd,ptr,sizeof(struct rpcbuff),NULL) == 0);
+                assert(tqueque_push(rpcstruct_upd,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             el = 0;
             el = tqueque_get_tagamm(_rpcstruct_free,NULL);
@@ -403,7 +403,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 void* ptr = tqueque_pop(_rpcstruct_free,NULL,NULL);
                 if(ptr == *(struct rpcstruct**)fnret) needfree = 0;
 
-                assert(tqueque_push(_rpcstruct_free,ptr,sizeof(struct rpcbuff),NULL) == 0);
+                assert(tqueque_push(_rpcstruct_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             create_rpcstruct_type(*(struct rpcstruct**)fnret,0,&ret->ret);
             if(needfree) {rpcstruct_free(*(struct rpcstruct**)fnret);free(*(struct rpcstruct**)fnret);}
