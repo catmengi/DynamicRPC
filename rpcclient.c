@@ -354,7 +354,7 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* f
       fns_info[i].proto = calloc(len,sizeof(enum rpctypes));
       fns_info[i].protolen = len;
       assert(fns_info[i].proto);
-      for(uint64_t j = 0; j < len; i++)
+      for(uint64_t j = 0; j < len; j++)
          fns_info[i].proto[j] = out_proto[j];
    }
    free(fns);
