@@ -319,7 +319,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    rpctypes_free(ret.resargs,ret.resargs_amm);
    return 0;
 }
-char** rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
+struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
    pthread_mutex_lock(&con->send);
    struct rpcmsg req = {LSFN,0,0,0};
    struct rpcmsg ans = {0};
@@ -340,17 +340,34 @@ char** rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
    assert((lsfn = unpack_rpcstruct_type(&otype)) != NULL);
    free(otype.data);
    char** fns = rpcstruct_get_fields(lsfn,fn_len);
-   char** copied_fns = calloc(*fn_len,sizeof(char*));
-   assert(copied_fns);
+   struct rpcclient_fninfo* fns_info = calloc(*fn_len,sizeof(struct rpcclient_fninfo));
+   assert(fns_info);
    for(uint64_t i = 0; i < *fn_len; i++){
-      copied_fns[i] = malloc(strlen(fns[i]) + 1);
-      assert(copied_fns[i]);
-      strcpy(copied_fns[i],fns[i]);
+      fns_info[i].name = malloc(strlen(fns[i]) + 1);
+      assert(fns_info[i].name);
+      strcpy(fns_info[i].name,fns[i]);
+
+      char* out_proto = NULL;
+      uint64_t len = 0;
+      assert(rpcstruct_get(lsfn,fns[i],SIZEDBUF,&out_proto,&len) == 0);
+      assert(out_proto);
+      fns_info[i].proto = calloc(len,sizeof(enum rpctypes));
+      fns_info[i].protolen = len;
+      assert(fns_info[i].proto);
+      for(uint64_t j = 0; j < len; i++)
+         fns_info[i].proto[j] = out_proto[j];
    }
    free(fns);
    rpcstruct_free(lsfn); free(lsfn);
    pthread_mutex_unlock(&con->send);
-   return copied_fns;
+   return fns_info;
+}
+void rpcclient_fninfo_free(struct rpcclient_fninfo* in,uint64_t len){
+   for(uint64_t i = 0; i < len; i++){
+      free(in[i].proto);
+      free(in[i].name);
+   }
+   free(in);
 }
 void rpcclient_discon(struct rpccon* con){
    con->stop = 1;
