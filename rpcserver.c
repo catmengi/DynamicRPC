@@ -458,23 +458,25 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
 
     void** usr = Pusr;
     int32_t perm = ((struct fn*)fn)->perm;
-    struct tqueque* check_que = tqueque_create();
-    assert(check_que);
-    size_t newservlen = 0;
-    for(size_t i = 0; i < ((struct fn*)fn)->nargs;i++){
-        assert(tqueque_push(check_que,&((struct fn*)fn)->argtypes[i],sizeof(enum rpctypes),NULL) == 0);
-        if(((struct fn*)fn)->argtypes[i] == SIZEDBUF) i++;
-        newservlen++;
-    }
-    char* newserv = calloc(newservlen,sizeof(char));
-    assert(newserv);
-    for(size_t i = 0; i < newservlen; i++){
-        newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
-    }
-    if(*(int*)usr[0] > perm || *(int*)usr[0] == -1)
+    if(*(int*)usr[0] > perm || *(int*)usr[0] == -1){
+        struct tqueque* check_que = tqueque_create();
+        assert(check_que);
+        size_t newservlen = 0;
+        for(size_t i = 0; i < ((struct fn*)fn)->nargs;i++){
+            assert(tqueque_push(check_que,&((struct fn*)fn)->argtypes[i],sizeof(enum rpctypes),NULL) == 0);
+            if(((struct fn*)fn)->argtypes[i] == SIZEDBUF) i++;
+            newservlen++;
+        }
+        char* newserv = calloc(newservlen,sizeof(char));
+        assert(newserv);
+        for(size_t i = 0; i < newservlen; i++){
+            newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
+        }
+        
         assert(rpcstruct_set(usr[1],key,SIZEDBUF,newserv,newservlen) == 0);
-    tqueque_free(check_que);
-    free(newserv);
+        tqueque_free(check_que);
+        free(newserv);
+    }
 }
 char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     struct rpcstruct lsfn;
