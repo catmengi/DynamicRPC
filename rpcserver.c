@@ -563,7 +563,7 @@ void* rpcserver_client_thread(void* arg){
                                         rpcmsg_write_to_fd(&repl,thrd->client_fd);
                                         free(call.fn_name); rpctypes_free(call.args,call.args_amm);
                                         break;
-                                    }else if(cfn->perm > user_perm && user_perm != -1){
+                                    }else if((cfn->perm > user_perm || cfn->perm == -1) && user_perm != -1){
                                         repl.msg_type = LPERM;
                                         printf("%s: low permissions, need %d, have %d\n",__PRETTY_FUNCTION__,cfn->perm,(int)user_perm);
                                         rpcmsg_write_to_fd(&repl,thrd->client_fd);
