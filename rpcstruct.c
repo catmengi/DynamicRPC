@@ -127,7 +127,7 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void*
         void* ch = unpack_sizedbuf_type(ptype,len);
         void* imm = malloc(*len);
         assert(imm);
-        memcpy(imm,ch,*len)
+        memcpy(imm,ch,*len);
         *(void**)out = imm;
         return 0;
     }
