@@ -459,6 +459,7 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
     void** usr = Pusr;
     int32_t perm = ((struct fn*)fn)->perm;
     if(*(int*)usr[0] > perm || *(int*)usr[0] == -1){
+        if(perm == -1 && *(int*)usr[0] != -1) return;
         struct tqueque* check_que = tqueque_create();
         assert(check_que);
         size_t newservlen = 0;
