@@ -124,7 +124,7 @@ Rpcbuff API:
 
 Rpcstruct API:
     header file: "rpctypes.h"
-
+    note: rpcstruct is immutable until you manually re-set value!
     void rpcstruct_free(struct rpcstruct* rpcstruct); "Frees internals of rpcstruct since it may be allocated on stack, if it was on heap free rpcstruct pointer yourself"
 
     char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, uint64_t* fields_len); "Returns fields of rpcstruct, fields_len is out pointer that will contain ammount of fields"
