@@ -113,7 +113,10 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void*
     }
     if(type == STR){
         char* ch = unpack_str_type(ptype);
-        *(char**)out = ch;
+        char* imm = malloc(strlen(ch) + 1);
+        assert(imm);
+        strcpy(imm,ch);
+        *(char**)out = imm;
         return 0;
     }
     if(type == SIZEDBUF){
@@ -122,7 +125,10 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void*
         if(obuflen != NULL) len = obuflen;
         else len = &tmp;
         void* ch = unpack_sizedbuf_type(ptype,len);
-        *(void**)out = ch;
+        void* imm = malloc(*len);
+        assert(imm);
+        memcpy(imm,ch,*len)
+        *(void**)out = imm;
         return 0;
     }
     if(type == RPCBUFF){
