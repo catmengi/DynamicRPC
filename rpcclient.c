@@ -356,6 +356,7 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* f
       assert(fns_info[i].proto);
       for(uint64_t j = 0; j < len; j++)
          fns_info[i].proto[j] = out_proto[j];
+      free(out_proto);
    }
    free(fns);
    rpcstruct_free(lsfn); free(lsfn);
