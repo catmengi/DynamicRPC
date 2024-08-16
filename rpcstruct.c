@@ -175,6 +175,9 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen){
     return packed;
 }
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
+    assert(rpcstruct);
+    rpcstruct->count = 0;
+    rpcstruct->ht = NULL;
     uint8_t count = 0;
     struct rpctype* types = buf_to_rpctypes(arr,&count);
     if(!types) return 1;
