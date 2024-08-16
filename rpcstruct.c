@@ -226,7 +226,7 @@ void __rpcstruct_free_cb(void* vptr){
     free(type);
 }
 void rpcstruct_free(struct rpcstruct* rpcstruct){
-    hashtable_iterate(rpcstruct->ht,__rpcstruct_free_cb);
+    if(rpcstruct->count > 0) hashtable_iterate(rpcstruct->ht,__rpcstruct_free_cb);
     hashtable_free(rpcstruct->ht);
     rpcstruct->ht = 0;
     rpcstruct->count = 0;
