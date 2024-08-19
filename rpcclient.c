@@ -23,7 +23,7 @@ void* rpccon_keepalive(void* arg){
    while(!con->stop){
       pthread_mutex_lock(&con->send);
       struct rpcmsg msg = {PING,0,0,0};
-      rpcmsg_write_to_fd(&msg,con->fd);
+      if(rpcmsg_write_to_fd(&msg,con->fd) < 0){close(con->fd);con->stop = 1;};
       pthread_mutex_unlock(&con->send);
       sleep(3);
    }
