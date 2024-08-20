@@ -580,9 +580,9 @@ void* rpcserver_client_thread(void* arg){
                                     }else if(callret != 0 && err != 0){
                                         repl.msg_type = BAD;
                                         printf("%s: client provided wrong arguments\n",__PRETTY_FUNCTION__);
-                                        rpcmsg_write_to_fd(&repl,thrd->client_fd);
                                         free(call.fn_name);
                                         rpctypes_free(call.args,call.args_amm);
+                                        if(rpcmsg_write_to_fd(&repl,thrd->client_fd) != 0) goto exit;
                                         break;
                                     }
                                     free(call.fn_name);
