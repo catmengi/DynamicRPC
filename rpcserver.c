@@ -549,10 +549,7 @@ void* rpcserver_client_thread(void* arg){
                                     goto exit;
                     case CALL:
                                     if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
-                                        printf("%s: internal server error or server closing\n",__PRETTY_FUNCTION__);
-                                        rpctypes_free(call.args,call.args_amm);
-                                        free(call.fn_name);
-                                        free(gotmsg.payload);
+                                        printf("%s: bad 'CALL' msg! \n",__PRETTY_FUNCTION__);
                                         goto exit;
                                     }
                                     free(gotmsg.payload);

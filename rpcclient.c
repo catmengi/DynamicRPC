@@ -23,7 +23,7 @@ void* rpccon_keepalive(void* arg){
    while(!con->stop){
       pthread_mutex_lock(&con->send);
       struct rpcmsg msg = {PING,0,0,0};
-      if(rpcmsg_write_to_fd(&msg,con->fd) < 0){close(con->fd);con->stop = 1;};
+      if(rpcmsg_write_to_fd(&msg,con->fd) < 0){close(con->fd);con->fd = -1;con->stop = 1;};
       pthread_mutex_unlock(&con->send);
       sleep(3);
    }
@@ -65,7 +65,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
    req.msg_type = CON;
-   if(rpcmsg_write_to_fd(&req,sockfd) == -1){
+   if(rpcmsg_write_to_fd(&req,sockfd) != 0){
       close(sockfd);
       return 2;
    }
@@ -75,7 +75,7 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    req.payload = malloc((req.payload_len = type_buflen(&auth)));
    assert(req.payload);
    type_to_arr(req.payload,&auth);
-   if(rpcmsg_write_to_fd(&req,sockfd) == -1){
+   if(rpcmsg_write_to_fd(&req,sockfd) != 0){
       free(auth.data);
       free(req.payload);
       close(sockfd);
@@ -206,33 +206,27 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    struct rpcmsg ans = {0};
    req.msg_type = CALL;
    req.payload = rpccall_to_buf(&call,&req.payload_len);
-   if(rpcmsg_write_to_fd(&req,con->fd) < 0){
+   if(rpcmsg_write_to_fd(&req,con->fd) != 0){
       rpctypes_free(args,rpctypes_len);
       free(req.payload);
+      close(con->fd);
+      con->fd = -1;
+      con->stop = 1;
       pthread_mutex_unlock(&con->send);
       return 10;
    }
    free(req.payload);
    rpctypes_free(args,rpctypes_len);
    if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
+      close(con->fd);
+      con->fd = -1;
+      con->stop = 1;
       pthread_mutex_unlock(&con->send);
       return 20;
-   };
-   if(ans.msg_type != OK){
+   }
+   if(ans.msg_type != RET){
       pthread_mutex_unlock(&con->send);
       return ans.msg_type;
-   }
-   memset(&req,0,sizeof(req));
-   req.msg_type = READY;
-   rpcmsg_write_to_fd(&req,con->fd);
-   get_rpcmsg_from_fd(&ans,con->fd);
-   if(ans.msg_type != RET){
-      if(ans.msg_type == DISCON){
-          close(con->fd);
-          con->stop = 1;
-          pthread_mutex_unlock(&con->send);
-          return DISCON;
-      }else return ans.msg_type;
    }
    pthread_mutex_unlock(&con->send);
    buf_to_rpcret(&ret,ans.payload);
