@@ -521,11 +521,13 @@ void* rpcserver_client_thread(void* arg){
             repl.payload = malloc((repl.payload_len = type_buflen(&perm)));
             assert(repl.payload);
             type_to_arr(repl.payload,&perm);
-            rpcmsg_write_to_fd(&repl,thrd->client_fd); repl.msg_type = 0;
-            free(repl.payload);
             free(perm.data);
+            int iserror = 0;
+            if(rpcmsg_write_to_fd(&repl,thrd->client_fd) != 0) iserror = 1; repl.msg_type = 0;
+            free(repl.payload);
             repl.payload = NULL;
             repl.payload_len = 0;
+            if(iserror) goto exit;
             printf("%s: auth ok, OK is replied to client\n",__PRETTY_FUNCTION__);
             while(thrd->serv->stop == 0){
                 repl.msg_type = 0; repl.payload = NULL; repl.payload_len = 0;
