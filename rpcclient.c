@@ -27,7 +27,7 @@ void* rpccon_keepalive(void* arg){
       pthread_mutex_unlock(&con->send);
       sleep(3);
    }
-   pthread_detach(pthread_self());
+  // pthread_detach(pthread_self());
    return NULL;
 }
 
