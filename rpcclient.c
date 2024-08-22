@@ -373,4 +373,5 @@ void rpcclient_discon(struct rpccon* con){
    close(con->fd);
    con->fd = -1;
    pthread_mutex_unlock(&con->send);
+   pthread_join(con->ping,NULL);
 }
