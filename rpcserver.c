@@ -523,7 +523,8 @@ void* rpcserver_client_thread(void* arg){
             type_to_arr(repl.payload,&perm);
             free(perm.data);
             int iserror = 0;
-            if(rpcmsg_write_to_fd(&repl,thrd->client_fd) != 0) iserror = 1; repl.msg_type = 0;
+            if(rpcmsg_write_to_fd(&repl,thrd->client_fd) != 0) iserror = 1; 
+            repl.msg_type = 0;
             free(repl.payload);
             repl.payload = NULL;
             repl.payload_len = 0;
