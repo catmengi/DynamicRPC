@@ -465,6 +465,7 @@ exit:
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcbuff_free);
     tqueque_free(_rpcstruct_free);
+    tqueque_free(strret_free);
     for(uint8_t i = 0; i < cfn->nargs; i++){
         free(callargs[i]);
     }
