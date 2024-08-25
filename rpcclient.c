@@ -309,7 +309,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       *(struct rpcstruct**)fnret = ch;
     }
    free(resargs_upd);
-   free(ret.ret.data);
+   if(type != STR) free(ret.ret.data);
    rpctypes_free(ret.resargs,ret.resargs_amm);
    return 0;
 }
