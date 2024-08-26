@@ -93,9 +93,8 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
       return 4;
    }
    arr_to_type(ans.payload,&auth);
-   con->perm = type_to_int32(&auth);
+   con->uniq = unpack_str_type(&auth);
    free(ans.payload);
-   free(auth.data);
    con->fd = sockfd;
    pthread_mutex_init(&con->send,NULL);
    pthread_create(&con->ping,NULL,rpccon_keepalive,con);
@@ -372,6 +371,7 @@ void rpcclient_discon(struct rpccon* con){
    rpcmsg_write_to_fd(&msg,con->fd);
    close(con->fd);
    con->fd = -1;
+   free(con->uniq);
    pthread_mutex_unlock(&con->send);
    pthread_join(con->ping,NULL);
 }

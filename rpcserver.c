@@ -40,6 +40,7 @@ ffi_type** rpctypes_to_ffi_types(enum rpctypes* rpctypes,size_t rpctypes_amm){
         if(rpctypes[i] == INT64){out[i] = &ffi_type_sint64; continue;}
         if(rpctypes[i] == RPCBUFF){out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == STR){out[i] = &ffi_type_pointer; continue;}
+        if(rpctypes[i] == UNIQSTR){out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == PSTORAGE){ out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == SIZEDBUF){
             if(rpctypes[i+1] != UINT64) goto exit;
@@ -63,26 +64,11 @@ ffi_type* rpctype_to_ffi_type(enum rpctypes rpctype){
         if(rpctype == INT32){return &ffi_type_sint32;}
         if(rpctype == UINT64){return &ffi_type_uint64;}
         if(rpctype == INT64){return &ffi_type_sint64;}
+        if(rpctype == RPCSTRUCT){return &ffi_type_pointer;}
         if(rpctype == RPCBUFF){return &ffi_type_pointer;}
         if(rpctype == STR){return &ffi_type_pointer;}
         return NULL;
 }
-enum rpctypes ffi_type_to_rpctype(ffi_type* ffi_type){
-        assert(ffi_type);
-        if(ffi_type == &ffi_type_void){return VOID;}
-        if(ffi_type == &ffi_type_sint8){return CHAR;}
-        if(ffi_type == &ffi_type_uint16){return UINT16;}
-        if(ffi_type == &ffi_type_sint16){return INT16;}
-        if(ffi_type == &ffi_type_uint32){return UINT32;}
-        if(ffi_type == &ffi_type_sint32){return INT32;}
-        if(ffi_type == &ffi_type_uint64){return UINT64;}
-        if(ffi_type == &ffi_type_sint64){return INT64;}
-        if(ffi_type == &ffi_type_float){return FLOAT;}
-        if(ffi_type == &ffi_type_double){return DOUBLE;}
-        if(ffi_type == &ffi_type_pointer){return RPCBUFF;}
-        return VOID;
-}
-
 void* rpcserver_dispatcher(void* vserv);
 
 struct rpcserver* rpcserver_create(uint16_t port){
@@ -199,7 +185,7 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     hashtable_remove_entry(serv->fn_ht,fn_name,strlen(fn_name) + 1);
     pthread_mutex_unlock(&serv->edit);
 }
-int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code){
+int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code, char* uniq){
     void** callargs = calloc(cfn->nargs, sizeof(void*));
     assert(callargs);
     uint8_t j = 0;
@@ -232,6 +218,13 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
             callargs[i] = calloc(1,sizeof(void*));
             assert(callargs[i]);
             *(void**)callargs[i] = serv->interfunc;
+            continue;
+        }
+        if(cfn->argtypes[i] == UNIQSTR){
+            callargs[i] = calloc(1,sizeof(void*));
+            assert(callargs[i]);
+            *(void**)callargs[i] = uniq;
+            if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);
             continue;
         }
         if(j < call->args_amm){
@@ -372,7 +365,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 if(!needfree) break;
                 void* ptr = tqueque_pop(strret_free,NULL,NULL);
                 if(ptr == *(char**)fnret) needfree = 0;
-                assert(tqueque_push(rpcstruct_upd,ptr,sizeof(struct rpcstruct),NULL) == 0);
+                assert(tqueque_push(strret_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             if(needfree) free(*(char**)fnret);
         }else if(rtype == STR && *(void**)fnret == NULL){
@@ -463,7 +456,7 @@ exit:
     while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(rpcbuff_upd);
-    tqueque_free(rpcbuff_free);
+    tqueque_free(rpcstruct_upd);
     tqueque_free(_rpcstruct_free);
     tqueque_free(strret_free);
     for(uint8_t i = 0; i < cfn->nargs; i++){
@@ -512,6 +505,14 @@ char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     free(otype.data);
     return out;
 }
+void __get_uniq(char* uniq){
+    uniq[64] = '\0';
+    char charset[] = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:ZXCVBNM<>?1234567890-=!@#$%^&*()_+";
+    srand((unsigned int)time(NULL));
+    for(int i = 0; i < 65 - 1; i++){
+        uniq[i] = charset[(rand() % (sizeof(charset) - 1))];
+    }
+}
 void* rpcserver_client_thread(void* arg){
     struct client_thread* thrd = (struct client_thread*)arg;
     struct rpcmsg gotmsg = {0},repl = {0};
@@ -534,8 +535,9 @@ void* rpcserver_client_thread(void* arg){
         free(type.data);
         if(is_authed){
             repl.msg_type = OK;
+            __get_uniq(thrd->client_uniq);
             struct rpctype perm = {0};
-            int32_to_type(user_perm,&perm);
+            create_str_type(thrd->client_uniq,0,&perm);
             repl.payload = malloc((repl.payload_len = type_buflen(&perm)));
             assert(repl.payload);
             type_to_arr(repl.payload,&perm);
@@ -593,7 +595,7 @@ void* rpcserver_client_thread(void* arg){
                                     repl.msg_type = RET;
                                     int err = 0;
                                     int callret = 0;
-                                    if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,&err)) != 0 && err == 0){
+                                    if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,&err,thrd->client_uniq)) != 0 && err == 0){
                                         free(call.fn_name);
                                         rpctypes_free(call.args,call.args_amm);
                                         printf("%s: internal server error\n",__PRETTY_FUNCTION__);

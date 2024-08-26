@@ -2,7 +2,7 @@
 #include "rpccall.h"
 struct rpccon{
    int fd;
-   int perm;
+   char* uniq;
    int stop;
    pthread_t ping;
    pthread_mutex_t send;

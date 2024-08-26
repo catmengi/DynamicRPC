@@ -20,6 +20,7 @@ enum rpctypes{
     INTERFUNC = 14,
     RPCSTRUCT = 15,
     _RPCSTRUCTEL = 16,
+    UNIQSTR = 17,   //random str of 64symbols, uniq for client
 };
 
 struct __rpcbuff_el{
