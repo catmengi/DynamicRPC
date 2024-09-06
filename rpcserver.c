@@ -506,7 +506,7 @@ char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     return out;
 }
 void __get_uniq(char* uniq,int L){
-    uniq[64] = '\0';
+    uniq[L - 1] = '\0';
     char charset[] = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:ZXCVBNM<>?1234567890-=!@#$%^&*()_+";
     srand((unsigned int)time(NULL));
     for(int i = 0; i < L - 1; i++){
