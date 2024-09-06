@@ -633,6 +633,7 @@ exit:
     if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
     struct rpcmsg lreply = {DISCON,0,NULL,0};
     rpcmsg_write_to_fd(&lreply,thrd->client_fd);
+    shutdown(thrd->client_fd, SHUT_RD);
     close(thrd->client_fd);
     thrd->serv->clientcount--;
     free(thrd);
@@ -669,8 +670,8 @@ void* rpcserver_dispatcher(void* vserv){
                         thrd->serv = serv;
                         pthread_t client_thread = 0;
                         assert(pthread_create(&client_thread,NULL,rpcserver_client_thread,thrd) == 0);
-                    }else {printf("%s: client not connected\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
-                }else{printf("%s: wrong info from client\n",__PRETTY_FUNCTION__);close(fd);memset(&addr,0,sizeof(addr));}
+                    }else {printf("%s: client not connected\n",__PRETTY_FUNCTION__);shutdown(fd, SHUT_RD);close(fd);memset(&addr,0,sizeof(addr));}
+                }else{printf("%s: wrong info from client\n",__PRETTY_FUNCTION__);shutdown(fd, SHUT_RD);close(fd);memset(&addr,0,sizeof(addr));}
                 if(msg.payload) free(msg.payload);
         }else{printf("%s:server overloaded\n",__PRETTY_FUNCTION__); sleep(1);}
     }
