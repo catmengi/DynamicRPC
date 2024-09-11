@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <libubox/utils.h>
+#include "lb_endian.h"
 #include <stdlib.h>
 #include "rpccall.h"
 #include <assert.h>

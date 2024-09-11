@@ -1,7 +1,7 @@
 #include "rpcpack.h"
 #include "rpccall.h"
 #include <assert.h>
-#include <libubox/utils.h>
+#include "lb_endian.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>

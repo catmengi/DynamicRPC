@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <stdint.h>
-#include <libubox/utils.h>
+#include "lb_endian.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>

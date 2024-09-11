@@ -19,7 +19,7 @@
 #include "rpcmsg.h"
 #include "rpctypes.h"
 #include "tqueque/tqueque.h"
-#include <libubox/utils.h>
+#include "lb_endian.h"
 #include <unistd.h>
 #define DEFAULT_CLIENT_TIMEOUT 1
 #define DEFAULT_MAXIXIMUM_CLIENT 512

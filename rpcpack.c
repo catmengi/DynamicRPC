@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include <libubox/utils.h>
+#include "lb_endian.h"
 int create_rpcstruct_type(struct rpcstruct* rpcstruct, char flag, struct rpctype* type){
     assert(rpcstruct);
     uint64_t buflen = 0;
