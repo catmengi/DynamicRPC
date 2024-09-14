@@ -1,4 +1,4 @@
-REQUIRED LIBRARYS AND HEADERS: "libubox/utils.h"(only header (you can just put this header to /usr/include) ), "libffi" full library with headers
+REQUIRED LIBRARYS AND HEADERS: "libffi" full library with headers
 
 DynamicRPC is a pure-C rpc client-server framework
 Main features of DynamicRPC is:
