@@ -23,7 +23,7 @@ void* rpccon_keepalive(void* arg){
    while(!con->stop){
       pthread_mutex_lock(&con->send);
       struct rpcmsg msg = {PING,0,0,0};
-      if(rpcmsg_write_to_fd(&msg,con->fd) < 0){close(con->fd);con->fd = -1;con->stop = 1;};
+      if(rpcmsg_write_to_fd(&msg,con->fd) != 0){close(con->fd);con->fd = -1;con->stop = 1;};
       pthread_mutex_unlock(&con->send);
       sleep(3);
    }
@@ -57,11 +57,15 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    serv_addr.sin_family = AF_INET;
    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
    serv_addr.sin_port = htons(portno);
-   /* Now connect to the server */
    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
       close(sockfd);
       return -1;
    }
+   struct timeval time;
+   time.tv_sec = 5;
+   time.tv_usec = 0;
+   assert(setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
+   assert(setsockopt(sockfd,SOL_SOCKET,SO_SNDTIMEO,&time,sizeof(time)) == 0);
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
    req.msg_type = CON;
