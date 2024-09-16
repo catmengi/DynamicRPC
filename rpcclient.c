@@ -32,8 +32,7 @@ void* rpccon_keepalive(void* arg){
 }
 
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
-   if(!host || !key)
-      return -1;
+   assert(con); assert(host); assert(key);
    pthread_mutex_init(&con->send,NULL);
    int sockfd;
    struct sockaddr_in serv_addr;
