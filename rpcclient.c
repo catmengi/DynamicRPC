@@ -34,6 +34,7 @@ void* rpccon_keepalive(void* arg){
 int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    if(!host || !key)
       return -1;
+   pthread_mutex_init(&con->send,NULL);
    int sockfd;
    struct sockaddr_in serv_addr;
    struct hostent *server;
@@ -100,7 +101,6 @@ int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con){
    con->uniq = unpack_str_type(&auth);
    free(ans.payload);
    con->fd = sockfd;
-   pthread_mutex_init(&con->send,NULL);
    pthread_create(&con->ping,NULL,rpccon_keepalive,con);
    return 0;
 }
