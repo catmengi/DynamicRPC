@@ -101,6 +101,7 @@ struct rpcserver* rpcserver_create(uint16_t port){
     listen(server_fd,DEFAULT_MAXIXIMUM_CLIENT);
     rpcserver->sfd = server_fd;
     rpcserver->stop = 0;
+    pthread_mutex_init(&rpcserver->edit,NULL);
     assert(hashtable_create(&rpcserver->fn_ht,32,4) == 0);
     assert(hashtable_create(&rpcserver->users,32,4) == 0);
     return rpcserver;
