@@ -153,9 +153,11 @@ int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
     struct fn* fnr = malloc(sizeof(*fnr));
     assert(fnr);
     size_t eargsamm = argsamm;
-    fnr->argtypes = malloc(sizeof(enum rpctypes) * eargsamm);
-    assert(fnr->argtypes);
-    memcpy(fnr->argtypes, argstype,sizeof(enum rpctypes) * argsamm);
+    if(argsamm > 0){
+        fnr->argtypes = malloc(sizeof(enum rpctypes) * eargsamm);
+        assert(fnr->argtypes);
+        memcpy(fnr->argtypes, argstype,sizeof(enum rpctypes) * argsamm);
+    }else fnr->argtypes = NULL;
     argsamm = eargsamm;
     fnr->rtype = rtype;
     fnr->nargs = argsamm;
@@ -187,8 +189,11 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     pthread_mutex_unlock(&serv->edit);
 }
 int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code, char* uniq){
-    void** callargs = calloc(cfn->nargs, sizeof(void*));
-    assert(callargs);
+    void** callargs = NULL;
+    if(cfn->nargs > 0){
+        callargs = calloc(cfn->nargs, sizeof(void*));
+        assert(callargs);
+    }
     uint8_t j = 0;
     struct tqueque* rpcbuff_upd = tqueque_create();
     struct tqueque* rpcbuff_free = tqueque_create();
@@ -207,7 +212,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
         goto exit;
     }
     free(check);
-    assert(callargs != NULL && call->args_amm != 0);
+    assert((callargs != NULL && call->args_amm != 0) || (callargs == NULL && call->args_amm == 0));
     for(uint8_t i = 0; i < cfn->nargs; i++){
         if(cfn->argtypes[i] == PSTORAGE){
             callargs[i] = calloc(1,sizeof(void*));
