@@ -167,8 +167,11 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen){
     types = rpctypes_clean_nonres_args(types,rpcstruct->count,&newcount);
     rpcstruct->count = newcount;
     uint64_t rpcbuflen = rpctypes_get_buflen(types,rpcstruct->count);
-    char* packed = calloc(rpcbuflen,sizeof(char));
+    char* packed = calloc(rpcbuflen + sizeof(uint64_t) + 1,sizeof(char));
     assert(packed);
+    uint64_t be64_rpcbuflen = cpu_to_be64(rpcbuflen);
+    memcpy(packed,&be64_rpcbuflen,sizeof(uint64_t));
+    packed += sizeof(uint64_t);
     assert(rpctypes_to_buf(types,rpcstruct->count,packed) == 0);
     rpctypes_free(types,rpcstruct->count);
     *buflen = rpcbuflen;
@@ -179,7 +182,10 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
     rpcstruct->count = 0;
     rpcstruct->ht = NULL;
     uint8_t count = 0;
-    struct rpctype* types = buf_to_rpctypes(arr,&count);
+    uint64_t checklen = 0;
+    memcpy(&checklen,arr,sizeof(uint64_t));
+    checklen = be64_to_cpu(checklen);
+    struct rpctype* types = buf_to_rpctypes(arr,&count,checklen);
     if(!types) return 1;
     rpcstruct->count = count;
     assert(hashtable_create(&rpcstruct->ht,4,4) == 0);

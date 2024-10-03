@@ -51,13 +51,13 @@ struct rpcmsg{
 // int is_rpctypes_equal(enum rpctypes* frst, size_t frstlen, enum rpctypes* scnd, size_t scndlen);
 // int buf_to_rpccall(struct rpccall* call,char* in);
 int is_rpctypes_equal(enum rpctypes* serv, size_t servlen, enum rpctypes* client, uint8_t clientlen);
-size_t rpctypes_get_buflen(struct rpctype* rpctypes,uint8_t rpctypes_len);
+uint64_t rpctypes_get_buflen(struct rpctype* rpctypes,uint8_t rpctypes_len);
 int rpctypes_to_buf(struct rpctype* rpctypes,uint8_t rpctypes_amm, char* out);
-struct rpctype* buf_to_rpctypes(char* in,uint8_t* rpctypes_amm);
+struct rpctype* buf_to_rpctypes(char* in,uint8_t* rpctypes_amm,uint64_t checklen);
 enum rpctypes* rpctypes_get_types(struct rpctype* rpctypes,uint8_t rpctypes_amm);
 void rpctypes_free(struct rpctype* rpctypes, uint8_t rpctypes_amm);
 char* rpccall_to_buf(struct rpccall* rpccall, uint64_t* buflen);
-int buf_to_rpccall(struct rpccall* rpccall,char* in);
+int buf_to_rpccall(struct rpccall* rpccall,char* in,uint64_t checklen);
 struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint8_t rpctypes_len,uint8_t* retargsamm_out);
 char* rpcret_to_buf(struct rpcret* rpcret, uint64_t* buflen);
-void buf_to_rpcret(struct rpcret* ret,char* in);
+int buf_to_rpcret(struct rpcret* ret,char* in,uint64_t checklen);

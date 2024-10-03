@@ -577,8 +577,10 @@ void* rpcserver_client_thread(void* arg){
                                     printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__);
                                     goto exit;
                     case CALL:
-                                    if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
+                                    if(buf_to_rpccall(&call,gotmsg.payload,gotmsg.payload_len) != 0 ){
                                         printf("%s: bad 'CALL' msg! \n",__PRETTY_FUNCTION__);
+                                        free(gotmsg.payload);
+                                        free(call.fn_name);
                                         goto exit;
                                     }
                                     free(gotmsg.payload);

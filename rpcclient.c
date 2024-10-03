@@ -231,7 +231,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       return ans.msg_type;
    }
    pthread_mutex_unlock(&con->send);
-   buf_to_rpcret(&ret,ans.payload);
+   assert(buf_to_rpcret(&ret,ans.payload,ans.payload_len) == 0);
    free(ans.payload);
    assert(resargs_updl == ret.resargs_amm);
    for(uint8_t i = 0; i < ret.resargs_amm; i++){
