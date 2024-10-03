@@ -65,7 +65,7 @@ int rpctypes_to_buf(struct rpctype* rpctypes,uint8_t rpctypes_amm, char* out){
     return 0;
 }
 struct rpctype* buf_to_rpctypes(char* in,uint8_t* rpctypes_amm,uint64_t checklen){
-    if(checklen < (sizeof(uint64_t) + sizeof(uint8_t))) return NULL;
+    if(checklen <= (sizeof(uint64_t) + sizeof(uint8_t))) return NULL;
     assert(in);
     uint8_t amm = *in;
     in++;
@@ -121,7 +121,7 @@ char* rpccall_to_buf(struct rpccall* rpccall, uint64_t* buflen){
 }
 int buf_to_rpccall(struct rpccall* rpccall,char* in,uint64_t checklen){
     if(in == NULL) return 1;
-    if(checklen < sizeof(uint64_t)) return 1;
+    if(checklen <= sizeof(uint64_t)) return 1;
     checklen -= sizeof(uint64_t);
     uint64_t be64_fulstrlen = 0;
     memcpy(&be64_fulstrlen,in,sizeof(uint64_t));
