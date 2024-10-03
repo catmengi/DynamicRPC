@@ -186,7 +186,6 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       }
       if(rpctypes[i] == RPCBUFF){
          struct rpcbuff* buf = va_arg(vargs,struct rpcbuff*);
-         assert(flags);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
          if(flag == 1) {resargs_upd[j] = buf; j++;}
@@ -195,7 +194,6 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       }
       if(rpctypes[i] == RPCSTRUCT){
          struct rpcstruct* buf = va_arg(vargs,struct rpcstruct*);
-         assert(flags);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
          if(flag == 1) {resargs_upd[j] = buf; j++;}
