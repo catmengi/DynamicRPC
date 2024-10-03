@@ -198,6 +198,7 @@ int buf_to_rpcret(struct rpcret* ret,char* in,uint64_t checklen){
     if(*in == 1) {
         in++;
         ret->resargs = buf_to_rpctypes(in,&ret->resargs_amm,checklen);
+        if(ret->resargs == NULL) return 3;
         in++;
     }
     return 0;
