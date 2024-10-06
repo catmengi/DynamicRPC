@@ -253,7 +253,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       }
       if(ret.resargs[i].type == RPCSTRUCT){
          struct rpcstruct* new = unpack_rpcstruct_type(&ret.resargs[i]);
-         rpcstruct_free(resargs_upd[i]); //this is not heap-use-after-free since rpcstruct_free ONLY freeding struct internals
+         __rpcstruct_free(resargs_upd[i]); //this is not heap-use-after-free since rpcstruct_free ONLY freeding struct internals
          memcpy(resargs_upd[i],new,sizeof(struct rpcstruct));
          free(new);
       }

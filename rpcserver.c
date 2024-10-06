@@ -421,7 +421,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 assert(tqueque_push(_rpcstruct_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             create_rpcstruct_type(*(struct rpcstruct**)fnret,0,&ret->ret);
-            if(needfree) {rpcstruct_free(*(struct rpcstruct**)fnret);free(*(struct rpcstruct**)fnret);}
+            if(needfree) {rpcstruct_free(*(struct rpcstruct**)fnret);}
         }
         else if(rtype == RPCSTRUCT && *(void**)fnret == NULL)
             ret->ret.type = VOID;
@@ -439,14 +439,14 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
             if(!buf) break;
             create_rpcstruct_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
-            rpcstruct_free(buf);free(buf);
+            rpcstruct_free(buf);
         }
     }
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
     void* buf = NULL;
     while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
+    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(_rpcstruct_free);
     free(fnret);
@@ -458,8 +458,8 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
 exit:
     while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
     while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) {rpcstruct_free(buf); free(buf);}
-    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);free(buf);}
+    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
+    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
     tqueque_free(rpcbuff_free);
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
@@ -498,12 +498,12 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
 }
 char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     struct rpcstruct lsfn;
-    assert(rpcstruct_create(&lsfn) == 0);
+    assert(__rpcstruct_create(&lsfn) == 0);
     void** callback_data[2] = {(void*)&user_perm,(void*)&lsfn};
     hashtable_iterate_wkey(serv->fn_ht,callback_data,__rpcserver_lsfn_create_callback);
     struct rpctype otype;
     create_rpcstruct_type(&lsfn,0,&otype);
-    rpcstruct_free(&lsfn);
+    __rpcstruct_free(&lsfn);
     *outlen = type_buflen(&otype);
     char* out = malloc(*outlen);
     assert(out);
