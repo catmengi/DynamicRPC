@@ -62,13 +62,12 @@ Server API:
 Client API:
     header file: "rpcclient.h"
 
-    int rpcserver_connect(char* host,char* key,int portno,struct rpccon* con);
+    struct rpccon* rpcclient_connect(char* host,int portno,char* key)
     "
     This functions connects to server at host,portno with key, fd and your perm will be stored into con
         - host: ip or domen of server
         - key: your key on server, based on it you you'll get perm or be disconned
         - portno: TCP port of server
-        - con: output pointer ti rpccon struct
     Return 0 on success
     "
 
