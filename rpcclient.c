@@ -128,8 +128,11 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       assert(resargs_upd);
    }
    va_start(vargs, fnret);
-   struct rpctype* args = calloc(rpctypes_len,sizeof(*args));
-   assert(args);
+   struct rpctype* args = NULL;
+   if(rpctypes_len > 0){
+      args = calloc(rpctypes_len,sizeof(*args));
+      assert(args);
+   }
    uint8_t j = 0;
    for(uint8_t i = 0; i < rpctypes_len; i++){
       if(rpctypes[i] == CHAR){
