@@ -113,7 +113,6 @@ void __rpcserver_fn_free_callback(void* cfn){
     free(fn->ffi_type_free);
     free(fn->argtypes);
     free(fn->fn_name);
-    if(fn->personal) free(fn->personal);
     free(fn);
 }
 void rpcserver_free(struct rpcserver* serv){
