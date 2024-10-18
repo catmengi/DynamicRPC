@@ -210,7 +210,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
         goto exit;
     }
     free(check);
-    assert((callargs != NULL && call->args_amm != 0) || (callargs == NULL && call->args_amm == 0));
+    assert((callargs != NULL && call->args_amm != 0) || call->args_amm == 0);
     for(uint8_t i = 0; i < cfn->nargs; i++){
         if(cfn->argtypes[i] == PSTORAGE){
             callargs[i] = calloc(1,sizeof(void*));
