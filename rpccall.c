@@ -11,12 +11,6 @@
 #include <assert.h>
 
 int is_rpctypes_equal(enum rpctypes* serv, size_t servlen, enum rpctypes* client, uint8_t clientlen){
-    if((serv && !client) || (!serv && client)) {
-        if(clientlen == 0 && servlen == 0){
-            return 1;
-        }
-        return 0;
-    }
     if(!serv && !client) return 1;
     struct tqueque* check_que = tqueque_create();
     assert(check_que);
@@ -27,6 +21,14 @@ int is_rpctypes_equal(enum rpctypes* serv, size_t servlen, enum rpctypes* client
             if(serv[i] == SIZEDBUF) i++;
             newservlen++;
         }
+    }
+    if((serv && !client) || (!serv && client)) {
+        if(clientlen == 0 && newservlen == 0){
+            tqueque_free(check_que);
+            return 1;
+        }
+        tqueque_free(check_que);
+        return 0;
     }
     if(newservlen != clientlen) {tqueque_free(check_que);return 0;}
     enum rpctypes* newserv = calloc(newservlen,sizeof(enum rpctypes));
