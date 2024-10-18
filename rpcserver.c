@@ -180,7 +180,6 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     if(hashtable_get(serv->fn_ht,fn_name,strlen(fn_name) + 1,(void**)&cfn) != 0) {pthread_mutex_unlock(&serv->edit);return;}
     free(cfn->argtypes);
     free(cfn->ffi_type_free);
-    free(cfn->personal);
     free(cfn);
     hashtable_remove_entry(serv->fn_ht,fn_name,strlen(fn_name) + 1);
     pthread_mutex_unlock(&serv->edit);
