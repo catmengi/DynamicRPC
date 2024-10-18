@@ -272,7 +272,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       }
    }
    enum rpctypes type = ret.ret.type;
-   assert((fnret != NULL && type != VOID) || fnret == NULL && type == VOID);
+   assert((fnret == NULL && type == VOID) || (fnret != NULL && type != VOID) || (fnret != NULL && type == VOID));
    if(type == CHAR){
       char ch = type_to_char(&ret.ret);
       *(char*)fnret = ch;
