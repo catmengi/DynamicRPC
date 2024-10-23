@@ -10,21 +10,14 @@
 #include <string.h>
 #include <sys/socket.h>
 int rpcmsg_write_to_fd(struct rpcmsg* msg, int fd){
-    assert(msg);
-    uint8_t crc = 0;
-    for(uint64_t i = 0; i < msg->payload_len; i++){
-        crc = crc ^ msg->payload[i] ^ i;
-    }
+
+    char header[sizeof(uint64_t) + sizeof(char)] = {0};
+    header[0] = msg->msg_type;
     uint64_t be64_payload_len = cpu_to_be64(msg->payload_len);
-    char type = msg->msg_type;
-    ssize_t n = 0;
-    ssize_t sent = 0;
-    errno = 0;
-    sent += n = send(fd, &type, sizeof(char),MSG_NOSIGNAL);
-    if(errno != 0 || n <= 0) return 1;
-    sent += n = send(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL);
-    if(errno != 0 || n <= 0) return 1;
-    size_t bufsize = msg->payload_len;
+    memcpy(&header[1],&be64_payload_len,sizeof(uint64_t));
+    if(send(fd,header,9,MSG_NOSIGNAL) <= 0) return 1;
+    uint64_t sent = 0;
+    uint64_t bufsize = msg->payload_len;
     const char *pbuffer = (const char*) msg->payload;
     while (bufsize > 0)
     {
@@ -34,18 +27,16 @@ int rpcmsg_write_to_fd(struct rpcmsg* msg, int fd){
         pbuffer += n;
         bufsize -= n;
     }
-    sent += send(fd, &crc, sizeof(uint8_t),MSG_NOSIGNAL);
     return 0;
 }
 
 int get_rpcmsg_from_fd(struct rpcmsg* msg ,int fd){
-    if(fd < 0) return 1;
     memset(msg,0,sizeof(*msg));
-    char type;
-    if(recv(fd,&type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
-    msg->msg_type = type;
+    char header[sizeof(uint64_t) + sizeof(char)] = {0};
+    if(recv(fd,header,9,MSG_NOSIGNAL) <= 0) return 1;
+    msg->msg_type = header[0];
     uint64_t be64_payload_len = 0;
-    if(recv(fd, &be64_payload_len, sizeof(uint64_t),MSG_NOSIGNAL) <= 0) return 1;
+    memcpy(&be64_payload_len,&header[1],sizeof(uint64_t));
     msg->payload_len = be64_to_cpu(be64_payload_len);
     msg->payload = NULL;
     if(msg->payload_len > 0)msg->payload = calloc(msg->payload_len, sizeof(char));
@@ -59,12 +50,5 @@ int get_rpcmsg_from_fd(struct rpcmsg* msg ,int fd){
         pbuffer += n;
         bufsize -= n;
     }
-    uint8_t crc = 0;
-    for(uint64_t i = 0; i < msg->payload_len; i++){
-        crc = crc ^ msg->payload[i] ^ i;
-    }
-    uint8_t got_crc = 0;
-    recv(fd, &got_crc, sizeof(uint8_t),MSG_NOSIGNAL);
-    if(got_crc == crc) return 0;
-    free(msg->payload); return 1;
+    return 0;
 }

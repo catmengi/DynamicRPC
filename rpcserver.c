@@ -637,7 +637,7 @@ void* rpcserver_client_thread(void* arg){
 
 exit:
     if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
-    struct rpcmsg lreply = {DISCON,0,NULL,0};
+    struct rpcmsg lreply = {DISCON,0,NULL};
     rpcmsg_write_to_fd(&lreply,thrd->client_fd);
     shutdown(thrd->client_fd, SHUT_RD);
     close(thrd->client_fd);

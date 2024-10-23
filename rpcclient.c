@@ -22,7 +22,7 @@ void* rpccon_keepalive(void* arg){
    struct rpccon* con = arg;
    while(!con->stop){
       pthread_mutex_lock(&con->send);
-      struct rpcmsg msg = {PING,0,0,0};
+      struct rpcmsg msg = {PING,0,0};
       if(rpcmsg_write_to_fd(&msg,con->fd) != 0){close(con->fd);con->fd = -1;con->stop = 1;};
       pthread_mutex_unlock(&con->send);
       sleep(3);
@@ -57,9 +57,9 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
       free(con);
       return NULL;
    }
-   bzero((char *) &serv_addr, sizeof(serv_addr));
+   memset(&serv_addr,0,sizeof(serv_addr));
    serv_addr.sin_family = AF_INET;
-   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+   memcpy((char *)&serv_addr.sin_addr.s_addr,(char *)server->h_addr, server->h_length);
    serv_addr.sin_port = htons(portno);
    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
       close(sockfd);
@@ -329,7 +329,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
 struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
    if(con == NULL) return NULL;
    pthread_mutex_lock(&con->send);
-   struct rpcmsg req = {LSFN,0,0,0};
+   struct rpcmsg req = {LSFN,0,0};
    struct rpcmsg ans = {0};
    rpcmsg_write_to_fd(&req,con->fd);
    get_rpcmsg_from_fd(&ans,con->fd);
@@ -383,7 +383,7 @@ void rpcclient_discon(struct rpccon* con){
    if(con->stop != 0 ) return;
    con->stop = 1;
    pthread_mutex_lock(&con->send);
-   struct rpcmsg msg = {DISCON,0,0,0};
+   struct rpcmsg msg = {DISCON,0,0};
    rpcmsg_write_to_fd(&msg,con->fd);
    close(con->fd);
    con->fd = -1;

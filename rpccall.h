@@ -35,7 +35,6 @@ struct rpcmsg{
     enum rpcmsg_type msg_type;
     uint64_t payload_len;
     char* payload;
-    uint8_t payload_crc;
 };
 // void rpctypes_free(struct rpctype* rpctypes);
 // enum rpctypes* ffi_types_to_rpctypes(ffi_type** ffi_types, size_t ffi_types_amm);
