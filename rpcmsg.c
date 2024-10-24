@@ -18,6 +18,7 @@
     //     bufsize -= n;
     // }
 int send_rpcmsg(struct rpcmsg* msg, int fd){
+    errno = 0;
     char* buf = malloc(sizeof(char) + sizeof(uint64_t) + msg->payload_len);
     uint64_t tosend = sizeof(char);
     assert(buf);
@@ -43,6 +44,7 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
 }
 
 int get_rpcmsg(struct rpcmsg* msg ,int fd){
+    errno = 0;
     if(recv(fd,&msg->msg_type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
     if(msg->msg_type != OK && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         uint64_t be64_len = 0;
