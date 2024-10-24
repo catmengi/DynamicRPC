@@ -23,7 +23,7 @@ void* rpccon_keepalive(void* arg){
    while(!con->stop){
       pthread_mutex_lock(&con->send);
       struct rpcmsg msg = {PING,0,0};
-      if(rpcmsg_write_to_fd(&msg,con->fd) != 0){close(con->fd);con->fd = -1;con->stop = 1;};
+      if(send_rpcmsg(&msg,con->fd) != 0){close(con->fd);con->fd = -1;con->stop = 1;};
       pthread_mutex_unlock(&con->send);
       sleep(3);
    }
@@ -74,7 +74,7 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    struct rpcmsg req = {0};
    struct rpcmsg ans = {0};
    req.msg_type = CON;
-   if(rpcmsg_write_to_fd(&req,sockfd) != 0){
+   if(send_rpcmsg(&req,sockfd) != 0){
       close(sockfd);
       free(con);
       return NULL;
@@ -85,7 +85,7 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    req.payload = malloc((req.payload_len = type_buflen(&auth)));
    assert(req.payload);
    type_to_arr(req.payload,&auth);
-   if(rpcmsg_write_to_fd(&req,sockfd) != 0){
+   if(send_rpcmsg(&req,sockfd) != 0){
       free(auth.data);
       free(req.payload);
       close(sockfd);
@@ -94,7 +94,7 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    }
    free(auth.data);
    free(req.payload);
-   if(get_rpcmsg_from_fd(&ans,sockfd) != 0){
+   if(get_rpcmsg(&ans,sockfd) != 0){
       close(sockfd);
       free(con);
       return NULL;
@@ -219,7 +219,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    struct rpcmsg ans = {0};
    req.msg_type = CALL;
    req.payload = rpccall_to_buf(&call,&req.payload_len);
-   if(rpcmsg_write_to_fd(&req,con->fd) != 0){
+   if(send_rpcmsg(&req,con->fd) != 0){
       rpctypes_free(args,rpctypes_len);
       free(req.payload);
       close(con->fd);
@@ -230,7 +230,7 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
    }
    free(req.payload);
    rpctypes_free(args,rpctypes_len);
-   if(get_rpcmsg_from_fd(&ans,con->fd) != 0){
+   if(get_rpcmsg(&ans,con->fd) != 0){
       close(con->fd);
       con->fd = -1;
       con->stop = 1;
@@ -331,8 +331,8 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* f
    pthread_mutex_lock(&con->send);
    struct rpcmsg req = {LSFN,0,0};
    struct rpcmsg ans = {0};
-   rpcmsg_write_to_fd(&req,con->fd);
-   get_rpcmsg_from_fd(&ans,con->fd);
+   send_rpcmsg(&req,con->fd);
+   get_rpcmsg(&ans,con->fd);
    if(ans.msg_type != LSFN){
       pthread_mutex_unlock(&con->send);
       if(ans.msg_type == DISCON){
@@ -384,7 +384,7 @@ void rpcclient_discon(struct rpccon* con){
    con->stop = 1;
    pthread_mutex_lock(&con->send);
    struct rpcmsg msg = {DISCON,0,0};
-   rpcmsg_write_to_fd(&msg,con->fd);
+   send_rpcmsg(&msg,con->fd);
    close(con->fd);
    con->fd = -1;
    free(con->uniq);

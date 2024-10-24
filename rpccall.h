@@ -23,13 +23,11 @@ enum rpcmsg_type{
     NOFN = 3,
     BAD = 4,
     OK = 5,
-    READY = 6,
-    AUTH = 7,
-    NONREADY = 8,
-    DISCON = 9,
-    LPERM = 10,
-    PING = 11,
-    LSFN = 12,
+    AUTH = 6,
+    DISCON = 7,
+    LPERM = 8,
+    PING = 9,
+    LSFN = 10,
 };
 struct rpcmsg{
     enum rpcmsg_type msg_type;
