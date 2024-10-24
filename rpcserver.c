@@ -632,7 +632,7 @@ void* rpcserver_client_thread(void* arg){
                 }
             }
         }else {repl.msg_type = BAD;send_rpcmsg(&repl,thrd->client_fd);printf("%s: client not passed auth\n",__PRETTY_FUNCTION__);}
-    } else {printf("%s: no auth provided\n",__PRETTY_FUNCTION__);printf("Pl:%p, Type %d\n",gotmsg.payload,gotmsg.msg_type);}
+    } else printf("%s: no auth provided\n",__PRETTY_FUNCTION__);
 
 exit:
     if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
