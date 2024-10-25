@@ -9,16 +9,9 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/socket.h>
-    // while (bufsize > 0)
-    // {
-    //     int n = send(fd, pbuffer, bufsize, MSG_NOSIGNAL);
-    //     sent += n;
-    //     if (n <= 0 || errno != 0) return 1;
-    //     pbuffer += n;
-    //     bufsize -= n;
-    // }
+
+
 int send_rpcmsg(struct rpcmsg* msg, int fd){
-    errno = 0;
     char* buf = malloc(sizeof(char) + sizeof(uint64_t) + msg->payload_len);
     uint64_t tosend = sizeof(char);
     assert(buf);
@@ -35,7 +28,7 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
     while (bufsize > 0)
     {
         int n = send(fd, pbuffer, bufsize, MSG_NOSIGNAL);
-        if (n <= 0 || errno != 0) {free(buf);return 1;}
+        if (n <= 0) {free(buf);return 1;}
         pbuffer += n;
         bufsize -= n;
     }
@@ -43,8 +36,8 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
     return 0;
 }
 
+
 int get_rpcmsg(struct rpcmsg* msg ,int fd){
-    errno = 0;
     if(recv(fd,&msg->msg_type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
     if(msg->msg_type != OK && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         uint64_t be64_len = 0;
@@ -57,7 +50,7 @@ int get_rpcmsg(struct rpcmsg* msg ,int fd){
         while (bufsize > 0)
         {
             int n = recv(fd, pbuffer, bufsize, MSG_NOSIGNAL);
-            if (n <= 0 || errno != 0) {free(msg->payload);return 1;}
+            if (n <= 0) {free(msg->payload);return 1;}
             pbuffer += n;
             bufsize -= n;
         }
