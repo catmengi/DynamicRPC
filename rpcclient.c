@@ -53,7 +53,8 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    server = gethostbyname(host);
 
    if (server == NULL) {
-      fprintf(stderr,"ERROR, no such host\n");close(sockfd);
+      perror("gethostbyname");
+      close(sockfd);
       free(con);
       return NULL;
    }
@@ -62,6 +63,7 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    memcpy((char *)&serv_addr.sin_addr.s_addr,(char *)server->h_addr, server->h_length);
    serv_addr.sin_port = htons(portno);
    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) != 0) {
+      perror("connect");
       close(sockfd);
       free(con);
       return NULL;
@@ -71,43 +73,41 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
    time.tv_usec = 0;
    assert(setsockopt(sockfd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
    assert(setsockopt(sockfd,SOL_SOCKET,SO_SNDTIMEO,&time,sizeof(time)) == 0);
-   struct rpcmsg req = {0};
-   struct rpcmsg ans = {0};
-   req.msg_type = CON;
-   if(send_rpcmsg(&req,sockfd) != 0){
+   struct rpcmsg reply = {0};
+   struct rpcmsg gotmsg = {0};
+   reply.msg_type = CON;
+   if(send_rpcmsg(&reply,sockfd) != 0){
       close(sockfd);
       free(con);
       return NULL;
    }
    struct rpctype auth = {0};
    uint64_to_type(_hash_fnc(key,strlen(key) + 1),&auth);
-   req.msg_type = AUTH;
-   req.payload = malloc((req.payload_len = type_buflen(&auth)));
-   assert(req.payload);
-   type_to_arr(req.payload,&auth);
-   if(send_rpcmsg(&req,sockfd) != 0){
+   reply.msg_type = AUTH;
+   reply.payload = malloc((reply.payload_len = type_buflen(&auth)));
+   assert(reply.payload);
+   type_to_arr(reply.payload,&auth);
+   if(send_rpcmsg(&reply,sockfd) != 0){
       free(auth.data);
-      free(req.payload);
       close(sockfd);
       free(con);
       return NULL;
    }
    free(auth.data);
-   free(req.payload);
-   if(get_rpcmsg(&ans,sockfd) != 0){
+   if(get_rpcmsg(&gotmsg,sockfd) != 0){
       close(sockfd);
       free(con);
       return NULL;
    }
-   if(ans.msg_type != OK) {
-      free(ans.payload);
+   if(gotmsg.msg_type != OK) {
+      free(gotmsg.payload);
       close(sockfd);
       free(con);
       return NULL;
    }
-   arr_to_type(ans.payload,&auth);
+   arr_to_type(gotmsg.payload,&auth);
    con->uniq = unpack_str_type(&auth);
-   free(ans.payload);
+   free(gotmsg.payload);
    con->fd = sockfd;
    pthread_create(&con->ping,NULL,rpccon_keepalive,con);
    return con;
@@ -215,35 +215,33 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
       }
    }
    struct rpccall call = {fn,rpctypes_len,args};
-   struct rpcmsg req = {0};
-   struct rpcmsg ans = {0};
-   req.msg_type = CALL;
-   req.payload = rpccall_to_buf(&call,&req.payload_len);
-   if(send_rpcmsg(&req,con->fd) != 0){
+   struct rpcmsg reply = {0};
+   struct rpcmsg gotmsg = {0};
+   reply.msg_type = CALL;
+   reply.payload = rpccall_to_buf(&call,&reply.payload_len);
+   if(send_rpcmsg(&reply,con->fd) != 0){
       rpctypes_free(args,rpctypes_len);
-      free(req.payload);
       close(con->fd);
       con->fd = -1;
       con->stop = 1;
       pthread_mutex_unlock(&con->send);
       return 10;
    }
-   free(req.payload);
    rpctypes_free(args,rpctypes_len);
-   if(get_rpcmsg(&ans,con->fd) != 0){
+   if(get_rpcmsg(&gotmsg,con->fd) != 0){
       close(con->fd);
       con->fd = -1;
       con->stop = 1;
       pthread_mutex_unlock(&con->send);
       return 20;
    }
-   if(ans.msg_type != RET){
+   if(gotmsg.msg_type != RET){
       pthread_mutex_unlock(&con->send);
-      return ans.msg_type;
+      return gotmsg.msg_type;
    }
    pthread_mutex_unlock(&con->send);
-   assert(buf_to_rpcret(&ret,ans.payload,ans.payload_len) == 0);
-   free(ans.payload);
+   assert(buf_to_rpcret(&ret,gotmsg.payload,gotmsg.payload_len) == 0);
+   free(gotmsg.payload);
    assert(resargs_updl == ret.resargs_amm);
    for(uint8_t i = 0; i < ret.resargs_amm; i++){
       if(ret.resargs[i].type == STR){
@@ -329,13 +327,13 @@ int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* fla
 struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* fn_len){
    if(con == NULL) return NULL;
    pthread_mutex_lock(&con->send);
-   struct rpcmsg req = {LSFN,0,0};
-   struct rpcmsg ans = {0};
-   send_rpcmsg(&req,con->fd);
-   get_rpcmsg(&ans,con->fd);
-   if(ans.msg_type != LSFN){
+   struct rpcmsg reply = {LSFN,0,0};
+   struct rpcmsg gotmsg = {0};
+   send_rpcmsg(&reply,con->fd);
+   get_rpcmsg(&gotmsg,con->fd);
+   if(gotmsg.msg_type != LSFN){
       pthread_mutex_unlock(&con->send);
-      if(ans.msg_type == DISCON){
+      if(gotmsg.msg_type == DISCON){
           close(con->fd);
           con->stop = 1;
       }
@@ -343,8 +341,8 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpccon* con,uint64_t* f
    }
    struct rpcstruct* lsfn;
    struct rpctype otype;
-   arr_to_type(ans.payload,&otype);
-   free(ans.payload);
+   arr_to_type(gotmsg.payload,&otype);
+   free(gotmsg.payload);
    assert((lsfn = unpack_rpcstruct_type(&otype)) != NULL);
    free(otype.data);
    char** fns = rpcstruct_get_fields(lsfn,fn_len);

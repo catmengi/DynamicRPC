@@ -1,7 +1,5 @@
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <unistd.h>
 #include "lb_endian.h"
 #include <stdlib.h>
@@ -23,6 +21,7 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
         memcpy(wr,&be64_len, sizeof(uint64_t)); wr += sizeof(uint64_t);
         memcpy(wr,msg->payload,msg->payload_len);
     }
+    free(msg->payload);
     uint64_t bufsize = tosend;
     char *pbuffer = buf;
     while (bufsize > 0)
@@ -33,11 +32,13 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
         bufsize -= n;
     }
     free(buf);
+    memset(msg,0,sizeof(*msg));
     return 0;
 }
 
 
 int get_rpcmsg(struct rpcmsg* msg ,int fd){
+    memset(msg,0,sizeof(*msg));
     if(recv(fd,&msg->msg_type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
     if(msg->msg_type != OK && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         uint64_t be64_len = 0;

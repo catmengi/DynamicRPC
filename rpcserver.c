@@ -516,7 +516,7 @@ void __get_uniq(char* uniq,int L){
 }
 void* rpcserver_client_thread(void* arg){
     struct client_thread* thrd = (struct client_thread*)arg;
-    struct rpcmsg gotmsg = {0},repl = {0};
+    struct rpcmsg gotmsg = {0},reply = {0};
     thrd->serv->clientcount++;
     int user_perm = 0;
     int is_authed = 0;
@@ -535,39 +535,32 @@ void* rpcserver_client_thread(void* arg){
         }
         free(type.data);
         if(is_authed){
-            repl.msg_type = OK;
+            reply.msg_type = OK;
             __get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
             struct rpctype perm = {0};
             create_str_type(thrd->client_uniq,0,&perm);
-            repl.payload = malloc((repl.payload_len = type_buflen(&perm)));
-            assert(repl.payload);
-            type_to_arr(repl.payload,&perm);
+            reply.payload = malloc((reply.payload_len = type_buflen(&perm)));
+            assert(reply.payload);
+            type_to_arr(reply.payload,&perm);
             free(perm.data);
-            int iserror = 0;
-            if(send_rpcmsg(&repl,thrd->client_fd) != 0) iserror = 1;
-            repl.msg_type = 0;
-            free(repl.payload);
-            repl.payload = NULL;
-            repl.payload_len = 0;
-            if(iserror) goto exit;
-            printf("%s: auth ok, OK is replied to client\n",__PRETTY_FUNCTION__);
+            if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
+            printf("%s: auth ok, OK is replyied to client\n",__PRETTY_FUNCTION__);
             if(thrd->serv->newclient_cb != NULL)
                 thrd->serv->newclient_cb(thrd->serv->newclient_cb_data,thrd->addr);
+
+
             while(thrd->serv->stop == 0){
-                repl.msg_type = 0; repl.payload = NULL; repl.payload_len = 0;
-                gotmsg.msg_type = 0; gotmsg.payload = NULL; gotmsg.payload_len = 0;
+                memset(&reply,0,sizeof(reply));
                 struct rpccall call = {0}; struct rpcret ret = {0};
                 if(get_rpcmsg(&gotmsg,thrd->client_fd) != 0) {printf("%s: client disconected badly\n",__PRETTY_FUNCTION__);goto exit;}
                 switch(gotmsg.msg_type){
                     case LSFN:
                                     printf("%s: client requested list of registred functions!\n",__PRETTY_FUNCTION__);
-                                    repl.payload = __rpcserver_lsfn(thrd->serv,&repl.payload_len,user_perm);
-                                    repl.msg_type = LSFN;
-                                    if(send_rpcmsg(&repl,thrd->client_fd) != 0) {free(repl.payload);goto exit;}
-                                    free(repl.payload);
+                                    reply.payload = __rpcserver_lsfn(thrd->serv,&reply.payload_len,user_perm);
+                                    reply.msg_type = LSFN;
+                                    if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                     break;
                     case PING:
-                                    free(gotmsg.payload);
                                     break;
                     case DISCON:
                                     free(gotmsg.payload);
@@ -584,20 +577,20 @@ void* rpcserver_client_thread(void* arg){
                                     pthread_mutex_lock(&thrd->serv->edit); pthread_mutex_unlock(&thrd->serv->edit);
                                     struct fn* cfn = NULL;hashtable_get(thrd->serv->fn_ht,call.fn_name,strlen(call.fn_name) + 1,(void**)&cfn);
                                     if(cfn == NULL){
-                                        repl.msg_type = NOFN;
+                                        reply.msg_type = NOFN;
                                         printf("%s: '%s' no such function\n",__PRETTY_FUNCTION__,call.fn_name);
                                         free(call.fn_name); rpctypes_free(call.args,call.args_amm);
-                                        if(send_rpcmsg(&repl,thrd->client_fd) != 0) goto exit;
+                                        if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                         break;
                                     }else if((cfn->perm > user_perm || cfn->perm == -1) && user_perm != -1){
-                                        repl.msg_type = LPERM;
+                                        reply.msg_type = LPERM;
                                         printf("%s: low permissions, need %d, have %d\n",__PRETTY_FUNCTION__,cfn->perm,(int)user_perm);
                                         free(call.fn_name);
                                         rpctypes_free(call.args,call.args_amm);
-                                        if(send_rpcmsg(&repl,thrd->client_fd) != 0) goto exit;
+                                        if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                         break;
                                     }
-                                    repl.msg_type = RET;
+                                    reply.msg_type = RET;
                                     int err = 0;
                                     int callret = 0;
                                     if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,&err,thrd->client_uniq)) != 0 && err == 0){
@@ -606,19 +599,18 @@ void* rpcserver_client_thread(void* arg){
                                         printf("%s: internal server error\n",__PRETTY_FUNCTION__);
                                         goto exit;
                                     }else if(callret != 0 && err != 0){
-                                        repl.msg_type = BAD;
+                                        reply.msg_type = BAD;
                                         printf("%s: client provided wrong arguments\n",__PRETTY_FUNCTION__);
                                         free(call.fn_name);
                                         rpctypes_free(call.args,call.args_amm);
-                                        if(send_rpcmsg(&repl,thrd->client_fd) != 0) goto exit;
+                                        if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                         break;
                                     }
                                     free(call.fn_name);
-                                    repl.payload = rpcret_to_buf(&ret,&repl.payload_len);
+                                    reply.payload = rpcret_to_buf(&ret,&reply.payload_len);
                                     rpctypes_free(ret.resargs,ret.resargs_amm);
                                     int iserror = 0;
-                                    if(send_rpcmsg(&repl,thrd->client_fd) != 0) iserror = 1;
-                                    free(repl.payload);
+                                    if(send_rpcmsg(&reply,thrd->client_fd) != 0) iserror = 1;
                                     if(ret.ret.data) free(ret.ret.data);
                                     if(iserror) goto exit;
                                     break;
@@ -631,13 +623,13 @@ void* rpcserver_client_thread(void* arg){
                             goto exit;
                 }
             }
-        }else {repl.msg_type = BAD;send_rpcmsg(&repl,thrd->client_fd);printf("%s: client not passed auth\n",__PRETTY_FUNCTION__);}
+        }else {reply.msg_type = BAD;send_rpcmsg(&reply,thrd->client_fd);printf("%s: client not passed auth\n",__PRETTY_FUNCTION__);}
     } else printf("%s: no auth provided\n",__PRETTY_FUNCTION__);
 
 exit:
     if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
-    struct rpcmsg lreply = {DISCON,0,NULL};
-    send_rpcmsg(&lreply,thrd->client_fd);
+    struct rpcmsg lreplyy = {DISCON,0,NULL};
+    send_rpcmsg(&lreplyy,thrd->client_fd);
     shutdown(thrd->client_fd, SHUT_RD);
     close(thrd->client_fd);
     thrd->serv->clientcount--;
