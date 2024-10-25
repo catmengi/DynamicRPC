@@ -561,6 +561,8 @@ void* rpcserver_client_thread(void* arg){
                                     if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                     break;
                     case PING:
+                                    reply.msg_type = PING;
+                                    if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                     break;
                     case DISCON:
                                     free(gotmsg.payload);
