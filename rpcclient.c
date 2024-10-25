@@ -114,6 +114,7 @@ struct rpccon* rpcclient_connect(char* host,int portno,char* key){
 }
 int rpcclient_call(struct rpccon* con,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...){
    if(con == NULL) return 1;
+   if(con->stop == 1) return 1;
    pthread_mutex_lock(&con->send);
    va_list vargs;
    void** resargs_upd = NULL;
