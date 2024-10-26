@@ -552,7 +552,7 @@ void* rpcserver_client_thread(void* arg){
             while(thrd->serv->stop == 0){
                 memset(&reply,0,sizeof(reply));
                 struct rpccall call = {0}; struct rpcret ret = {0};
-                if(get_rpcmsg(&gotmsg,thrd->client_fd) != 0) {
+                if(get_rpcmsg(&gotmsg,thrd->client_fd) != 0){
                     printf("%s: disconected: %s(%s)\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
                     goto exit;
                 }

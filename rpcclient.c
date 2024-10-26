@@ -25,6 +25,7 @@ void __rpcclient_disconnect_callback_initiate(struct rpcclient* self,
    }
 
 }
+
 void* rpcclient_keepalive(void* arg){
    struct rpcclient* self = arg;
    while(self->stop == 0){
