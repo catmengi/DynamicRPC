@@ -17,29 +17,23 @@
 #include <stdarg.h>
 #include "rpcclient.h"
 #include "rpctypes.h"
+void __rpcclient_disconnect_callback_initiate(struct rpcclient* self,
+                                              enum rpcclient_disconnect_reason reason){
+   if(self->disconnect_cb != NULL){
+      self->disconnect_cb(self->disconnect_cb_user, reason);
+   }
 
+}
 void* rpcclient_keepalive(void* arg){
    struct rpcclient* self = arg;
    while(self->stop == 0){
       pthread_mutex_lock(&self->send);
       struct rpcmsg msg = {PING,0,0};
-      if(send_rpcmsg(&msg,self->fd) != 0){
-         close(self->fd);
+      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0){
          self->stop = 1;
-         if(self->disconnect_cb != NULL){
-            self->disconnect_cb(self->disconnect_cb_user,NET_FAILURE);
-         }
-         pthread_mutex_unlock(&self->send);
-         return NULL;
-      }
-      struct rpcmsg gotmsg = {0};
-      if(get_rpcmsg(&gotmsg,self->fd) != 0){
          close(self->fd);
-         self->stop = 1;
-         if(self->disconnect_cb != NULL){
-            self->disconnect_cb(self->disconnect_cb_user,NET_FAILURE);
-         }
          pthread_mutex_unlock(&self->send);
+         __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
          return NULL;
       }
       pthread_mutex_unlock(&self->send);
@@ -242,6 +236,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       close(self->fd);
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
+      __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
       return 10;
    }
    rpctypes_free(args,rpctypes_len);
@@ -249,6 +244,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       close(self->fd);
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
+      __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
       return 20;
    }
    if(gotmsg.msg_type != RET){
@@ -346,14 +342,18 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,uint64_
    pthread_mutex_lock(&self->send);
    struct rpcmsg reply = {LSFN,0,0};
    struct rpcmsg gotmsg = {0};
-   send_rpcmsg(&reply,self->fd);
-   get_rpcmsg(&gotmsg,self->fd);
+   if(send_rpcmsg(&reply,self->fd) != 0){
+      pthread_mutex_unlock(&self->send);
+      close(self->fd);
+      __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
+   }
+   if(get_rpcmsg(&gotmsg,self->fd) != 0){
+      pthread_mutex_unlock(&self->send);
+      close(self->fd);
+      __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
+   }
    if(gotmsg.msg_type != LSFN){
       pthread_mutex_unlock(&self->send);
-      if(gotmsg.msg_type == DISCON){
-          close(self->fd);
-          self->stop = 1;
-      }
       return NULL;
    }
    struct rpcstruct* lsfn;
