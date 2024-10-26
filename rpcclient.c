@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include "rpcclient.h"
 #include "rpctypes.h"
+
 void __rpcclient_disconnect_callback_initiate(struct rpcclient* self,
                                               enum rpcclient_disconnect_reason reason){
    if(self->disconnect_cb != NULL){
@@ -34,6 +35,13 @@ void* rpcclient_keepalive(void* arg){
          close(self->fd);
          pthread_mutex_unlock(&self->send);
          __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
+         return NULL;
+      }
+      if(msg.msg_type == DISCON){
+         close(self->fd);
+         self->stop = 1;
+         pthread_mutex_unlock(&self->send);
+         __rpcclient_disconnect_callback_initiate(self,SERVER_STOP);
          return NULL;
       }
       pthread_mutex_unlock(&self->send);

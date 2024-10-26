@@ -629,9 +629,11 @@ void* rpcserver_client_thread(void* arg){
     } else printf("%s: no auth provided\n",__PRETTY_FUNCTION__);
 
 exit:
-    if(thrd->serv->stop == 1) printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
-    struct rpcmsg death = {DISCON,0,NULL};
-    send_rpcmsg(&death,thrd->client_fd);
+    if(thrd->serv->stop == 1){
+        printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
+        struct rpcmsg death = {DISCON,0,NULL};
+        send_rpcmsg(&death,thrd->client_fd);
+    }
     shutdown(thrd->client_fd, SHUT_RD);
     close(thrd->client_fd);
     thrd->serv->clientcount--;

@@ -4,6 +4,7 @@
 enum rpcclient_disconnect_reason{
    INITIATED,
    NET_FAILURE,
+   SERVER_STOP,
 };
 
 typedef void (*rpcclient_disconnect_cb)(void* user, enum rpcclient_disconnect_reason reason);
