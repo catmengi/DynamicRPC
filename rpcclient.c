@@ -30,7 +30,7 @@ void* rpcclient_keepalive(void* arg){
    while(self->stop == 0){
       pthread_mutex_lock(&self->send);
       struct rpcmsg msg = {PING,0,0};
-      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0 || msg.msg_type == DISCON){
+      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0){
          self->stop = 1;
          close(self->fd);
          pthread_mutex_unlock(&self->send);
