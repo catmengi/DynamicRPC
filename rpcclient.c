@@ -30,22 +30,15 @@ void* rpcclient_keepalive(void* arg){
    while(self->stop == 0){
       pthread_mutex_lock(&self->send);
       struct rpcmsg msg = {PING,0,0};
-      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0){
+      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0 || msg.msg_type == DISCON){
          self->stop = 1;
          close(self->fd);
          pthread_mutex_unlock(&self->send);
          __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
          return NULL;
       }
-      if(msg.msg_type == DISCON){
-         close(self->fd);
-         self->stop = 1;
-         pthread_mutex_unlock(&self->send);
-         __rpcclient_disconnect_callback_initiate(self,SERVER_STOP);
-         return NULL;
-      }
       pthread_mutex_unlock(&self->send);
-      sleep(3);
+      sleep(1);
    }
    return NULL;
 }

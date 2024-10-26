@@ -552,7 +552,10 @@ void* rpcserver_client_thread(void* arg){
             while(thrd->serv->stop == 0){
                 memset(&reply,0,sizeof(reply));
                 struct rpccall call = {0}; struct rpcret ret = {0};
-                if(get_rpcmsg(&gotmsg,thrd->client_fd) != 0) {printf("%s: client disconected badly\n",__PRETTY_FUNCTION__);goto exit;}
+                if(get_rpcmsg(&gotmsg,thrd->client_fd) != 0) {
+                    printf("%s: disconected: %s(%s)\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
+                    goto exit;
+                }
                 switch(gotmsg.msg_type){
                     case LSFN:
                                     printf("%s: client requested list of registred functions!\n",__PRETTY_FUNCTION__);
@@ -629,11 +632,8 @@ void* rpcserver_client_thread(void* arg){
     } else printf("%s: no auth provided\n",__PRETTY_FUNCTION__);
 
 exit:
-    if(thrd->serv->stop == 1){
-        printf("%s: server stopping, exiting\n",__PRETTY_FUNCTION__);
-        struct rpcmsg death = {DISCON,0,NULL};
-        send_rpcmsg(&death,thrd->client_fd);
-    }
+    if(thrd->serv->stop == 1)
+        printf("%s: disconecting: %s(%s)\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
     shutdown(thrd->client_fd, SHUT_RD);
     close(thrd->client_fd);
     thrd->serv->clientcount--;

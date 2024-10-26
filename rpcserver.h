@@ -43,7 +43,7 @@ struct fn{
 struct client_thread{
     int client_fd;
     struct rpcserver* serv;
-    char client_uniq[65];
+    char client_uniq[16];
     struct sockaddr_in addr;
 };
 
