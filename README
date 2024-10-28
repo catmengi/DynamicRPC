@@ -1,3 +1,8 @@
 DynamicRPC is a C rpc framework without usage of IDL.
 DynamicRPC is suitable for system with plugins!
 For API documentation consider inspection of header files(sorry)
+
+
+
+
+documentation will be added later
