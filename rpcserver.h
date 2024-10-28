@@ -60,3 +60,4 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name);
 void rpcserver_load_keys(struct rpcserver* serv, char* filename);
 void rpcserver_register_newclient_cb(struct rpcserver* serv,rpcserver_newclient_cb callback, void* user);
 void rpcserver_register_clientdiscon_cb(struct rpcserver* serv,rpcserver_clientdiscon_cb callback, void* user);
+void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);

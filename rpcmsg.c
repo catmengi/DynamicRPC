@@ -44,8 +44,10 @@ int get_rpcmsg(struct rpcmsg* msg ,int fd){
         uint64_t be64_len = 0;
         if(recv(fd,&be64_len,sizeof(uint64_t),MSG_NOSIGNAL) <= 0) return 1;
         msg->payload_len = be64_to_cpu(be64_len);
-        msg->payload = malloc(msg->payload_len);
-        assert(msg->payload);
+        if(msg->payload_len > 0){
+            msg->payload = malloc(msg->payload_len);
+            if(msg->payload == NULL) return 1;
+        }
         uint64_t bufsize = msg->payload_len;
         char *pbuffer = (char*) msg->payload;
         while (bufsize > 0)

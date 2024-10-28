@@ -53,8 +53,10 @@ int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,
 char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,uint64_t* buflen);
 struct rpcbuff* buf_to_rpcbuff(char* buf);
 struct __rpcbuff_el* __rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len);
+void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff);
 
-void __rpcstruct_free(struct rpcstruct* rpcstruct);
+
+struct rpcstruct* rpcstruct_create();
 void rpcstruct_free(struct rpcstruct* rpcstruct);
 char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, uint64_t* fields_len);
 int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);
@@ -64,5 +66,4 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
 int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
 int __rpcstruct_create(struct rpcstruct* rpcstruct);
-struct rpcstruct* rpcstruct_create();
-void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff);
+void __rpcstruct_free(struct rpcstruct* rpcstruct);

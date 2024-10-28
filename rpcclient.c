@@ -45,7 +45,7 @@ void* rpcclient_keepalive(void* arg){
 }
 
 struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
-   assert(host); assert(key);
+   if(host == NULL || key == NULL) return NULL;
    struct rpcclient* self = calloc(1,sizeof(struct rpcclient));
    assert(self);
    pthread_mutex_init(&self->send,NULL);
@@ -358,11 +358,11 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,uint64_
       pthread_mutex_unlock(&self->send);
       return NULL;
    }
-   struct rpcstruct* lsfn;
    struct rpctype otype;
    arr_to_type(gotmsg.payload,&otype);
    free(gotmsg.payload);
-   assert((lsfn = unpack_rpcstruct_type(&otype)) != NULL);
+   struct rpcstruct* lsfn = unpack_rpcstruct_type(&otype);
+   assert(lsfn != NULL);
    free(otype.data);
    char** fns = rpcstruct_get_fields(lsfn,fn_len);
    struct rpcclient_fninfo* fns_info = calloc(*fn_len,sizeof(struct rpcclient_fninfo));
@@ -384,7 +384,7 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,uint64_
       free(out_proto);
    }
    free(fns);
-   rpcstruct_free(lsfn); free(lsfn);
+   rpcstruct_free(lsfn);
    pthread_mutex_unlock(&self->send);
    return fns_info;
 }

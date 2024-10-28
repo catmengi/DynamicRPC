@@ -492,13 +492,12 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
     }
 }
 char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
-    struct rpcstruct lsfn;
-    assert(__rpcstruct_create(&lsfn) == 0);
-    void** callback_data[2] = {(void*)&user_perm,(void*)&lsfn};
+    struct rpcstruct* lsfn = rpcstruct_create();
+    void** callback_data[2] = {(void*)&user_perm,(void*)lsfn};
     hashtable_iterate_wkey(serv->fn_ht,callback_data,__rpcserver_lsfn_create_callback);
     struct rpctype otype;
-    create_rpcstruct_type(&lsfn,0,&otype);
-    __rpcstruct_free(&lsfn);
+    create_rpcstruct_type(lsfn,0,&otype);
+    rpcstruct_free(lsfn);
     *outlen = type_buflen(&otype);
     char* out = malloc(*outlen);
     assert(out);
@@ -713,7 +712,14 @@ void rpcserver_load_keys(struct rpcserver* serv, char* filename){
         if(perm == 0) continue;
         int* lperm = malloc(sizeof(perm)); assert(lperm);
         *lperm = perm;
-        hashtable_add(serv->users,key_start,strlen(key_start) + 1,lperm,0);
+        if(hashtable_add(serv->users,key_start,strlen(key_start) + 1,lperm,0) != 0) break;
     }
     fclose(keys);
+}
+void rpcserver_add_key(struct rpcserver* serv, char* key, int perm){
+    if(key == NULL || serv == NULL) return;
+    int* lperm = malloc(sizeof(perm));
+    assert(lperm);
+    memcpy(lperm,&perm,sizeof(perm));
+    hashtable_add(serv->users,key,strlen(key) + 1,lperm,0);
 }
