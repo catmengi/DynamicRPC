@@ -65,3 +65,4 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
 int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
+void __rpcstruct_free(struct rpcstruct* rpcstruct);
