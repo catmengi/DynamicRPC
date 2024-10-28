@@ -493,6 +493,7 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
 }
 char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     struct rpcstruct* lsfn = rpcstruct_create();
+    assert(lsfn);
     void** callback_data[2] = {(void*)&user_perm,(void*)lsfn};
     hashtable_iterate_wkey(serv->fn_ht,callback_data,__rpcserver_lsfn_create_callback);
     struct rpctype otype;
