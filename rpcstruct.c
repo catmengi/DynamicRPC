@@ -246,13 +246,13 @@ void __rpcstruct_free_cb(void* vptr){
     free(type->data);
     free(type);
 }
-void __rpcstruct_free(struct rpcstruct* rpcstruct){
+void rpcstruct_free_internals(struct rpcstruct* rpcstruct){
     if(rpcstruct->count > 0) hashtable_iterate(rpcstruct->ht,__rpcstruct_free_cb);
     hashtable_free(rpcstruct->ht);
     rpcstruct->ht = 0;
     rpcstruct->count = 0;
 }
 void rpcstruct_free(struct rpcstruct* rpcstruct){
-    __rpcstruct_free(rpcstruct);
+    rpcstruct_free_internals(rpcstruct);
     free(rpcstruct);
 }
