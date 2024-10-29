@@ -25,6 +25,7 @@ enum rpctypes{
 
 struct rpcbuff_el{
         struct rpcbuff_el* childs;
+        enum rpctypes type;
         uint64_t elen;
         char* endpoint;
 };
@@ -32,7 +33,6 @@ struct rpcbuff{
     struct rpcbuff_el* start;
     uint64_t* dimsizes;
     uint64_t dimsizes_len;
-    uint64_t lastdim_len;
 };
 struct rpctype{
   char type;
@@ -44,12 +44,12 @@ struct rpcstruct{
   hashtable_t ht;
   uint64_t count;
 };
-struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len);  /*lastdim_len set default last dimension len(rpcbuff_getlast_from create this size lastdim if
+struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len);  /*lastdim_len set default last dimension len(rpcbuff_getlast_from create this size lastdim if
                                                                                                 this  endpoint wasnt writen by rpcbuff_pushto), but rpcbuff_pushto will fit bigger data*/
 void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as _rpcbuff_free but dont free struct rpcbuff* (only internals of it)
 void rpcbuff_free(struct rpcbuff* rpcbuff);
-char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen);
-int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, char* data, uint64_t data_len);
+int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type);
+int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, void* ptype,uint64_t type_len,enum rpctypes type);
 char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,uint64_t* buflen);
 struct rpcbuff* buf_to_rpcbuff(char* buf);
 struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len);
