@@ -23,13 +23,13 @@ enum rpctypes{
     UNIQSTR = 17,   //random str of 64symbols, uniq for client
 };
 
-struct __rpcbuff_el{
-        struct __rpcbuff_el* childs;
+struct rpcbuff_el{
+        struct rpcbuff_el* childs;
         uint64_t elen;
         char* endpoint;
 };
 struct rpcbuff{
-    struct __rpcbuff_el* start;
+    struct rpcbuff_el* start;
     uint64_t* dimsizes;
     uint64_t dimsizes_len;
     uint64_t lastdim_len;
@@ -46,14 +46,13 @@ struct rpcstruct{
 };
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len,uint64_t lastdim_len);  /*lastdim_len set default last dimension len(rpcbuff_getlast_from create this size lastdim if
                                                                                                 this  endpoint wasnt writen by rpcbuff_pushto), but rpcbuff_pushto will fit bigger data*/
-void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff); //same as _rpcbuff_free but dont free struct rpcbuff* (only internals of it)
-void _rpcbuff_free(struct rpcbuff* rpcbuff);
+void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as _rpcbuff_free but dont free struct rpcbuff* (only internals of it)
+void rpcbuff_free(struct rpcbuff* rpcbuff);
 char* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,uint64_t* outlen);
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, char* data, uint64_t data_len);
 char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,uint64_t* buflen);
 struct rpcbuff* buf_to_rpcbuff(char* buf);
-struct __rpcbuff_el* __rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len);
-void __rpcbuff_free_N_F_C(struct rpcbuff* rpcbuff);
+struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len);
 
 
 struct rpcstruct* rpcstruct_create();
@@ -65,4 +64,4 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
 int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
-void __rpcstruct_free(struct rpcstruct* rpcstruct);
+void rpcstruct_free_internals(struct rpcstruct* rpcstruct);

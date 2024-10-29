@@ -18,7 +18,7 @@
 #include "rpcclient.h"
 #include "rpctypes.h"
 
-void __rpcclient_disconnect_callback_initiate(struct rpcclient* self,
+static void __rpcclient_disconnect_callback_initiate(struct rpcclient* self,
                                               enum rpcclient_disconnect_reason reason){
    if(self->disconnect_cb != NULL){
       self->disconnect_cb(self->disconnect_cb_user, reason);
@@ -272,13 +272,13 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       if(ret.resargs[i].type == RPCBUFF){
          struct rpcbuff* new = unpack_rpcbuff_type(&ret.resargs[i]);
          assert(new);
-         __rpcbuff_free_N_F_C(resargs_upd[i]);
+         rpcbuff_free_internals(resargs_upd[i]);
          memcpy(resargs_upd[i],new,sizeof(struct rpcbuff));
          free(new);
       }
       if(ret.resargs[i].type == RPCSTRUCT){
          struct rpcstruct* new = unpack_rpcstruct_type(&ret.resargs[i]);
-         __rpcstruct_free(resargs_upd[i]); //this is not heap-use-after-free since rpcstruct_free ONLY freeding struct internals
+         rpcstruct_free_internals(resargs_upd[i]); //this is not heap-use-after-free since rpcstruct_free ONLY freeding struct internals
          memcpy(resargs_upd[i],new,sizeof(struct rpcstruct));
          free(new);
       }

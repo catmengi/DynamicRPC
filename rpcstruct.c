@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-int __rpcstruct_create(struct rpcstruct* rpcstruct){
+static int __rpcstruct_create(struct rpcstruct* rpcstruct){
     rpcstruct->count = 0;
     return hashtable_create(&rpcstruct->ht,4,4);
 }

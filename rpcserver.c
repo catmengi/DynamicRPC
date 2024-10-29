@@ -183,7 +183,7 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     hashtable_remove_entry(serv->fn_ht,fn_name,strlen(fn_name) + 1);
     pthread_mutex_unlock(&serv->edit);
 }
-int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code, char* uniq){
+static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code, char* uniq){
     void** callargs = NULL;
     if(cfn->nargs > 0){
         callargs = calloc(cfn->nargs, sizeof(void*));
@@ -191,14 +191,14 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
     }
     uint8_t j = 0;
     struct tqueque* rpcbuff_upd = tqueque_create();
-    struct tqueque* rpcbuff_free = tqueque_create();
+    struct tqueque* rpcbuff_freeQ = tqueque_create();
     struct tqueque* rpcstruct_upd = tqueque_create();
-    struct tqueque* _rpcstruct_free = tqueque_create();
+    struct tqueque* rpcstruct_freeQ = tqueque_create();
     struct tqueque* strret_free = tqueque_create(); //queue to track do i need to free return if it STR type
     assert(rpcbuff_upd);
-    assert(rpcbuff_free);
+    assert(rpcbuff_freeQ);
     assert(rpcstruct_upd);
-    assert(_rpcstruct_free);
+    assert(rpcstruct_freeQ);
     assert(strret_free);
     enum rpctypes* check = rpctypes_get_types(call->args,call->args_amm);
     if(!is_rpctypes_equal(cfn->argtypes,cfn->nargs,check,call->args_amm)){
@@ -236,7 +236,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 if(call->args[j].flag == 1)
                     tqueque_push(rpcbuff_upd,*(void**)callargs[i],1,NULL);
                 else
-                    tqueque_push(rpcbuff_free,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcbuff_freeQ,*(void**)callargs[i],1,NULL);
                 free(call->args[j].data);
                 call->args[j].data = NULL;
                 j++;
@@ -249,7 +249,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 if(call->args[j].flag == 1)
                     tqueque_push(rpcstruct_upd,*(void**)callargs[i],1,NULL);
                 else
-                    tqueque_push(_rpcstruct_free,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcstruct_freeQ,*(void**)callargs[i],1,NULL);
                 free(call->args[j].data);
                 call->args[j].data = NULL;
                 j++;
@@ -383,16 +383,16 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 assert(tqueque_push(rpcbuff_upd,ptr,sizeof(struct rpcbuff),NULL) == 0);
             }
             el = 0;
-            el = tqueque_get_tagamm(rpcbuff_free,NULL);
+            el = tqueque_get_tagamm(rpcbuff_freeQ,NULL);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(rpcbuff_free,NULL,NULL);
+                void* ptr = tqueque_pop(rpcbuff_freeQ,NULL,NULL);
                 if(ptr == *(struct rpcbuff**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcbuff_free,ptr,sizeof(struct rpcbuff),NULL) == 0);
+                assert(tqueque_push(rpcbuff_freeQ,ptr,sizeof(struct rpcbuff),NULL) == 0);
             }
             create_rpcbuff_type(*(struct rpcbuff**)fnret,0,&ret->ret);
-            if(needfree) _rpcbuff_free(*(struct rpcbuff**)fnret);
+            if(needfree) rpcbuff_free(*(struct rpcbuff**)fnret);
         }
         else if(rtype == RPCBUFF && *(void**)fnret == NULL)
             ret->ret.type = VOID;
@@ -407,13 +407,13 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
                 assert(tqueque_push(rpcstruct_upd,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             el = 0;
-            el = tqueque_get_tagamm(_rpcstruct_free,NULL);
+            el = tqueque_get_tagamm(rpcstruct_freeQ,NULL);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(_rpcstruct_free,NULL,NULL);
+                void* ptr = tqueque_pop(rpcstruct_freeQ,NULL,NULL);
                 if(ptr == *(struct rpcstruct**)fnret) needfree = 0;
 
-                assert(tqueque_push(_rpcstruct_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
+                assert(tqueque_push(rpcstruct_freeQ,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
             create_rpcstruct_type(*(struct rpcstruct**)fnret,0,&ret->ret);
             if(needfree) {rpcstruct_free(*(struct rpcstruct**)fnret);}
@@ -428,7 +428,7 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
             struct rpcbuff* buf = tqueque_pop(rpcbuff_upd,NULL,NULL);
             if(!buf) break;
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
-            _rpcbuff_free(buf);
+            rpcbuff_free(buf);
         }
         if(ret->resargs[i].type == RPCSTRUCT){
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
@@ -440,10 +440,10 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
     void* buf = NULL;
-    while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
-    tqueque_free(rpcbuff_free);
-    tqueque_free(_rpcstruct_free);
+    while((buf = tqueque_pop(rpcbuff_freeQ,NULL,NULL)) != NULL) rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcstruct_freeQ,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
+    tqueque_free(rpcbuff_freeQ);
+    tqueque_free(rpcstruct_freeQ);
     free(fnret);
     for(uint8_t i = 0; i < cfn->nargs; i++){
         free(callargs[i]);
@@ -451,14 +451,14 @@ int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall
     free(callargs);
     return 0;
 exit:
-    while((buf = tqueque_pop(rpcbuff_free,NULL,NULL)) != NULL) _rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) _rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcbuff_freeQ,NULL,NULL)) != NULL) rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) rpcbuff_free(buf);
     while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
-    while((buf = tqueque_pop(_rpcstruct_free,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
-    tqueque_free(rpcbuff_free);
+    while((buf = tqueque_pop(rpcstruct_freeQ,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
+    tqueque_free(rpcbuff_freeQ);
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
-    tqueque_free(_rpcstruct_free);
+    tqueque_free(rpcstruct_freeQ);
     tqueque_free(strret_free);
     for(uint8_t i = 0; i < cfn->nargs; i++){
         free(callargs[i]);
@@ -466,7 +466,7 @@ exit:
     free(callargs);
     return 1;
 }
-void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unused){
+static void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unused){
 
     void** usr = Pusr;
     int32_t perm = ((struct fn*)fn)->perm;
@@ -491,7 +491,7 @@ void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,size_t unu
         free(newserv);
     }
 }
-char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
+static char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     struct rpcstruct* lsfn = rpcstruct_create();
     assert(lsfn);
     void** callback_data[2] = {(void*)&user_perm,(void*)lsfn};
@@ -506,7 +506,7 @@ char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_perm){
     free(otype.data);
     return out;
 }
-void __get_uniq(char* uniq,int L){
+static void __get_uniq(char* uniq,int L){
     uniq[L - 1] = '\0';
     char charset[] = "qwertyuiop[]asdfghjkl;'zxcvbnm,./QWERTYUIOP{}ASDFGHJKL:ZXCVBNM<>?1234567890-=!@#$%^&*()_+";
     srand((unsigned int)time(NULL));
