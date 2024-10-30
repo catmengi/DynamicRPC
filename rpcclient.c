@@ -375,7 +375,7 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t*
       char* out_proto = NULL;
       uint64_t len = 0;
       assert(rpcstruct_get(lsfn,fns[i],SIZEDBUF,&out_proto,&len) == 0);
-      if(len > 255) {
+      if(len >= 255) {
         free(out_proto);
         free(fns);
         rpcstruct_free(lsfn);
@@ -395,7 +395,8 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t*
    pthread_mutex_unlock(&self->send);
    return fns_info;
 }
-void rpcclient_fninfo_free(struct rpcclient_fninfo* in,uint64_t len){
+void rpcclient_fninfo_free(struct rpcclient_fninfo* in,size_t len){
+  if(in == NULL) return;
    for(uint64_t i = 0; i < len; i++){
       free(in[i].proto);
       free(in[i].name);
