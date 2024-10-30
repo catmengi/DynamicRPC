@@ -125,7 +125,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    pthread_create(&self->ping,NULL,rpcclient_keepalive,self);
    return self;
 }
-int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...){
+int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, uint8_t rpctypes_len,void* fnret,...){
    if(self == NULL) return 1;
    if(self->stop == 1) return 1;
    pthread_mutex_lock(&self->send);
