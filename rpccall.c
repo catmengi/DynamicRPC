@@ -38,7 +38,7 @@ int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* clie
     }
     int ret = 1;
     for(size_t i = 0; i < clientlen; i++)
-        if(newserv[i] != client[i]) {ret = 0;*(int*) 1 = 0;break;}
+        if(newserv[i] != client[i]) {ret = 0;break;}
     tqueque_free(check_que);
     free(newserv);
     return ret;
