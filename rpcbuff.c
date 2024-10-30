@@ -85,7 +85,7 @@ void rpcbuff_free(struct rpcbuff* rpcbuff){
     free(rpcbuff);
 }
 
-struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len){
+struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
     assert(rpcbuff);
     assert(rpcbuff->start);
     if(rpcbuff->dimsizes_len != index_len) return NULL;
@@ -99,7 +99,7 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
     return cur;
 }
 
-int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
+int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
     assert(got);
@@ -198,7 +198,7 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, uint64_t ind
     return 1;
 }
 
-int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, uint64_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
+int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
     assert(got);

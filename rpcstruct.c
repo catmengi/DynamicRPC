@@ -22,7 +22,7 @@ struct rpcstruct* rpcstruct_create(){
     }
     return s;
 }
-int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen){
+int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,uint64_t typelen){
     struct rpctype* check = NULL;
     struct rpctype* ptype = NULL;
     if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&check) != 0){
