@@ -183,7 +183,7 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     hashtable_remove_entry(serv->fn_ht,fn_name,strlen(fn_name) + 1);
     pthread_mutex_unlock(&serv->edit);
 }
-static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn, int* err_code, char* uniq){
+static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn,char* uniq){
     void** callargs = NULL;
     if(cfn->nargs > 0){
         callargs = calloc(cfn->nargs, sizeof(void*));
@@ -202,7 +202,6 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     assert(strret_free);
     enum rpctypes* check = rpctypes_get_types(call->args,call->args_amm);
     if(!is_rpctypes_equal(cfn->argtypes,cfn->nargs,check,call->args_amm)){
-        *err_code = 7;
         free(check);
         goto exit;
     }
@@ -337,7 +336,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 j++;
                 continue;
             }
-        } else {*err_code = 7; goto exit;}
+        } else goto exit;
     }
     void* fnret = NULL;
     if(cfn->rtype != VOID){
@@ -596,14 +595,8 @@ void* rpcserver_client_thread(void* arg){
                                         break;
                                     }
                                     reply.msg_type = RET;
-                                    int err = 0;
                                     int callret = 0;
-                                    if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,&err,thrd->client_uniq)) != 0 && err == 0){
-                                        free(call.fn_name);
-                                        rpctypes_free(call.args,call.args_amm);
-                                        printf("%s: internal server error\n",__PRETTY_FUNCTION__);
-                                        goto exit;
-                                    }else if(callret != 0 && err != 0){
+                                    if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,thrd->client_uniq)) != 0){
                                         reply.msg_type = BAD;
                                         printf("%s: client provided wrong arguments\n",__PRETTY_FUNCTION__);
                                         free(call.fn_name);
