@@ -19,7 +19,7 @@ struct rpcclient{
 };
 struct rpcclient_fninfo{
    enum rpctypes* proto;
-   uint64_t protolen;
+   uint8_t protolen;
    char* name;
 };
 
@@ -27,6 +27,6 @@ struct rpcclient_fninfo{
 struct rpcclient* rpcclient_connect(char* host,int portno,char* key);
 int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, int rpctypes_len,void* fnret,...);
 void rpcclient_disconnect(struct rpcclient* self);
-struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,uint64_t* fn_len);
-void rpcclient_fninfo_free(struct rpcclient_fninfo* in,uint64_t len);
+struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t* fn_len);
+void rpcclient_fninfo_free(struct rpcclient_fninfo* in,size_t len);
 void rpcclient_register_disconnect_cb(struct rpcclient* self, rpcclient_disconnect_cb cb, void* user);

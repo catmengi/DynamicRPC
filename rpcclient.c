@@ -338,7 +338,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
    rpctypes_free(ret.resargs,ret.resargs_amm);
    return 0;
 }
-struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,uint64_t* fn_len){
+struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t* fn_len){
    if(self == NULL) return NULL;
    if(self->stop == 1) return NULL;
    pthread_mutex_lock(&self->send);

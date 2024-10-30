@@ -57,7 +57,7 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
 
 struct rpcstruct* rpcstruct_create();
 void rpcstruct_free(struct rpcstruct* rpcstruct);
-char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, uint64_t* fields_len);
+char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len);
 int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);
 int rpcstruct_set_flag(struct rpcstruct* rpcstruct, char* key, char flag);
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);

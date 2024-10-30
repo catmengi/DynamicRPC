@@ -232,7 +232,7 @@ void __rpcstruct_get_fields_cb(char* key,void* vptr,void* usr,size_t iter){
     char** fields = usr;
     fields[iter] = key;
 }
-char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, uint64_t* fields_len){
+char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len){
     assert(rpcstruct); assert(fields_len);
     if(rpcstruct->count == 0){*fields_len = 0;return NULL;}
     char** fields = calloc(rpcstruct->count, sizeof(char*));
