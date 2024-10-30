@@ -63,5 +63,5 @@ int rpcstruct_set_flag(struct rpcstruct* rpcstruct, char* key, char flag);
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);
-int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,size_t typelen);
+int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,uint64_t typelen);
 void rpcstruct_free_internals(struct rpcstruct* rpcstruct);
