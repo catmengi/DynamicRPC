@@ -170,10 +170,10 @@ void _rpcstruct_pack_callback(char* key,void* ptype,void* vtype,size_t iter){
 }
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen){
     assert(buflen);
+    uint64_t newcount = 0;
     struct rpctype* types = calloc(rpcstruct->count,sizeof(*types));
     assert(types);
     hashtable_iterate_wkey(rpcstruct->ht,(void*)types,_rpcstruct_pack_callback);
-    uint64_t newcount = 0;
     types = rpctypes_clean_nonres_args(types,rpcstruct->count,&newcount);
     rpcstruct->count = newcount;
     uint64_t rpcbuflen = rpctypes_get_buflen(types,rpcstruct->count);
@@ -185,8 +185,6 @@ char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen){
 }
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
     assert(rpcstruct);
-    rpcstruct->count = 0;
-    rpcstruct->ht = NULL;
     uint64_t count = 0;
     struct rpctype* types = buf_to_rpctypes(arr,&count);
     if(!types) return 1;

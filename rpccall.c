@@ -53,11 +53,10 @@ uint64_t rpctypes_get_buflen(struct rpctype* rpctypes,uint64_t rpctypes_len){
 }
 int rpctypes_to_buf(struct rpctype* rpctypes,uint64_t rpctypes_amm, char* out){
     assert(out);
-    char* chck = out;
-    if(rpctypes == NULL) return 0;
     uint64_t be64_rpctypes_amm = cpu_to_be64(rpctypes_amm);
     memcpy(out,&be64_rpctypes_amm,sizeof(uint64_t));
     out += sizeof(uint64_t);
+    if(rpctypes == NULL) return 0;
     for(uint64_t i = 0; i < rpctypes_amm; i++){
         out += type_to_arr(out,&rpctypes[i]);
     }
