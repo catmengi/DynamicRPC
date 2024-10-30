@@ -7,11 +7,11 @@
 #define RPCCALL_H
 struct rpccall{
     char* fn_name;
-    uint8_t args_amm;
+    uint64_t args_amm;
     struct rpctype* args;
 };
 struct rpcret{
-    uint8_t resargs_amm;
+    uint64_t resargs_amm;
     struct rpctype* resargs; /*args that was resended*/
     struct rpctype ret; /*libffi limitations support only one ret*/
 };
@@ -47,14 +47,14 @@ struct rpcmsg{
 // void buf_to_rpcret(struct rpcret* ret,char* in);
 // int is_rpctypes_equal(enum rpctypes* frst, size_t frstlen, enum rpctypes* scnd, size_t scndlen);
 // int buf_to_rpccall(struct rpccall* call,char* in);
-int is_rpctypes_equal(enum rpctypes* serv, size_t servlen, enum rpctypes* client, uint8_t clientlen);
-uint64_t rpctypes_get_buflen(struct rpctype* rpctypes,uint8_t rpctypes_len);
-int rpctypes_to_buf(struct rpctype* rpctypes,uint8_t rpctypes_amm, char* out);
-struct rpctype* buf_to_rpctypes(char* in,uint8_t* rpctypes_amm,uint64_t checklen);
-enum rpctypes* rpctypes_get_types(struct rpctype* rpctypes,uint8_t rpctypes_amm);
-void rpctypes_free(struct rpctype* rpctypes, uint8_t rpctypes_amm);
+int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* client, uint64_t clientlen);
+uint64_t rpctypes_get_buflen(struct rpctype* rpctypes,uint64_t rpctypes_len);
+int rpctypes_to_buf(struct rpctype* rpctypes,uint64_t rpctypes_amm, char* out);
+struct rpctype* buf_to_rpctypes(char* in,uint64_t* rpctypes_amm);
+enum rpctypes* rpctypes_get_types(struct rpctype* rpctypes,uint64_t rpctypes_amm);
+void rpctypes_free(struct rpctype* rpctypes, uint64_t rpctypes_amm);
 char* rpccall_to_buf(struct rpccall* rpccall, uint64_t* buflen);
-int buf_to_rpccall(struct rpccall* rpccall,char* in,uint64_t checklen);
-struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint8_t rpctypes_len,uint8_t* retargsamm_out);
+int buf_to_rpccall(struct rpccall* rpccall,char* in);
+struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint64_t rpctypes_len,uint64_t* retargsamm_out);
 char* rpcret_to_buf(struct rpcret* rpcret, uint64_t* buflen);
-int buf_to_rpcret(struct rpcret* ret,char* in,uint64_t checklen);
+int buf_to_rpcret(struct rpcret* ret,char* in);

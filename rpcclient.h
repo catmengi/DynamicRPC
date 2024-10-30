@@ -20,7 +20,7 @@ struct rpcclient{
 };
 struct rpcclient_fninfo{
    enum rpctypes* proto;
-   uint8_t protolen;
+   uint64_t protolen;
    char* name;
 };
 

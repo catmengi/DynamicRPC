@@ -56,6 +56,7 @@ void rpcserver_stop(struct rpcserver* serv);
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
                           enum rpctypes rtype, enum rpctypes* argstype,
                           uint8_t argsamm, void* pstorage,int perm);
+
 void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name);
 void rpcserver_load_keys(struct rpcserver* serv, char* filename);
 void rpcserver_register_newclient_cb(struct rpcserver* serv,rpcserver_newclient_cb callback, void* user);

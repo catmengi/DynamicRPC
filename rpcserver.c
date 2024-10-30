@@ -189,7 +189,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
         callargs = calloc(cfn->nargs, sizeof(void*));
         assert(callargs);
     }
-    uint8_t j = 0;
+    uint64_t j = 0;
     struct tqueque* rpcbuff_upd = tqueque_create();
     struct tqueque* rpcbuff_freeQ = tqueque_create();
     struct tqueque* rpcstruct_upd = tqueque_create();
@@ -208,7 +208,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     }
     free(check);
     assert((callargs != NULL && call->args_amm != 0) || call->args_amm == 0);
-    for(uint8_t i = 0; i < cfn->nargs; i++){
+    for(uint64_t i = 0; i < cfn->nargs; i++){
         if(cfn->argtypes[i] == PSTORAGE){
             callargs[i] = calloc(1,sizeof(void*));
             assert(callargs[i]);
@@ -423,7 +423,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     }
     tqueque_free(strret_free);
     ret->resargs = rpctypes_clean_nonres_args(call->args,call->args_amm,&ret->resargs_amm);
-    for(uint8_t i = 0; i < ret->resargs_amm; i++){
+    for(uint64_t i = 0; i < ret->resargs_amm; i++){
         if(ret->resargs[i].type == RPCBUFF){
             struct rpcbuff* buf = tqueque_pop(rpcbuff_upd,NULL,NULL);
             if(!buf) break;
@@ -445,7 +445,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     tqueque_free(rpcbuff_freeQ);
     tqueque_free(rpcstruct_freeQ);
     free(fnret);
-    for(uint8_t i = 0; i < cfn->nargs; i++){
+    for(uint64_t i = 0; i < cfn->nargs; i++){
         free(callargs[i]);
     }
     free(callargs);
@@ -460,7 +460,7 @@ exit:
     tqueque_free(rpcstruct_upd);
     tqueque_free(rpcstruct_freeQ);
     tqueque_free(strret_free);
-    for(uint8_t i = 0; i < cfn->nargs; i++){
+    for(uint64_t i = 0; i < cfn->nargs; i++){
         free(callargs[i]);
     }
     free(callargs);
@@ -572,7 +572,7 @@ void* rpcserver_client_thread(void* arg){
                                     printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__);
                                     goto exit;
                     case CALL:
-                                    if(buf_to_rpccall(&call,gotmsg.payload,gotmsg.payload_len) != 0 ){
+                                    if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
                                         printf("%s: bad 'CALL' msg! \n",__PRETTY_FUNCTION__);
                                         free(gotmsg.payload);
                                         free(call.fn_name);

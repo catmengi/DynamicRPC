@@ -131,10 +131,10 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
    pthread_mutex_lock(&self->send);
    va_list vargs;
    void** resargs_upd = NULL;
-   uint8_t resargs_updl = 0;
+   uint64_t resargs_updl = 0;
    struct rpcret ret = {0};
    if(flags)
-      for(uint8_t i = 0; i < rpctypes_len; i++)
+      for(uint64_t i = 0; i < rpctypes_len; i++)
          if(flags[i] == 1)
             resargs_updl++;
    if(resargs_updl != 0){
@@ -147,8 +147,8 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       args = calloc(rpctypes_len,sizeof(*args));
       assert(args);
    }
-   uint8_t j = 0;
-   for(uint8_t i = 0; i < rpctypes_len; i++){
+   uint64_t j = 0;
+   for(uint64_t i = 0; i < rpctypes_len; i++){
       if(rpctypes[i] == CHAR){
          char ch = va_arg(vargs,int);
          char_to_type(ch,&args[i]);
@@ -254,10 +254,10 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       return gotmsg.msg_type;
    }
    pthread_mutex_unlock(&self->send);
-   assert(buf_to_rpcret(&ret,gotmsg.payload,gotmsg.payload_len) == 0);
+   assert(buf_to_rpcret(&ret,gotmsg.payload) == 0);
    free(gotmsg.payload);
    assert(resargs_updl == ret.resargs_amm);
-   for(uint8_t i = 0; i < ret.resargs_amm; i++){
+   for(uint64_t i = 0; i < ret.resargs_amm; i++){
       if(ret.resargs[i].type == STR){
          char* new = unpack_str_type(&ret.resargs[i]);
          assert(new);
