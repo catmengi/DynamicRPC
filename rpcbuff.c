@@ -213,6 +213,7 @@ void* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t ind
             return ch;
         }
     }
+    if(got->type != type) return NULL;
     if(otype_len != NULL)
         *otype_len = got->elen;
     if(got->endpoint != (void*)0xCAFE)
