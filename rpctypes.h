@@ -53,7 +53,10 @@ void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as rpcbuff_free but
 
 void rpcbuff_free(struct rpcbuff* rpcbuff);           //destroys rpcbuff, and free data that was copyed to it;
 
-int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type);  //unpacks data from rpcbuff
+void* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,uint64_t* otype_len,enum rpctypes type);  /*Unpacks data, returns pointer to it. YOU SHOULD FREE IT.
+                                                                                                                                   For non-pointers type you SHOULD derefence it(eg for UINT64,FLOAT,CHAR). For pointer types you SHOULDNT
+                                                                                                                                   derefence it.
+                                                                                                                                 */
 
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* ptype,uint64_t type_len,enum rpctypes type);  //serialise data type and store it in rpcbuff
 

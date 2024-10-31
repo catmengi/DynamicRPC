@@ -119,77 +119,90 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
     return cur;
 }
 
-int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
+void* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,uint64_t* otype_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    if(!got) return 1;
-    if(got->endpoint == (void*)0xCAFE) {return 1;}
-    if(got->type != type) return 1;
+    if(!got) return NULL;
+    if(got->endpoint == (void*)0xCAFE) {return NULL;}
+    if(got->type != type) return NULL;
     struct rpctype ptype = {0};
     if(got->is_packed){
         arr_to_type(got->endpoint,&ptype);
         if(type == CHAR){
             char ch = type_to_char(&ptype);
+            char* r = malloc(sizeof(char));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(char*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == UINT16){
             uint16_t ch = type_to_uint16(&ptype);
+            uint16_t* r = malloc(sizeof(uint16_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(uint16_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == INT16){
             int32_t ch = type_to_int32(&ptype);
+            int16_t* r = malloc(sizeof(int16_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(int32_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == UINT32){
             uint32_t ch = type_to_uint32(&ptype);
+            uint32_t* r = malloc(sizeof(uint32_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(uint32_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == INT32){
             int32_t ch = type_to_int32(&ptype);
+            int32_t* r = malloc(sizeof(int32_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(int32_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == UINT64){
             uint64_t ch = type_to_uint64(&ptype);
+            uint64_t* r = malloc(sizeof(uint64_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(uint64_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == INT64){
             int64_t ch = type_to_int64(&ptype);
+            int64_t* r = malloc(sizeof(int64_t));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(int64_t*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == FLOAT){
             float ch = type_to_float(&ptype);
+            float* r = malloc(sizeof(float));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(float*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == DOUBLE){
             double ch = type_to_double(&ptype);
+            double* r = malloc(sizeof(double));
+            assert(r);
+            *r = ch;
             free(ptype.data);
-            *(double*)otype = ch;
-            return 0;
+            return r;
         }
         if(type == STR){
             char* ch = unpack_str_type(&ptype);
-            char* imm = malloc(strlen(ch) + 1);
-            assert(imm);
-            strcpy(imm,ch);
-            free(ptype.data);
-            *(char**)otype = imm;
-            return 0;
+            return ch;
         }
         if(type == SIZEDBUF){
             uint64_t tmp = 0;
@@ -197,18 +210,12 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index
             if(otype_len != NULL) len = otype_len;
             else len = &tmp;
             void* ch = unpack_sizedbuf_type(&ptype,len);
-            void* imm = malloc(*len);
-            assert(imm);
-            memcpy(imm,ch,*len);
-            free(ptype.data);
-            *(void**)otype = imm;
-            return 0;
+            return ch;
         }
     }
-    *(void**)otype = got->endpoint;
     if(otype_len != NULL)
         *otype_len = got->elen;
-    return 1;
+    return got->endpoint;
 }
 
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
