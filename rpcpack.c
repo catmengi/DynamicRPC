@@ -27,7 +27,7 @@ int create_rpcbuff_type(struct rpcbuff* rpcbuff, char flag,struct rpctype* type)
     uint64_t buflen = 0;
     type->type = RPCBUFF;
     type->flag = flag;
-    type->data = rpcbuff_to_arr(rpcbuff,&buflen);
+    type->data = rpcbuff_to_buf(rpcbuff,&buflen);
     type->datalen = cpu_to_be64(buflen);
     return 0;
 }

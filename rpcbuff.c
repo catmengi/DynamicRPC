@@ -102,7 +102,7 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
 int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    assert(got);
+    if(!got) return 1;
     if(got->endpoint == (void*)0xCAFE) {return 1;}
     if(got->type != type) return 1;
     struct rpctype ptype = {0};
@@ -201,63 +201,140 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    assert(got);
+    if(!got) return 1;
     if(got->endpoint != (void*)0xCAFE) free(got->endpoint);
+    if(untype == NULL) {got->endpoint = (void*)0xCAFE; return 1;}
     got->type = type;
     struct rpctype ptype = {0};
-    if(type == CHAR){
-        char_to_type(*(char*)untype,&ptype);
+    switch(type){
+        case CHAR:
+            char_to_type(*(char*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case UINT16:
+            uint16_to_type(*(uint16_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case INT16:
+            int16_to_type(*(int16_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case UINT32:
+            uint32_to_type(*(uint32_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case INT32:
+            int32_to_type(*(int32_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case UINT64:
+            uint64_to_type(*(uint64_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case INT64:
+            int64_to_type(*(int64_t*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case FLOAT:
+            float_to_type(*(float*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case DOUBLE:
+            double_to_type(*(double*)untype,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case STR:
+            create_str_type(untype,1,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case SIZEDBUF:
+            create_sizedbuf_type(untype,type_len,1,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case RPCBUFF:
+            create_rpcbuff_type(untype,1,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        case RPCSTRUCT:
+            create_rpcstruct_type(untype,1,&ptype);
+            got->elen = type_buflen(&ptype);
+            got->endpoint = malloc(got->elen);
+            assert(got->endpoint);
+            type_to_arr(got->endpoint,&ptype);
+            free(ptype.data);
+            break;
+        default:
+            got->endpoint = (void*)0xCAFE;
+            return 1;
     }
-    if(type == UINT16){
-        uint16_to_type(*(uint16_t*)untype,&ptype);
-    }
-    if(type == INT16){
-        int16_to_type(*(int16_t*)untype,&ptype);
-    }
-    if(type == UINT32){
-        uint32_to_type(*(uint32_t*)untype,&ptype);
-    }
-    if(type == INT32){
-        int32_to_type(*(int32_t*)untype,&ptype);
-    }
-    if(type == UINT64){
-        uint64_to_type(*(uint64_t*)untype,&ptype);
-    }
-    if(type == INT64){
-        int64_to_type(*(int64_t*)untype,&ptype);
-    }
-    if(type == FLOAT){
-        float_to_type(*(float*)untype,&ptype);
-    }
-    if(type == DOUBLE){
-        double_to_type(*(double*)untype,&ptype);
-    }
-    if(type == STR){
-        create_str_type(untype,1,&ptype);
-    }
-    if(type == SIZEDBUF){
-        create_sizedbuf_type(untype,type_len,1,&ptype);
-    }
-    if(type == RPCBUFF){
-        create_rpcbuff_type(untype,1,&ptype);
-    }
-    if(type == RPCSTRUCT){
-        create_rpcstruct_type(untype,1,&ptype);
-    }
-    got->elen = type_buflen(&ptype);
-    got->endpoint = malloc(got->elen);
-    assert(got->endpoint);
-    type_to_arr(got->endpoint,&ptype);
-    free(ptype.data);
     return 0;
 }
+
+void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
+    assert(rpcbuff);
+    struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
+    if(!got) return;
+    if(got->endpoint != (void*)0xCAFE) {
+        free(got->endpoint);
+        got->endpoint = (void*)0xCAFE;
+    }
+}
+
 struct _prpcbuff_dim{
     enum rpctypes type;
     char* data;
     uint64_t elen;
     struct _prpcbuff_dim* next;
 };
-char* rpcbuff_to_arr(struct rpcbuff* rpcbuff,uint64_t* buflen){
+char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
     assert(rpcbuff);
     struct tqueque* tque = tqueque_create();
     struct tqueque* fque = tqueque_create();
