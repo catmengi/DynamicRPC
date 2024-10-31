@@ -1,6 +1,7 @@
 #pragma once
 #include <sys/types.h>
 #include <pthread.h>
+#include <stdint.h>
 struct tqueque_el{
     char* tag;
     void* ptr;
@@ -18,4 +19,4 @@ int tqueque_push(struct tqueque* tque, void* el, ssize_t len, char* tag);
 void* tqueque_pop(struct tqueque* tque, ssize_t* len, char* tag);
 void* tqueque_pop_wtag(struct tqueque* tque, ssize_t* len, char** tag);           //instead of poping item with specified tag it pop any item and output tag
 void tqueque_free(struct tqueque* tque);
-ssize_t tqueque_get_tagamm(struct tqueque* tque, char* tag);
+uint64_t tqueque_get_tagamm(struct tqueque* tque, char* tag);

@@ -97,7 +97,7 @@ void* tqueque_pop_wtag(struct tqueque* tque, ssize_t* len, char** tag){
     return out;
 }
 
-ssize_t tqueque_get_tagamm(struct tqueque* tque, char* tag){
+uint64_t tqueque_get_tagamm(struct tqueque* tque, char* tag){
     assert(tque != NULL);
     pthread_mutex_lock(&tque->lock);
     struct tqueque_el* cur = tque->cur;

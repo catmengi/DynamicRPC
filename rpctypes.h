@@ -24,10 +24,11 @@ enum rpctypes{
 };
 
 struct rpcbuff_el{
+        char is_packed;
         struct rpcbuff_el* childs;
         enum rpctypes type;
         uint64_t elen;
-        char* endpoint;
+        void* endpoint;
 };
 struct rpcbuff{
     struct rpcbuff_el* start;
