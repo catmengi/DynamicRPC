@@ -77,7 +77,7 @@ uint64_t type_buflen(struct rpctype* type){
     if(type->type != VOID) len += be64_to_cpu(type->datalen);
     return len;
 }
-size_t type_to_arr(char* out,struct rpctype* type){
+uint64_t type_to_arr(char* out,struct rpctype* type){
     if(type == NULL) return 0;
     assert(out);
     *out = type->type;
@@ -87,7 +87,7 @@ size_t type_to_arr(char* out,struct rpctype* type){
     memcpy(out, &type->datalen, sizeof(uint64_t));
     out += sizeof(uint64_t);
     memcpy(out, type->data, be64_to_cpu(type->datalen));
-    size_t ret =  type_buflen(type);
+    uint64_t ret = type_buflen(type);
     return ret;
 }
 struct rpctype* arr_to_type(char* rawarr,struct rpctype* type){

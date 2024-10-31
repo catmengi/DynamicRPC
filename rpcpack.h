@@ -11,7 +11,7 @@ int create_sizedbuf_type(char* buf, uint64_t buflen, char flag,struct rpctype* t
 void* unpack_sizedbuf_type(struct rpctype* type,uint64_t* len);
 int create_str_type(char* str,char flag,struct rpctype* type);
 char* unpack_str_type(struct rpctype* type);
-int type_to_arr(char* out,struct rpctype* type);
+uint64_t type_to_arr(char* out,struct rpctype* type);
 struct rpctype* arr_to_type(char* rawarr,struct rpctype* type);
 uint64_t type_buflen(struct rpctype* type);
 
