@@ -20,7 +20,7 @@ enum rpctypes{
     INTERFUNC = 14,
     RPCSTRUCT = 15,
     _RPCSTRUCTEL = 16,
-    UNIQSTR = 17,   //random str of 64symbols, uniq for client
+    UNIQSTR = 17,   //random str of 16 symbols, uniq for client
 };
 
 struct rpcbuff_el{
@@ -46,7 +46,8 @@ struct rpcstruct{
   uint64_t count;
 };
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len);  /*Multi-dimensional array
-                                                                            Copies and pack type, not just storing pointer; dimsizes is a index(size) of array*/
+                                                                            Copies and pack type, not just storing pointer; dimsizes is a index(size) of array
+                                                                            RPCBUFF and RPCSTRUCT is STORED AS POINTERS AND SERIALIZED LATER*/
 
 void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as rpcbuff_free but dont free struct rpcbuff* (only internals of it);
 
