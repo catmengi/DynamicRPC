@@ -81,6 +81,7 @@ uint64_t type_to_arr(char* out,struct rpctype* type){
     if(type == NULL) return 0;
     assert(out);
     *out = type->type;
+    if(type->type == VOID) return sizeof(char);
     out++;
     *out = type->flag;
     out++;
