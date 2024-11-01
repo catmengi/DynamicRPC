@@ -428,6 +428,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             if(!buf) break;
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcbuff_free(buf);
+            struct rpcbuff* new = unpack_rpcbuff_type(&ret->resargs[i]);
         }
         if(ret->resargs[i].type == RPCSTRUCT){
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
