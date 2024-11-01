@@ -184,11 +184,7 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index
         }
         if(type == STR){
             char* ch = unpack_str_type(&ptype);
-            char* imm = malloc(strlen(ch) + 1);
-            assert(imm);
-            strcpy(imm,ch);
-            free(ptype.data);
-            *(char**)otype = imm;
+            *(char**)otype = ch;
             return 0;
         }
         if(type == SIZEDBUF){
@@ -197,17 +193,15 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index
             if(otype_len != NULL) len = otype_len;
             else len = &tmp;
             void* ch = unpack_sizedbuf_type(&ptype,len);
-            void* imm = malloc(*len);
-            assert(imm);
-            memcpy(imm,ch,*len);
-            free(ptype.data);
-            *(void**)otype = imm;
+            *(void**)otype = ch;
             return 0;
         }
     }
-    *(void**)otype = got->endpoint;
+    if(got->type != type) return NULL;
     if(otype_len != NULL)
         *otype_len = got->elen;
+    if(got->endpoint != (void*)0xCAFE)
+        *(void**)otype = got->endpoint;
     return 1;
 }
 
