@@ -197,11 +197,13 @@ int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index
             return 0;
         }
     }
-    if(got->type != type) return NULL;
+    if(got->type != type) return 1;
     if(otype_len != NULL)
         *otype_len = got->elen;
-    if(got->endpoint != (void*)0xCAFE)
+    if(got->endpoint != (void*)0xCAFE){
         *(void**)otype = got->endpoint;
+        return 0;
+    }
     return 1;
 }
 
