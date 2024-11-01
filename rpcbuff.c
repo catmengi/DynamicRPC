@@ -466,6 +466,7 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
     assert(types_amm == tqueque_get_tagamm(fque,NULL));
     for(uint64_t i = 0; i < types_amm; i++){
         struct rpcbuff_el* el = tqueque_pop(fque,NULL,NULL);
+        if(ptypes[i].type == VOID) continue;
         el->type = ptypes[i].type;
         if(el->type != RPCBUFF && el->type != RPCSTRUCT){
             el->is_packed = 1;
