@@ -215,9 +215,7 @@ void* rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t ind
     }
     if(otype_len != NULL)
         *otype_len = got->elen;
-    if(got->endpoint != (void*)0xCAFE)
-        return got->endpoint;
-    else return NULL;
+    return got->endpoint;
 }
 
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
