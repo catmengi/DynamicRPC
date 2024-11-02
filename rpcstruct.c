@@ -237,18 +237,6 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* ot
     return 0;
 }
 void _rpcstruct_pack_callback(char* key,void* ptype,void* vtype,size_t iter){
-    // struct rpctype* type = vtype;
-    // char* packed = calloc(strlen(key) + 1 +  type_buflen(ptype),sizeof(char));
-    // assert(packed);
-    // char* org = packed;
-    // strcpy(packed,key);
-    // packed += strlen(key) + 1;
-    // type_to_arr(packed,ptype);
-    // struct rpctype* rtype = ptype;
-    // type[iter].type = _RPCSTRUCTEL;
-    // type[iter].flag = rtype->flag;
-    // type[iter].data = org;
-    // type[iter].datalen = cpu_to_be64(strlen(key) + 1 +  type_buflen(ptype));
     struct rpcstruct_el* el = ptype;
     struct rpctype* types = vtype;
     struct rpctype ready = {0};
