@@ -8,14 +8,13 @@
 #include <string.h>
 #include <sys/socket.h>
 
-
 int send_rpcmsg(struct rpcmsg* msg, int fd){
     char* buf = malloc(sizeof(char) + sizeof(uint64_t) + msg->payload_len);
     uint64_t tosend = sizeof(char);
     assert(buf);
     char* wr = buf;
     *wr = msg->msg_type; wr++;
-    if(msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
+    if(msg->msg_type != CON && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         tosend += sizeof(uint64_t) + msg->payload_len;
         uint64_t be64_len = cpu_to_be64(msg->payload_len);
         memcpy(wr,&be64_len, sizeof(uint64_t)); wr += sizeof(uint64_t);
@@ -39,8 +38,8 @@ int send_rpcmsg(struct rpcmsg* msg, int fd){
 
 int get_rpcmsg(struct rpcmsg* msg ,int fd){
     memset(msg,0,sizeof(*msg));
-    if(recv(fd,&msg->msg_type,sizeof(char),MSG_NOSIGNAL) <= 0) return 1;
-    if(msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
+    if(recv(fd,&msg->msg_type,sizeof(char),MSG_NOSIGNAL) <= 0)  return 1;
+    if(msg->msg_type != CON && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         uint64_t be64_len = 0;
         if(recv(fd,&be64_len,sizeof(uint64_t),MSG_NOSIGNAL) <= 0) return 1;
         msg->payload_len = be64_to_cpu(be64_len);

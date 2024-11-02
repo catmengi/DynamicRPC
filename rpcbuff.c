@@ -381,7 +381,7 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
         }
     }
     tqueque_free(tque);
-    uint64_t outbuflen = sizeof(uint64_t) + sizeof(uint64_t) * rpcbuff->dimsizes_len + 1;
+    uint64_t outbuflen = sizeof(uint64_t) + (sizeof(uint64_t) * rpcbuff->dimsizes_len) + 1;
     uint64_t types_amm = tqueque_get_tagamm(fque,NULL);
     struct rpctype * otypes = calloc(types_amm,sizeof(*otypes));
     for(uint64_t i = 0; i < types_amm; i++){
@@ -436,14 +436,18 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
     memcpy(&dimsizeslen_be64,buf,sizeof(uint64_t));
     buf += sizeof(uint64_t);
     uint64_t dimsizes_len = be64_to_cpu(dimsizeslen_be64);
-    uint64_t dimdata[dimsizes_len];
-    for(uint64_t i = 0; i < dimsizes_len; i++){
-        uint64_t be64;memcpy(&be64, buf, sizeof(uint64_t));
-        buf += sizeof(uint64_t);
-        dimdata[i] = be64_to_cpu(be64);
+    uint64_t* dimdata = calloc(dimsizes_len,sizeof(uint64_t));
+    assert(dimdata);
+    if(dimsizes_len > 0){
+        for(uint64_t i = 0; i < dimsizes_len; i++){
+            uint64_t be64;memcpy(&be64, buf, sizeof(uint64_t));
+            buf += sizeof(uint64_t);
+            dimdata[i] = be64_to_cpu(be64);
+        }
     }
     buf++;
     struct rpcbuff* rpcbuff = rpcbuff_create(dimdata, dimsizes_len);
+    free(dimdata);
     struct tqueque* tque = tqueque_create();
     struct tqueque* fque = tqueque_create();
     assert(tque != NULL && fque != NULL);
