@@ -23,13 +23,7 @@ enum rpctypes{
     UNIQSTR = 17,   //random str of 16 symbols, uniq for client
 };
 
-struct rpcbuff_el{
-        char is_packed;
-        struct rpcbuff_el* childs;
-        enum rpctypes type;
-        uint64_t elen;
-        void* endpoint;
-};
+
 struct rpcbuff{
     struct rpcbuff_el* start;
     uint64_t* dimsizes;
@@ -63,16 +57,14 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen);          //rpcbu
 
 struct rpcbuff* buf_to_rpcbuff(char* buf);                               //rpcbuff deserializer(NOT FOR MANUAL CALL);
 
-struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len);
 
 
 struct rpcstruct* rpcstruct_create();                                          /*Hashtable based struct, copies and pack type, not just storing pointer;*/
 void rpcstruct_free(struct rpcstruct* rpcstruct);
 char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len);  /*Get all fields(keys) in rpcstruct, ammount of them will be placed in fields_len*/
 int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);                  /*Remove key and free it*/
-int rpcstruct_set_flag(struct rpcstruct* rpcstruct, char* key, char flag);     /*Same as remove but not immediate(will be removed after serialization), 1 - NOT REMOVE, 0 - REMOVE*/
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);                  /*Serialize (NOT FOR MANUAL CALL)*/
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);         /*Desirialize (NOT FOR MANUAL CALL)*/
-int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,enum rpctypes type,void* out,uint64_t* obuflen);  /*serialise data type and store it in rpcstruct*/
-int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,enum rpctypes type, void* arg,uint64_t typelen);  /*unpacks data from rpcstruct*/
+int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* otype_len,enum rpctypes type);  /*serialise data type and store it in rpcstruct*/
+int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typelen,enum rpctypes type);  /*unpacks data from rpcstruct*/
 void rpcstruct_free_internals(struct rpcstruct* rpcstruct);

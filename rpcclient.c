@@ -374,7 +374,7 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t*
 
       char* out_proto = NULL;
       uint64_t len = 0;
-      assert(rpcstruct_get(lsfn,fns[i],SIZEDBUF,&out_proto,&len) == 0);
+      assert(rpcstruct_get(lsfn,fns[i],&out_proto,&len,SIZEDBUF) == 0);
       if(len >= 255) {
         free(out_proto);
         free(fns);

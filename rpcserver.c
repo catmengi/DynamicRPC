@@ -485,7 +485,7 @@ static void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,siz
             newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
         }
         
-        assert(rpcstruct_set(usr[1],key,SIZEDBUF,newserv,newservlen) == 0);
+        assert(rpcstruct_set(usr[1],key,newserv,newservlen,SIZEDBUF) == 0);
         tqueque_free(check_que);
         free(newserv);
     }

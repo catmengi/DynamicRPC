@@ -11,6 +11,14 @@
 #include <string.h>
 #include "rpctypes.h"
 
+struct rpcbuff_el{
+    char is_packed;
+    struct rpcbuff_el* childs;
+    enum rpctypes type;
+    uint64_t elen;
+    void* endpoint;
+};
+
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len){
     struct rpcbuff_el* md_array = calloc(1,sizeof(struct rpcbuff_el));
     struct rpcbuff* cont = NULL;
