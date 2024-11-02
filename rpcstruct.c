@@ -32,6 +32,7 @@ struct rpcstruct_el{
 };
 
 int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typelen,enum rpctypes type){
+    if(arg == NULL) return 1;
     struct rpcstruct_el* got = NULL;
     int r = hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got);
     if(r == ENOTFOUND){
@@ -156,6 +157,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
     return 0;
 }
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* otype_len,enum rpctypes type){
+    if(otype == NULL) return 1;
     struct rpcstruct_el* got = NULL;
     if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got) != 0) return 1;
     struct rpctype ptype = {0};
