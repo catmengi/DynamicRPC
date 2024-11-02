@@ -333,9 +333,9 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
     rpctypes_free(types,count);
     return 0;
 }
-int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key){
+void rpcstruct_remove(struct rpcstruct* rpcstruct, char* key){
     struct rpcstruct_el* el = NULL;
-    if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&el) != 0) return 1;
+    if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&el) != 0) return;
     if(el->is_packed == 1)
         free(el->endpoint);
     else{
@@ -353,8 +353,20 @@ int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key){
     free(el);
     hashtable_remove_entry(rpcstruct->ht,key,strlen(key) + 1);
     rpcstruct->count--;
-    return 0;
+    return;
 }
+
+void rpcstruct_unlink(struct rpcstruct* rpcstruct, char* key){
+    struct rpcstruct_el* el = NULL;
+    if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&el) != 0) return;
+    if(el->is_packed == 0){
+        free(el);
+        hashtable_remove_entry(rpcstruct->ht,key,strlen(key) + 1);
+        rpcstruct->count--;
+        return;
+    }
+}
+
 void __rpcstruct_get_fields_cb(char* key,void* vptr,void* usr,size_t iter){
     char** fields = usr;
     fields[iter] = key;

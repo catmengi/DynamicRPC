@@ -59,10 +59,12 @@ struct rpcbuff* buf_to_rpcbuff(char* buf);                               //rpcbu
 
 
 
-struct rpcstruct* rpcstruct_create();                                          /*Hashtable based struct, copies and pack type, not just storing pointer;*/
+struct rpcstruct* rpcstruct_create();                                          /*Hashtable based struct, copies and pack type, not just storing pointer;
+                                                                               RPCBUFF and RPCSTRUCT is STORED AS POINTERS AND SERIALIZED LATER*/
 void rpcstruct_free(struct rpcstruct* rpcstruct);
+void rpcstruct_unlink(struct rpcstruct* rpcstruct, char* key);                 /*same as free but not working for simple types(not RPC*), and not frees, just remove entries :)*/
 char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len);  /*Get all fields(keys) in rpcstruct, ammount of them will be placed in fields_len*/
-int rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);                  /*Remove key and free it*/
+void rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);                  /*Remove key and free it*/
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);                  /*Serialize (NOT FOR MANUAL CALL)*/
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);         /*Desirialize (NOT FOR MANUAL CALL)*/
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* otype_len,enum rpctypes type);  /*serialise data type and store it in rpcstruct*/
