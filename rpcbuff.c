@@ -337,19 +337,21 @@ void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
     if(got->endpoint != (void*)0xCAFE) {
         if(got->is_packed == 1){
             free(got->endpoint);
+            got->endpoint = (void*)0xCAFE;
         }else{
             switch(got->type){
                 case RPCBUFF:
                     rpcbuff_free(got->endpoint);
+                    got->endpoint = (void*)0xCAFE;
                     break;
                 case RPCSTRUCT:
                     rpcstruct_free(got->endpoint);
+                    got->endpoint = (void*)0xCAFE;
                     break;
                 default:
                     break;
             }
         }
-        got->endpoint = (void*)0xCAFE;
     }
 }
 
