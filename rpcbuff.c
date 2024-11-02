@@ -355,12 +355,6 @@ void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
     }
 }
 
-struct _prpcbuff_dim{
-    enum rpctypes type;
-    char* data;
-    uint64_t elen;
-    struct _prpcbuff_dim* next;
-};
 char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
     assert(rpcbuff);
     struct tqueque* tque = tqueque_create();
