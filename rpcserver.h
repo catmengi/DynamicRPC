@@ -1,12 +1,7 @@
 #pragma once
 #include "tqueque/tqueque.h"
 #include <pthread.h>
-#ifdef __cplusplus
-#include <atomic>
-typedef std::atomic_ullong atomic_ullong ;
-#else
 #include <stdatomic.h>
-#endif
 #include <stddef.h>
 #include "rpccall.h"
 #include <ffi.h>
