@@ -58,6 +58,7 @@ server:   `enum rpctypes Pread[] = {INT32,SIZEDBUF,UINT64};`
 `struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len)`
 
 Creates multi-dimensional array with specified dimension sizes by **dimsizes** and ammount of dimension by **dimsizes_len**, returns ready to use rpcbuff
+
 Arguments can be NULL for 1 element rpcbuff
 
 ------------
