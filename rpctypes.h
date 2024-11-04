@@ -39,8 +39,8 @@ struct rpcstruct{
   uint64_t count;
 };
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len);  /*Multi-dimensional array
-Copies and pack type, not just storing pointer; dimsizes is a index(size) of array
-RPCBUFF and RPCSTRUCT is STORED AS POINTERS AND SERIALIZED LATER*/
+                                                                            Copies and pack type, not just storing pointer; dimsizes is a index(size) of array
+                                                                            RPCBUFF and RPCSTRUCT is STORED AS POINTERS AND SERIALIZED LATER*/
 
 void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as rpcbuff_free but dont free struct rpcbuff* (only internals of it);
 
@@ -56,12 +56,12 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen);          //rpcbu
 
 struct rpcbuff* buf_to_rpcbuff(char* buf);                               //rpcbuff deserializer(NOT FOR MANUAL CALL);
 
-
+void rpcbuff_unlink(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len);  /*Mark this index to NOT be freed by rpcbuff_free*/
 
 struct rpcstruct* rpcstruct_create();                                          /*Hashtable based struct, copies and pack type, not just storing pointer;
                                                                               RPCBUFF and RPCSTRUCT is STORED AS POINTERS AND SERIALIZED LATER*/
 void rpcstruct_free(struct rpcstruct* rpcstruct);
-void rpcstruct_unlink(struct rpcstruct* rpcstruct, char* key);                 /*same as free but not working for simple types(not RPC*), and not frees, just remove entries :)*/
+void rpcstruct_unlink(struct rpcstruct* rpcstruct, char* key);                 /*Mark this index to NOT be freed by rpcstruct_free*/
 char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len);  /*Get all fields(keys) in rpcstruct, ammount of them will be placed in fields_len*/
 void rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);                  /*Remove key and free it*/
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);                  /*Serialize (NOT FOR MANUAL CALL)*/

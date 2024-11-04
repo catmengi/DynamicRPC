@@ -363,6 +363,15 @@ void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
     }
 }
 
+void rpcbuff_unlink(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
+    assert(rpcbuff);
+    struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
+    if(!got) return;
+    if(got->is_packed == 0)
+        got->endpoint = (void*)0xCAFE;
+    return;
+}
+
 char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
     assert(rpcbuff);
     struct tqueque* tque = tqueque_create();
