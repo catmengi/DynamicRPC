@@ -113,7 +113,7 @@ Marks type at specified **index** with len of **index_len** to NOT be freed by `
 
 `struct rpcserver* rpcserver_create(uint16_t port)` 
 
-creates new server at specified **port**; return **struct rpcserver* ** at success
+creates new server at specified **port**; return struct rpcserver* at success
 
 ------------
 
