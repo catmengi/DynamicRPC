@@ -36,9 +36,11 @@ Example of its usage:  `enum rpctypes proto[] = {UINT64, STR, RPCBUFF}`
 `enum rpctypes client[] = {SIZEDBUF}`
  
  
- examples of function prototype by server and client
-client:  `enum rpctypes Pread[] = {INT32,SIZEDBUF};`
-server: `enum rpctypes Pread[] = {INT32,SIZEDBUF,UINT64};`
+examples of function prototype by server and client
+client:   `enum rpctypes Pread[] = {INT32,SIZEDBUF};`
+server:   `enum rpctypes Pread[] = {INT32,SIZEDBUF,UINT64};`
+
+
 **Note №2: SIZEDBUF is not returnable!**
 ------------
 
