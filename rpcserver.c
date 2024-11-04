@@ -21,6 +21,7 @@
 #define DEFAULT_MAXIXIMUM_CLIENT 512
 #define _GNU_SOURCE
 
+/*converts rpctypes into suitable for libffi type system*/
 ffi_type** rpctypes_to_ffi_types(enum rpctypes* rpctypes,size_t rpctypes_amm){
     if(!rpctypes) return NULL;
     ffi_type** out = calloc(rpctypes_amm, sizeof(ffi_type*));
@@ -51,6 +52,7 @@ exit:
     free(out);
     return NULL;
 }
+/* same as rpctypes_to_ffi_types but doing it for 1 type, not array of types*/
 ffi_type* rpctype_to_ffi_type(enum rpctypes rpctype){
         if(rpctype == VOID){return &ffi_type_void;}
         if(rpctype == CHAR){return &ffi_type_schar;}
@@ -95,17 +97,19 @@ struct rpcserver* rpcserver_create(uint16_t port){
         exit(EXIT_FAILURE);
     }
     listen(server_fd,DEFAULT_MAXIXIMUM_CLIENT);
-    rpcserver->sfd = server_fd;
+    rpcserver->sfd = server_fd;       //preparing rpcserver structure with basic data
     rpcserver->stop = 0;
-    pthread_mutex_init(&rpcserver->edit,NULL);
-    assert(hashtable_create(&rpcserver->fn_ht,32,4) == 0);
+    pthread_mutex_init(&rpcserver->edit,NULL);  //creates mutex for editing (register/unregister functions)
+    assert(hashtable_create(&rpcserver->fn_ht,32,4) == 0);  //create hashtables for functions and user keys
     assert(hashtable_create(&rpcserver->users,32,4) == 0);
     return rpcserver;
 }
 void rpcserver_start(struct rpcserver* rpcserver){
     rpcserver->stop = 0;
-    assert(pthread_create(&rpcserver->accept_thread, NULL,rpcserver_dispatcher,rpcserver) == 0);
+    assert(pthread_create(&rpcserver->accept_thread, NULL,rpcserver_dispatcher,rpcserver) == 0);   //simply starts main thread, that will pick up any rpc client
 }
+
+/*callback for rpcserver_free (made as callback because of ht realiszation)*/
 void __rpcserver_fn_free_callback(void* cfn){
     struct fn* fn = (struct fn*)cfn;
     free(fn->ffi_type_free);
@@ -116,20 +120,22 @@ void __rpcserver_fn_free_callback(void* cfn){
 void rpcserver_free(struct rpcserver* serv){
     if(!serv) return;
     serv->stop = 1;
-    while(serv->clientcount > 0) {printf("%s:clients last:%llu\n",__PRETTY_FUNCTION__,serv->clientcount); sleep(1);}
-    pthread_mutex_lock(&serv->edit);
-    hashtable_iterate(serv->fn_ht,__rpcserver_fn_free_callback);
+    while(serv->clientcount > 0) {printf("%s:clients last:%llu\n",__PRETTY_FUNCTION__,serv->clientcount); sleep(1);}     //wait until all client_threads exit
+    pthread_mutex_lock(&serv->edit);                                                                                     //no one can edit server now
+    hashtable_iterate(serv->fn_ht,__rpcserver_fn_free_callback);                                                         //iterate hashtable via callback
     hashtable_iterate(serv->users,free);
     hashtable_free(serv->fn_ht);
     hashtable_free(serv->users);
     serv->fn_ht = NULL;
     serv->interfunc = NULL;
-    pthread_mutex_unlock(&serv->edit);
+    pthread_mutex_unlock(&serv->edit);                                                                                  //unlocks mutex for not potential leaving bunch of mutexes
     shutdown(serv->sfd,SHUT_RD);
     close(serv->sfd);
-    pthread_join(serv->accept_thread,NULL);
+    pthread_join(serv->accept_thread,NULL);                                                                             //wait until main thread exit
     free(serv);
 }
+
+/*cutdown version rpcserver_free*/
 void rpcserver_stop(struct rpcserver* serv){
     if(!serv) return;
     serv->stop = 1;
@@ -674,12 +680,12 @@ void* rpcserver_dispatcher(void* vserv){
     printf("%s: dispatcher stopped\n",__PRETTY_FUNCTION__);
     pthread_exit(NULL);
 }
-void rpcserver_register_newclient_cb(struct rpcserver* serv,rpcserver_newclient_cb callback, void* user){
+void rpcserver_register_newclient_cb(struct rpcserver* serv,rpcserver_client_cb callback, void* user){
     assert(serv);
     serv->newclient_cb = callback;
     serv->newclient_cb_data = user;
 }
-void rpcserver_register_clientdiscon_cb(struct rpcserver* serv,rpcserver_clientdiscon_cb callback, void* user){
+void rpcserver_register_clientdiscon_cb(struct rpcserver* serv,rpcserver_client_cb callback, void* user){
     assert(serv);
     serv->clientdiscon_cb = callback;
     serv->clientdiscon_cb_data = user;
