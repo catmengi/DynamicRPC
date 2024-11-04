@@ -18,10 +18,9 @@
 #include "rpctypes.h"
 #include "tqueque/tqueque.h"
 #include <unistd.h>
-#define DEFAULT_CLIENT_TIMEOUT 1
 #define DEFAULT_MAXIXIMUM_CLIENT 512
 #define _GNU_SOURCE
-#define RPCSERVER
+
 ffi_type** rpctypes_to_ffi_types(enum rpctypes* rpctypes,size_t rpctypes_amm){
     if(!rpctypes) return NULL;
     ffi_type** out = calloc(rpctypes_amm, sizeof(ffi_type*));
