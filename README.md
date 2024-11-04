@@ -1,12 +1,16 @@
 #DynamicRPC
+
 **DynamicRPC** is a pure-c rpc client-server framework, designed to be expandable and doesnt require IDL. Made with libffi to call functions by pointers without know their prototypes at runtime
 
 ------------
 
 
 #Build
+
  If you want server-client build you could use something like this
+ 
  `gcc -c rpc*.c hashtable.c/hashtable.c tqueque/tqueque.c `
+ 
  and then link they with your .o files and libffi and pthread
  
 ** OR**
