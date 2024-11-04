@@ -136,7 +136,7 @@ prototype specified by **argstype** and ammount of them specified by **argsamm**
 Also it sets pointer that will be used in **PSTORAGE** type (can be NULL), and minimal permission to call it by **perm**
 
 `void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);`
-Adds a key with a permission by **perm** into a server
+Adds a key with a permission **perm** into a server
 
 **there are also some APIs not covered here** refer to [rpcserver.h](https://github.com/catmengi/DynamicRPC/blob/master/rpcserver.h "rpcserver.h") for them
 
