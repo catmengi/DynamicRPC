@@ -81,7 +81,7 @@ return 0 on success
 
 `int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* ptype,uint64_t type_len,enum rpctypes type)`
 
-Packs and pushes **ptype**( pointer`type*` only) with **type** and **type_len** as len (if type is  **SIZEDBUF**)  to an **index** with len of **index len**
+Packs and pushes **ptype**( pointer only) with **type** and **type_len** as len (if type is  **SIZEDBUF**)  to an **index** with len of **index len**
 return 0 on success
 
 ------------
