@@ -132,7 +132,7 @@ creates new server at specified **port**; return struct rpcserver* at success
                                        uint8_t argsamm, void* pstorage,int perm)`
 									   
 This function registers function pointer **fn** with **fn_name**, return type specified by **rtype**,
-arguments specified by **argstype** and ammount of them specified by **argsamm**.
+prototype specified by **argstype** and ammount of them specified by **argsamm**.
 Also it sets pointer that will be used in **PSTORAGE** type (can be NULL), and minimal permission to call it by **perm**
 
 `void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);`
