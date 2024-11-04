@@ -153,12 +153,16 @@ int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
     assert(serv && fn && fn_name);
     struct fn* fnr = malloc(sizeof(*fnr));
     assert(fnr);
+
     size_t eargsamm = argsamm;
     if(argsamm > 0){
+        /*allocating a copying copy of fn prototype*/
         fnr->argtypes = malloc(sizeof(enum rpctypes) * eargsamm);
         assert(fnr->argtypes);
         memcpy(fnr->argtypes, argstype,sizeof(enum rpctypes) * argsamm);
     }else fnr->argtypes = NULL;
+
+    /*preparing struct fn*/
     argsamm = eargsamm;
     fnr->rtype = rtype;
     fnr->nargs = argsamm;
@@ -168,10 +172,16 @@ int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
     memcpy(fnr->fn_name, fn_name, strlen(fn_name)+1);
     fnr->personal = pstorage;
     fnr->perm = perm;
+    /*==================*/
+
+    /*converting rpctypes to libffi types*/
     ffi_type** argstype_ffi = rpctypes_to_ffi_types(argstype,argsamm);
     if(argstype_ffi == NULL && argstype != NULL) return 2;
     fnr->ffi_type_free = argstype_ffi;
     ffi_type* rtype_ffi = rpctype_to_ffi_type(rtype);
+    /*==================*/
+
+    /*Finally preparing cif and adding struct fn to hashtable*/
     if(ffi_prep_cif(&fnr->cif,FFI_DEFAULT_ABI,fnr->nargs,rtype_ffi,argstype_ffi) != FFI_OK) return 1;
     if(hashtable_add(serv->fn_ht,fn_name,strlen(fn_name) + 1,fnr,0) != 0) return 1;
     pthread_mutex_unlock(&serv->edit);
@@ -189,29 +199,35 @@ void rpcserver_unregister_fn(struct rpcserver* serv, char* fn_name){
     pthread_mutex_unlock(&serv->edit);
 }
 static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct rpccall* call,struct fn* cfn,char* uniq){
+
     void** callargs = NULL;
     if(cfn->nargs > 0){
         callargs = calloc(cfn->nargs, sizeof(void*));
         assert(callargs);
     }
-    uint64_t j = 0;
-    struct tqueque* rpcbuff_upd = tqueque_create();
-    struct tqueque* rpcbuff_freeQ = tqueque_create();
-    struct tqueque* rpcstruct_upd = tqueque_create();
-    struct tqueque* rpcstruct_freeQ = tqueque_create();
-    struct tqueque* strret_free = tqueque_create(); //queue to track do i need to free return if it STR type
+
+    struct tqueque* rpcbuff_upd = tqueque_create();     //queque to track struct rpcbuff to be updated (RE-serialize them to apply changes)
+    struct tqueque* rpcbuff_freeQ = tqueque_create();   //queque to track struct rpcbuff that need free
+    struct tqueque* rpcstruct_upd = tqueque_create();   //queque to track struct rpcstruct to be updated (RE-serialize them to apply changes)
+    struct tqueque* rpcstruct_freeQ = tqueque_create(); //queque to track struct rpcstruct that need free
+    struct tqueque* strret_free = tqueque_create();     //queue to track do i need to free return if it STR type
     assert(rpcbuff_upd);
     assert(rpcbuff_freeQ);
     assert(rpcstruct_upd);
     assert(rpcstruct_freeQ);
     assert(strret_free);
-    enum rpctypes* check = rpctypes_get_types(call->args,call->args_amm);
+
+    enum rpctypes* check = rpctypes_get_types(call->args,call->args_amm);  //checking that arguments supplyed by client match arguments of requested function
     if(!is_rpctypes_equal(cfn->argtypes,cfn->nargs,check,call->args_amm)){
+        //if it fails we are freeing types from client, further frees will be in "exit:" or rpcserver_client_thread
         free(check);
         goto exit;
     }
     free(check);
     assert((callargs != NULL && call->args_amm != 0) || call->args_amm == 0);
+    uint64_t j = 0;
+
+    /*This is type unpacking monstrosity*/
     for(uint64_t i = 0; i < cfn->nargs; i++){
         if(cfn->argtypes[i] == PSTORAGE){
             callargs[i] = calloc(1,sizeof(void*));
@@ -237,7 +253,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 callargs[i] = calloc(1,sizeof(void*));
                 assert(callargs[i]);
                 *(void**)callargs[i] = unpack_rpcbuff_type(&call->args[j]);
-                if(call->args[j].flag == 1)
+                if(call->args[j].flag == 1)                                    //this flag means "Do i need to resend modified version of this argument to client?"
                     tqueque_push(rpcbuff_upd,*(void**)callargs[i],1,NULL);
                 else
                     tqueque_push(rpcbuff_freeQ,*(void**)callargs[i],1,NULL);
@@ -250,7 +266,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 callargs[i] = calloc(1,sizeof(void*));
                 assert(callargs[i]);
                 *(void**)callargs[i] = unpack_rpcstruct_type(&call->args[j]);
-                if(call->args[j].flag == 1)
+                if(call->args[j].flag == 1)                                   //this flag means "Do i need to resend modified version of this argument to client?"
                     tqueque_push(rpcstruct_upd,*(void**)callargs[i],1,NULL);
                 else
                     tqueque_push(rpcstruct_freeQ,*(void**)callargs[i],1,NULL);
@@ -264,7 +280,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 assert(callargs[i]);
                 uint64_t buflen = 0;
                 *(void**)callargs[i] = unpack_sizedbuf_type(&call->args[j],&buflen);
-                callargs[++i] = calloc(1,sizeof(void*));
+                callargs[++i] = calloc(1,sizeof(void*));    //Doing ++i because we need to SKIP next UINT64 type(we are putting len of sizedbuf there)
                 assert(callargs[i]);
                 *(uint64_t*)callargs[i] = buflen;
                 j++;
@@ -274,8 +290,8 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 callargs[i] = calloc(1,sizeof(char*));
                 assert(callargs[i]);
                 *(void**)callargs[i] =  unpack_str_type(&call->args[j]);
-                if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);
-                j++;
+                if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);  //If return type is str we are pushing this string to que, because we need
+                j++;                                                                          // to check to free this str or leave it for return
                 continue;
             }
             if(call->args[j].type == CHAR){
@@ -352,6 +368,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     enum rpctypes rtype = cfn->rtype;
     ret->ret.type = VOID;
     if(rtype != VOID){
+        /*Packing return into RPC type*/
         if(rtype == CHAR)    char_to_type(*(char*)fnret,&ret->ret);
         if(rtype == INT16)   int16_to_type(*(int16_t*)fnret,&ret->ret);
         if(rtype == UINT16)  uint16_to_type(*(uint16_t*)fnret,&ret->ret);
@@ -361,22 +378,26 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
         if(rtype == UINT64)  uint64_to_type(*(uint64_t*)fnret,&ret->ret);
         if(rtype == FLOAT)   float_to_type(*(float*)fnret,&ret->ret);
         if(rtype == DOUBLE)  double_to_type(*(double*)fnret,&ret->ret);
-        
+        /*===========================*/
+
         if(rtype == STR && *(void**)fnret != NULL){
+            /*This copy-pasted shit used to check do we need that pointer in future (like resending it)*/
             create_str_type(*(char**)fnret,0,&ret->ret);
             int needfree = 1;
-            size_t el = tqueque_get_tagamm(strret_free,NULL);
+            size_t el = tqueque_get_tagamm(strret_free,NULL);   //gets ammount of pointers in que
             for(size_t i = 0; i < el; i++){
-                if(!needfree) break;
+                if(!needfree) break;                            //this is just breaked, it exit loop if needfree is set to 0
                 void* ptr = tqueque_pop(strret_free,NULL,NULL);
-                if(ptr == *(char**)fnret) needfree = 0;
+                if(ptr == *(char**)fnret) needfree = 0;         //If this is true it means this pointer was in arguments, and it will be freed in code that used to free arguments
+
                 assert(tqueque_push(strret_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
             }
-            if(needfree) free(*(char**)fnret);
+            if(needfree) free(*(char**)fnret);                  //free it if it wasnt used in arguments
         }else if(rtype == STR && *(void**)fnret == NULL){
             ret->ret.type = VOID;
         }
         if(rtype == RPCBUFF && *(void**)fnret != NULL){
+            /*ABSOLUTLY the same code as STR but it checks for rpc*_upd que*/
             int needfree = 1;
             size_t el = tqueque_get_tagamm(rpcbuff_upd,NULL);
             for(size_t i = 0; i < el; i++){
@@ -401,6 +422,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
         else if(rtype == RPCBUFF && *(void**)fnret == NULL)
             ret->ret.type = VOID;
         if(rtype == RPCSTRUCT && *(void**)fnret != NULL){
+            /*ABSOLUTLY the same code as RPCBUFF but it checks for rpc*_upd que*/
             int needfree = 1;
             size_t el = tqueque_get_tagamm(rpcstruct_upd,NULL);
             for(size_t i = 0; i < el; i++){
@@ -426,17 +448,17 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             ret->ret.type = VOID;
     }
     tqueque_free(strret_free);
-    ret->resargs = rpctypes_clean_nonres_args(call->args,call->args_amm,&ret->resargs_amm);
-    for(uint64_t i = 0; i < ret->resargs_amm; i++){
+    ret->resargs = rpctypes_clean_nonres_args(call->args,call->args_amm,&ret->resargs_amm);    //removing ALL not resendable arguments from call->args
+    for(uint64_t i = 0; i < ret->resargs_amm; i++){                                            //then we check which types we need to update via rpc*_upd ques
         if(ret->resargs[i].type == RPCBUFF){
             struct rpcbuff* buf = tqueque_pop(rpcbuff_upd,NULL,NULL);
-            if(!buf) break;
+            assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcbuff_free(buf);
         }
         if(ret->resargs[i].type == RPCSTRUCT){
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
-            if(!buf) break;
+            assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
             create_rpcstruct_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcstruct_free(buf);
         }
