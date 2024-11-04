@@ -136,7 +136,9 @@ Adds a key with a permission by **perm** into a server
 ------------
 
 **Client API**
+
 `struct rpcclient* rpcclient_connect(char* host,int portno,char* key)`
+
 connects to a server by address **host**, at port **portno** with **key** as password
 return **struct rpcclient** pointer on success or NULL on failures
 
