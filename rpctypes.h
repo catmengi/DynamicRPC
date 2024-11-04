@@ -46,7 +46,7 @@ void rpcbuff_free_internals(struct rpcbuff* rpcbuff); //same as rpcbuff_free but
 
 void rpcbuff_free(struct rpcbuff* rpcbuff);           //destroys rpcbuff, and free data that was copyed to it;
 
-int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type);  //unpacks data from rpcbuff
+int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* raw,uint64_t* otype_len,enum rpctypes type);  //unpacks data from rpcbuff
 
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* ptype,uint64_t type_len,enum rpctypes type);  //serialise data type and store it in rpcbuff
 
@@ -66,6 +66,6 @@ char** rpcstruct_get_fields(struct rpcstruct* rpcstruct, size_t* fields_len);  /
 void rpcstruct_remove(struct rpcstruct* rpcstruct, char* key);                  /*Remove key and free it*/
 int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct);                  /*Serialize (NOT FOR MANUAL CALL)*/
 char* rpcstruct_to_buf(struct rpcstruct* rpcstruct, uint64_t* buflen);         /*Desirialize (NOT FOR MANUAL CALL)*/
-int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* otype_len,enum rpctypes type);  /*unpacks data from rpcstruct*/
-int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typelen,enum rpctypes type);   /*serialise data type and store it in rpcstruct*/
+int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t* typelen,enum rpctypes type);  /*unpacks data from rpcstruct*/
+int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t typelen,enum rpctypes type);   /*serialise data type and store it in rpcstruct*/
 void rpcstruct_free_internals(struct rpcstruct* rpcstruct);

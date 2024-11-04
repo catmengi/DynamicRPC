@@ -31,8 +31,8 @@ struct rpcstruct_el{
     void* endpoint;
 };
 
-int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typelen,enum rpctypes type){
-    if(arg == NULL) return 1;
+int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t typelen,enum rpctypes type){
+    if(raw == NULL) return 1;
     struct rpcstruct_el* got = NULL;
     int r = hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got);
     if(r == ENOTFOUND){
@@ -59,7 +59,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
     struct rpctype ptype = {0};
     switch(type){
         case CHAR:
-            char_to_type(*(char*)arg,&ptype);
+            char_to_type(*(char*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -67,7 +67,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case UINT16:
-            uint16_to_type(*(uint16_t*)arg,&ptype);
+            uint16_to_type(*(uint16_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -75,7 +75,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case INT16:
-            int16_to_type(*(int16_t*)arg,&ptype);
+            int16_to_type(*(int16_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -83,7 +83,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case UINT32:
-            uint32_to_type(*(uint32_t*)arg,&ptype);
+            uint32_to_type(*(uint32_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -91,7 +91,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case INT32:
-            int32_to_type(*(int32_t*)arg,&ptype);
+            int32_to_type(*(int32_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -99,7 +99,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case UINT64:
-            uint64_to_type(*(uint64_t*)arg,&ptype);
+            uint64_to_type(*(uint64_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -107,7 +107,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case INT64:
-            int64_to_type(*(int64_t*)arg,&ptype);
+            int64_to_type(*(int64_t*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -115,7 +115,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case FLOAT:
-            float_to_type(*(float*)arg,&ptype);
+            float_to_type(*(float*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -123,7 +123,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case DOUBLE:
-            double_to_type(*(double*)arg,&ptype);
+            double_to_type(*(double*)raw,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -131,7 +131,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case STR:
-            create_str_type(arg,1,&ptype);
+            create_str_type(raw,1,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -139,7 +139,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         case SIZEDBUF:
-            create_sizedbuf_type(arg,typelen,1,&ptype);
+            create_sizedbuf_type(raw,typelen,1,&ptype);
             got->elen = type_buflen(&ptype);
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
@@ -147,7 +147,7 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
             free(ptype.data);
             break;
         default:
-            got->endpoint = arg;
+            got->endpoint = raw;
             got->type = type;
             got->is_packed = 0;
             break;
@@ -156,8 +156,8 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* arg,uint64_t typel
     rpcstruct->count++;
     return 0;
 }
-int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* otype_len,enum rpctypes type){
-    if(otype == NULL) return 1;
+int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t* typelen,enum rpctypes type){
+    if(raw == NULL) return 1;
     struct rpcstruct_el* got = NULL;
     if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got) != 0) return 1;
     struct rpctype ptype = {0};
@@ -166,76 +166,76 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* otype,uint64_t* ot
         if(type == CHAR){
             char ch = type_to_char(&ptype);
             free(ptype.data);
-            *(char*)otype = ch;
+            *(char*)raw = ch;
             return 0;
         }
         if(type == UINT16){
             uint16_t ch = type_to_uint16(&ptype);
             free(ptype.data);
-            *(uint16_t*)otype = ch;
+            *(uint16_t*)raw = ch;
             return 0;
         }
         if(type == INT16){
             int32_t ch = type_to_int32(&ptype);
             free(ptype.data);
-            *(int32_t*)otype = ch;
+            *(int32_t*)raw = ch;
             return 0;
         }
         if(type == UINT32){
             uint32_t ch = type_to_uint32(&ptype);
             free(ptype.data);
-            *(uint32_t*)otype = ch;
+            *(uint32_t*)raw = ch;
             return 0;
         }
         if(type == INT32){
             int32_t ch = type_to_int32(&ptype);
             free(ptype.data);
-            *(int32_t*)otype = ch;
+            *(int32_t*)raw = ch;
             return 0;
         }
         if(type == UINT64){
             uint64_t ch = type_to_uint64(&ptype);
             free(ptype.data);
-            *(uint64_t*)otype = ch;
+            *(uint64_t*)raw = ch;
             return 0;
         }
         if(type == INT64){
             int64_t ch = type_to_int64(&ptype);
             free(ptype.data);
-            *(int64_t*)otype = ch;
+            *(int64_t*)raw = ch;
             return 0;
         }
         if(type == FLOAT){
             float ch = type_to_float(&ptype);
             free(ptype.data);
-            *(float*)otype = ch;
+            *(float*)raw = ch;
             return 0;
         }
         if(type == DOUBLE){
             double ch = type_to_double(&ptype);
             free(ptype.data);
-            *(double*)otype = ch;
+            *(double*)raw = ch;
             return 0;
         }
         if(type == STR){
             char* ch = unpack_str_type(&ptype);
-            *(char**)otype = ch;
+            *(char**)raw = ch;
             return 0;
         }
         if(type == SIZEDBUF){
             uint64_t tmp = 0;
             uint64_t* len = NULL;
-            if(otype_len != NULL) len = otype_len;
+            if(typelen != NULL) len = typelen;
             else len = &tmp;
             void* ch = unpack_sizedbuf_type(&ptype,len);
-            *(void**)otype = ch;
+            *(void**)raw = ch;
             return 0;
         }
     }
     if(got->type != type) return 1;
-    if(otype_len != NULL)
-        *otype_len = got->elen;
-    *(void**)otype = got->endpoint;
+    if(typelen != NULL)
+        *typelen = got->elen;
+    *(void**)raw = got->endpoint;
     return 0;
 }
 void _rpcstruct_pack_callback(char* key,void* ptype,void* vtype,size_t iter){
