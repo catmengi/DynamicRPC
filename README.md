@@ -52,18 +52,21 @@ server:   `enum rpctypes Pread[] = {INT32,SIZEDBUF,UINT64};`
 **RPCBUFF API**
 
 `struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len)`
+
 Creates multi-dimensional array with specified dimension sizes by **dimsizes** and ammount of dimension by **dimsizes_len**, returns ready to use rpcbuff
 
 ------------
 
 
 `void rpcbuff_free(struct rpcbuff* rpcbuff)`
+
 Free rpcbuff
 
 ------------
 
 
 `int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* raw,uint64_t* otype_len,enum rpctypes type)`
+
 Get type that matches **type** at **index** with len of **index_len** and unpacks it to **raw** (**SHOULD** be pointer to pointer in case with **SIZEDBUF, STR, RPCBUFF, RPCSTRUCT**)
 return 0 on sucess, otherwise type at this index cannot be found
 
@@ -71,6 +74,7 @@ return 0 on sucess, otherwise type at this index cannot be found
 
 
 `int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* ptype,uint64_t type_len,enum rpctypes type)`
+
 Packs and pushes **ptype**( pointer`type*` only) with **type** and **type_len** as len (if type is  **SIZEDBUF**)  to an **index** with len of **index len**
 return 0 on sucess
 
@@ -78,12 +82,14 @@ return 0 on sucess
 
 
 `void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len)`
+
 Remove type at **index** with len of **index_len**
 
 ------------
 
 
 `void rpcbuff_unlink(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len)`
+
 Marks type at specified **index** with len of **index_len** to NOT be freed by `rpcbuff_free`
 
 
@@ -97,14 +103,18 @@ Marks type at specified **index** with len of **index_len** to NOT be freed by `
 ------------
 
 **Server API**
-`struct rpcserver* rpcserver_create(uint16_t port)` creates new server at specified **port** 
-return **struct rpcserver* ** at success
+
+`struct rpcserver* rpcserver_create(uint16_t port)` 
+
+creates new server at specified **port**; return **struct rpcserver* ** at success
 
 ------------
 
 
 `void rpcserver_start(struct rpcserver* rpcserver)`  starts server main thread
+
 `void rpcserver_free(struct rpcserver* serv); `        stops and free server
+
 `void rpcserver_stop(struct rpcserver* serv); `        stops but doesnt free
 
 ------------
@@ -133,6 +143,7 @@ return **struct rpcclient** pointer on success or NULL on failures
 ------------
 
 `int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, uint8_t rpctypes_len,void* fnret,...)`
+
 Calls a function with name **fn**, with prototype **rpctypes**, flags **flags**, len of prototype and flags if **rpctypes_len**, **fnret** is a pointer to a memory where function result will be placed. Function arguments will be in **variable arguments** of a rpcclient_call
 
 Flags stand for should this argument will be resened to a client, it supports folowing type:
