@@ -72,7 +72,7 @@ Free rpcbuff
 `int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* raw,uint64_t* otype_len,enum rpctypes type)`
 
 Get type that matches **type** at **index** with len of **index_len** and unpacks it to **raw** (**SHOULD** be pointer to pointer in case with **SIZEDBUF, STR, RPCBUFF, RPCSTRUCT**)
-return 0 on sucess, otherwise type at this index cannot be found
+return 0 on success
 
 ------------
 
@@ -80,7 +80,7 @@ return 0 on sucess, otherwise type at this index cannot be found
 `int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* ptype,uint64_t type_len,enum rpctypes type)`
 
 Packs and pushes **ptype**( pointer`type*` only) with **type** and **type_len** as len (if type is  **SIZEDBUF**)  to an **index** with len of **index len**
-return 0 on sucess
+return 0 on success
 
 ------------
 
