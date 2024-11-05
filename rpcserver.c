@@ -147,25 +147,23 @@ void rpcserver_stop(struct rpcserver* serv){
     pthread_join(serv->accept_thread,NULL);
 }
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
-                          enum rpctypes rtype, enum rpctypes* argstype,
-                          uint8_t argsamm, void* pstorage,int perm){
+                          enum rpctypes rtype, enum rpctypes* fn_arguments,
+                          uint8_t fn_arguments_len, void* pstorage,int perm){
     pthread_mutex_lock(&serv->edit);
     assert(serv && fn && fn_name);
     struct fn* fnr = malloc(sizeof(*fnr));
     assert(fnr);
 
-    size_t eargsamm = argsamm;
-    if(argsamm > 0){
+    if(fn_arguments_len > 0){
         /*allocating a copying copy of fn prototype*/
-        fnr->argtypes = malloc(sizeof(enum rpctypes) * eargsamm);
+        fnr->argtypes = malloc(sizeof(enum rpctypes) * fn_arguments_len);
         assert(fnr->argtypes);
-        memcpy(fnr->argtypes, argstype,sizeof(enum rpctypes) * argsamm);
+        memcpy(fnr->argtypes, fn_arguments,sizeof(enum rpctypes) * fn_arguments_len);
     }else fnr->argtypes = NULL;
 
     /*preparing struct fn*/
-    argsamm = eargsamm;
     fnr->rtype = rtype;
-    fnr->nargs = argsamm;
+    fnr->nargs = fn_arguments_len;
     fnr->fn = fn;
     fnr->fn_name = malloc(strlen(fn_name) + 1);
     assert(fnr->fn_name);
@@ -175,8 +173,8 @@ int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
     /*==================*/
 
     /*converting rpctypes to libffi types*/
-    ffi_type** argstype_ffi = rpctypes_to_ffi_types(argstype,argsamm);
-    if(argstype_ffi == NULL && argstype != NULL) return 2;
+    ffi_type** argstype_ffi = rpctypes_to_ffi_types(fn_arguments,fn_arguments_len);
+    if(argstype_ffi == NULL && fn_arguments != NULL) return 2;
     fnr->ffi_type_free = argstype_ffi;
     ffi_type* rtype_ffi = rpctype_to_ffi_type(rtype);
     /*==================*/

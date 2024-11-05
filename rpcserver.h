@@ -49,8 +49,8 @@ void rpcserver_free(struct rpcserver* serv);         //stops and frees server
 void rpcserver_stop(struct rpcserver* serv);         //only stops but not frees server
 
 int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,        //registers function in rpcserver
-                          enum rpctypes rtype, enum rpctypes* argstype,           // serv: rpcserver,  fn: function pointer, fn_name: function name for client
-                          uint8_t argsamm, void* pstorage,int perm);              // rtype: type that function will return,  argstype: function arguments types in rpctypes
+                          enum rpctypes rtype, enum rpctypes* fn_arguments,         // serv: rpcserver,  fn: function pointer, fn_name: function name for client
+                          uint8_t fn_arguments_len, void* pstorage,int perm);              // rtype: type that function will return,  argstype: function arguments types in rpctypes
                                                                                   // argsamm: ammount of function arguments, pstorage: personal storage for PSTORAGE type
                                                                                   // perm: minimal permission for calling this function, -1 - -1 client only can call this function
 

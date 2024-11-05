@@ -128,8 +128,8 @@ creates new server at specified **port**; return struct rpcserver* at success
 
 
 `int rpcserver_register_fn(struct rpcserver* serv, void* fn, char* fn_name,
-                                       enum rpctypes rtype, enum rpctypes* argstype,
-                                       uint8_t argsamm, void* pstorage,int perm)`
+                          enum rpctypes rtype, enum rpctypes* fn_arguments,
+                          uint8_t fn_arguments_len, void* pstorage,int perm)`
 									   
 This function registers function pointer **fn** with **fn_name**, return type specified by **rtype**,
 prototype specified by **argstype** and ammount of them specified by **argsamm**.
