@@ -127,7 +127,7 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
     return cur;
 }
 
-int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
+int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
     if(!got) return 1;
