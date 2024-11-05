@@ -71,7 +71,7 @@ Free rpcbuff
 ------------
 
 
-`int rpcbuff_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* raw,uint64_t* otype_len,enum rpctypes type)`
+`int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* raw,uint64_t* otype_len,enum rpctypes type)`
 
 Get type that matches **type** at **index** with len of **index_len** and unpacks it to **raw** (**SHOULD** be pointer to pointer in case with **SIZEDBUF, STR, RPCBUFF, RPCSTRUCT**)
 return 0 on success
@@ -132,7 +132,7 @@ creates new server at specified **port**; return struct rpcserver* at success
                           uint8_t fn_arguments_len, void* pstorage,int perm)`
 									   
 This function registers function pointer **fn** with **fn_name**, return type specified by **rtype**,
-prototype specified by **argstype** and ammount of them specified by **argsamm**.
+prototype specified by **fn_arguments** and ammount of them specified by **fn_arguments_len**.
 Also it sets pointer that will be used in **PSTORAGE** type (can be NULL), and minimal permission to call it by **perm**
 
 `void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);`
