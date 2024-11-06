@@ -1,10 +1,9 @@
 #pragma once
 #include "rpccall.h"
 #include <stdint.h>
-
 enum rpcclient_disconnect_reason{
-   INITIATED,
-   NET_FAILURE,
+   INITIATED = 100,
+   NET_FAILURE = 200,
 };
 
 typedef void (*rpcclient_disconnect_cb)(void* user, enum rpcclient_disconnect_reason reason);

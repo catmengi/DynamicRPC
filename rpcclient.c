@@ -239,7 +239,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
       __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
-      return 10;
+      return NET_FAILURE;
    }
    rpctypes_free(args,rpctypes_len);
    if(get_rpcmsg(&gotmsg,self->fd) != 0){
@@ -247,7 +247,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
       __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
-      return 20;
+      return NET_FAILURE;
    }
    if(gotmsg.msg_type != RET){
       pthread_mutex_unlock(&self->send);
