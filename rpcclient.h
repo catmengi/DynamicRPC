@@ -25,7 +25,7 @@ struct rpcclient_fninfo{
 
 
 struct rpcclient* rpcclient_connect(char* host,int portno,char* key);
-int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, uint8_t rpctypes_len,void* fnret,...);
+int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,char* flags, uint8_t fn_prototype_len,void* fnret,...);
 void rpcclient_disconnect(struct rpcclient* self);
 struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t* fn_len);
 void rpcclient_fninfo_free(struct rpcclient_fninfo* in,size_t len);

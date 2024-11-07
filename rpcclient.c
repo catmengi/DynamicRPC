@@ -125,7 +125,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    pthread_create(&self->ping,NULL,rpcclient_keepalive,self);
    return self;
 }
-int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, uint8_t rpctypes_len,void* fnret,...){
+int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,char* flags, uint8_t fn_prototype_len,void* fnret,...){
    if(self == NULL) return 1;
    if(self->stop == 1) return 1;
    pthread_mutex_lock(&self->send);
@@ -134,7 +134,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
    uint64_t resargs_updl = 0;
    struct rpcret ret = {0};
    if(flags)
-      for(uint64_t i = 0; i < rpctypes_len; i++)
+      for(uint64_t i = 0; i < fn_prototype_len; i++)
          if(flags[i] == 1)
             resargs_updl++;
    if(resargs_updl != 0){
@@ -143,58 +143,58 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
    }
    va_start(vargs, fnret);
    struct rpctype* args = NULL;
-   if(rpctypes_len > 0){
-      args = calloc(rpctypes_len,sizeof(*args));
+   if(fn_prototype_len > 0){
+      args = calloc(fn_prototype_len,sizeof(*args));
       assert(args);
    }
    uint64_t j = 0;
-   for(uint64_t i = 0; i < rpctypes_len; i++){
-      if(rpctypes[i] == CHAR){
+   for(uint64_t i = 0; i < fn_prototype_len; i++){
+      if(fn_prototype[i] == CHAR){
          char ch = va_arg(vargs,int);
          char_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == UINT16){
+      if(fn_prototype[i] == UINT16){
          uint16_t ch = va_arg(vargs,int);
          uint16_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == INT16){
+      if(fn_prototype[i] == INT16){
          int16_t ch = va_arg(vargs,int);
          int16_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == UINT32){
+      if(fn_prototype[i] == UINT32){
          uint32_t ch = va_arg(vargs,uint32_t);
          uint32_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == INT32){
+      if(fn_prototype[i] == INT32){
          int32_t ch = va_arg(vargs,int32_t);
          int32_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == UINT64){
+      if(fn_prototype[i] == UINT64){
          uint64_t ch = va_arg(vargs,uint64_t);
          uint64_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == INT64){
+      if(fn_prototype[i] == INT64){
          int64_t ch = va_arg(vargs,int64_t);
          int64_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == FLOAT){
+      if(fn_prototype[i] == FLOAT){
          double ch = va_arg(vargs,double);
          float_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == DOUBLE){
+      if(fn_prototype[i] == DOUBLE){
          double ch = va_arg(vargs,double);
          double_to_type(ch,&args[i]);
          continue;
       }
-      if(rpctypes[i] == STR){
+      if(fn_prototype[i] == STR){
          char* ch = va_arg(vargs,char*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
@@ -202,7 +202,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
          create_str_type(ch,flag,&args[i]);
          continue;
       }
-      if(rpctypes[i] == SIZEDBUF){
+      if(fn_prototype[i] == SIZEDBUF){
          char* ch = va_arg(vargs,char*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
@@ -211,7 +211,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
          create_sizedbuf_type(ch,buflen,flag,&args[i]);
          continue;
       }
-      if(rpctypes[i] == RPCBUFF){
+      if(fn_prototype[i] == RPCBUFF){
          struct rpcbuff* buf = va_arg(vargs,struct rpcbuff*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
@@ -219,7 +219,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
          create_rpcbuff_type(buf,flag,&args[i]);
          continue;
       }
-      if(rpctypes[i] == RPCSTRUCT){
+      if(fn_prototype[i] == RPCSTRUCT){
          struct rpcstruct* buf = va_arg(vargs,struct rpcstruct*);
          char flag = 0;
          if(flags != NULL) flag = flags[i];
@@ -228,20 +228,20 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char*
          continue;
       }
    }
-   struct rpccall call = {fn,rpctypes_len,args};
+   struct rpccall call = {fn,fn_prototype_len,args};
    struct rpcmsg reply = {0};
    struct rpcmsg gotmsg = {0};
    reply.msg_type = CALL;
    reply.payload = rpccall_to_buf(&call,&reply.payload_len);
    if(send_rpcmsg(&reply,self->fd) != 0){
-      rpctypes_free(args,rpctypes_len);
+      rpctypes_free(args,fn_prototype_len);
       close(self->fd);
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
       __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
       return NET_FAILURE;
    }
-   rpctypes_free(args,rpctypes_len);
+   rpctypes_free(args,fn_prototype_len);
    if(get_rpcmsg(&gotmsg,self->fd) != 0){
       close(self->fd);
       self->stop = 1;

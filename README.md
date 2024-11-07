@@ -155,9 +155,9 @@ return **struct rpcclient** pointer on success or NULL on failures
 
 ------------
 
-`int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* rpctypes,char* flags, uint8_t rpctypes_len,void* fnret,...)`
+`int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,char* flags, uint8_t fn_prototype_len,void* fnret,...)`
 
-Calls a function with name **fn**, with prototype **rpctypes**, flags **flags**, len of prototype and flags is **rpctypes_len**, **fnret** is a pointer to a memory where function result will be placed. Function arguments will be in **variable arguments** of a rpcclient_call
+Calls a function with name **fn**, with prototype **fn_prototype**, flags **flags**, len of prototype and flags is **fn_prototype_len**, **fnret** is a pointer to a memory where function result will be placed. Function arguments will be in **variable arguments** of a rpcclient_call
 
 Flags stand for should this argument will be resened to a client, it supports folowing type:
 **SIZEDBUF,STR,RPCBUFF,RPCSTRUCT**. If flags is NULL none of arguments will be resended.
