@@ -84,6 +84,10 @@ return 0 on success
 Packs and pushes **ptype**( pointer only) with **type** and **type_len** as len (if type is  **SIZEDBUF**)  to an **index** with len of **index len**
 return 0 on success
 
+**NOTE** : **RPCBUFF,RPCSTRUCT,STR** are stored by pointers and their modifications will be applyed without rpcbuff_pushto
+
+**NOTE №2** : **STR** is copyed on rpcbuff_pushto but not packed, since this, it doesnt need to be freed after rpcbuff_getlast and modifications will be applyed immidiatly
+
 ------------
 
 
