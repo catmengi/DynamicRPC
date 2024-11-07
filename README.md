@@ -160,7 +160,6 @@ Flags stand for should this argument will be resened to a client, it supports fo
 
 Arguments are passed like in printf, but with folowing exceptions
 1. **SIZEDBUF** is passed as char*,uint64_t
-1. **RPCBUFF,RPCSTRUCT,STR** is passed by pointers of their types
 
 
 ------------
