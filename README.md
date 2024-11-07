@@ -166,6 +166,8 @@ Arguments are passed like in printf, but with folowing exceptions
 1. **SIZEDBUF** is passed as char*,uint64_t
 
 
+**NOTE** : current rpcclient realization doesnt know is return are one of arguments, they are completely separated on client side now (this mean that rpc function's return will be stored in different memory address even if function on server returned one of arguments)
+
 ------------
 
 
