@@ -593,7 +593,7 @@ void* rpcserver_client_thread(void* arg){
                                     break;
                     case DISCON:
                                     free(gotmsg.payload);
-                                    printf("%s: client disconnected normaly\n",__PRETTY_FUNCTION__);
+                                    printf("%s: client (%s) disconnected normaly\n",__PRETTY_FUNCTION__,thrd->client_uniq);
                                     goto exit;
                     case CALL:
                                     if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
@@ -603,6 +603,7 @@ void* rpcserver_client_thread(void* arg){
                                         goto exit;
                                     }
                                     free(gotmsg.payload);
+                                    printf("%s: client (%s), called function: '%s'\n",__PRETTY_FUNCTION__,thrd->client_uniq,call.fn_name);
                                     pthread_mutex_lock(&thrd->serv->edit); pthread_mutex_unlock(&thrd->serv->edit);
                                     struct fn* cfn = NULL;hashtable_get(thrd->serv->fn_ht,call.fn_name,strlen(call.fn_name) + 1,(void**)&cfn);
                                     if(cfn == NULL){
@@ -629,6 +630,7 @@ void* rpcserver_client_thread(void* arg){
                                         if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
                                         break;
                                     }
+                                    printf("%s: client's (%s) call of '%s' succeded\n",__PRETTY_FUNCTION__,thrd->client_uniq,call.fn_name);
                                     free(call.fn_name);
                                     reply.payload = rpcret_to_buf(&ret,&reply.payload_len);
                                     rpctypes_free(ret.resargs,ret.resargs_amm);
