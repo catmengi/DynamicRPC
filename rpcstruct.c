@@ -49,10 +49,8 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t typel
                 case RPCBUFF:
                     rpcbuff_free(got->endpoint);
                     break;
-                case STR:
-                    free(got->endpoint);
-                    break;
                 default:
+                    free(got->endpoint);
                     break;
             }
         }
@@ -139,12 +137,11 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t typel
             got->endpoint = strdup(raw);
             break;
         case SIZEDBUF:
-            create_sizedbuf_type(raw,typelen,1,&ptype);
-            got->elen = type_buflen(&ptype);
+            got->is_packed = 0;
+            got->elen = typelen;
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
-            type_to_arr(got->endpoint,&ptype);
-            free(ptype.data);
+            memcpy(got->endpoint,raw,got->elen);
             break;
         default:
             got->endpoint = raw;
@@ -217,15 +214,6 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t* type
             *(double*)raw = ch;
             return 0;
         }
-        if(type == SIZEDBUF){
-            uint64_t tmp = 0;
-            uint64_t* len = NULL;
-            if(typelen != NULL) len = typelen;
-            else len = &tmp;
-            void* ch = unpack_sizedbuf_type(&ptype,len);
-            *(void**)raw = ch;
-            return 0;
-        }
     }
     if(got->type != type) return 1;
     if(typelen != NULL)
@@ -249,6 +237,9 @@ void _rpcstruct_pack_callback(char* key,void* ptype,void* vtype,size_t iter){
                 break;
             case STR:
                 create_str_type(el->endpoint,1,&ready);
+                break;
+            case SIZEDBUF:
+                create_sizedbuf_type(el->endpoint,el->elen,1,&ready);
                 break;
             default:
                 break;
@@ -293,7 +284,7 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
         memcpy(uptype,tmp,be64_to_cpu(types[i].datalen) - strlen(org) - 1);
         struct rpcstruct_el* el = calloc(1,sizeof(*el));
         assert(el);
-        if(types[i].type != RPCBUFF && types[i].type != RPCSTRUCT && types[i].type != STR){
+        if(types[i].type != RPCBUFF && types[i].type != RPCSTRUCT && types[i].type != STR && types[i].type != SIZEDBUF){
             el->is_packed = 1;
             el->type = types[i].type;
             el->endpoint = uptype;
@@ -312,6 +303,10 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
                     break;
                 case STR:
                     el->endpoint = unpack_str_type(&up_uptype);
+                    up_uptype.data = NULL;
+                    break;
+                case SIZEDBUF:
+                    el->endpoint = unpack_sizedbuf_type(&up_uptype,&el->elen);
                     up_uptype.data = NULL;
                     break;
                 default:
@@ -338,10 +333,8 @@ void rpcstruct_remove(struct rpcstruct* rpcstruct, char* key){
             case RPCBUFF:
                 rpcbuff_free(el->endpoint);
                 break;
-            case STR:
-                free(el->endpoint);
-                break;
             default:
+                free(el->endpoint);
                 break;
         }
     }
@@ -387,10 +380,8 @@ void __rpcstruct_free_cb(void* vptr){
             case RPCBUFF:
                 rpcbuff_free(el->endpoint);
                 break;
-            case STR:
-                free(el->endpoint);
-                break;
             default:
+                free(el->endpoint);
                 break;
         }
     }

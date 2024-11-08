@@ -246,7 +246,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);
             continue;
         }
-        if(j < call->args_amm){
+        // if(j < call->args_amm){
             if(call->args[j].type == RPCBUFF){
                 callargs[i] = calloc(1,sizeof(void*));
                 assert(callargs[i]);
@@ -355,7 +355,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 j++;
                 continue;
             }
-        } else goto exit;
+        // } else goto exit;
     }
     void* fnret = NULL;
     if(cfn->rtype != VOID){
@@ -676,7 +676,7 @@ void* rpcserver_dispatcher(void* vserv){
             unsigned int addrlen = sizeof(addr);
             fd = accept(serv->sfd, (struct sockaddr*)&addr,&addrlen);
                 if(fd < 0) break;
-                printf("%s: got client from %s\n",__PRETTY_FUNCTION__,inet_ntoa(addr.sin_addr));
+                printf("\n%s: got client from %s\n",__PRETTY_FUNCTION__,inet_ntoa(addr.sin_addr));
                 struct timeval time;
                 time.tv_sec = 5;
                 time.tv_usec = 0;

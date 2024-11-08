@@ -75,7 +75,8 @@ void rpcbuff_free_internals(struct rpcbuff* rpcbuff){
             struct rpcbuff_el* cur = tqueque_pop(tque,NULL,NULL);
             tqueque_push(fque,cur->childs,sizeof(struct rpcbuff_el*),NULL);
             for(uint64_t k = 0; k < rpcbuff->dimsizes[i]; k++){
-                if(cur->childs[k].endpoint != NULL)  tqueque_push(eque,&cur->childs[k],sizeof(struct rpcbuff_el*),NULL);
+                if(cur->childs[k].endpoint != NULL && cur->childs[k].endpoint != (void*)0xCAFE)
+                    tqueque_push(eque,&cur->childs[k],sizeof(struct rpcbuff_el*),NULL);
                 tqueque_push(tque,&cur->childs[k],sizeof(struct rpcbuff_el*),NULL);
             }
         }
@@ -93,10 +94,8 @@ void rpcbuff_free_internals(struct rpcbuff* rpcbuff){
                 case RPCSTRUCT:
                     rpcstruct_free(el->endpoint);
                     break;
-                case STR:
-                    free(el->endpoint);
-                    break;
                 default:
+                    free(el->endpoint);
                     break;
             }
         }
@@ -193,30 +192,19 @@ int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,
             *(double*)otype = ch;
             return 0;
         }
-        if(type == SIZEDBUF){
-            uint64_t tmp = 0;
-            uint64_t* len = NULL;
-            if(otype_len != NULL) len = otype_len;
-            else len = &tmp;
-            void* ch = unpack_sizedbuf_type(&ptype,len);
-            *(void**)otype = ch;
-            return 0;
-        }
     }
     if(got->type != type) return 1;
     if(otype_len != NULL)
         *otype_len = got->elen;
-    if(got->endpoint != (void*)0xCAFE){
-        *(void**)otype = got->endpoint;
-        return 0;
-    }
-    return 1;
+    *(void**)otype = got->endpoint;
+    return 0;
 }
 
 int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, void* untype,uint64_t type_len,enum rpctypes type){
     assert(rpcbuff);
+    if(untype == NULL) return 1;
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    if(!got) return 1;
+    if(got == NULL) return 1;
     if(got->endpoint != (void*)0xCAFE){
         if(got->is_packed == 1)
             free(got->endpoint);
@@ -228,15 +216,12 @@ int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, v
                 case RPCSTRUCT:
                     rpcstruct_free(got->endpoint);
                     break;
-                case STR:
-                    free(got->endpoint);
-                    break;
                 default:
+                    free(got->endpoint);
                     break;
             }
         }
     }
-    if(untype == NULL) {got->endpoint = (void*)0xCAFE; return 1;}
     got->type = type;
     got->is_packed = 1;
     struct rpctype ptype = {0};
@@ -315,16 +300,14 @@ int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, v
             break;
         case STR:
             got->is_packed = 0;
-            got->type = STR;
             got->endpoint = strdup(untype);
             break;
         case SIZEDBUF:
-            create_sizedbuf_type(untype,type_len,1,&ptype);
-            got->elen = type_buflen(&ptype);
+            got->is_packed = 0;
+            got->elen = type_len;
             got->endpoint = malloc(got->elen);
             assert(got->endpoint);
-            type_to_arr(got->endpoint,&ptype);
-            free(ptype.data);
+            memcpy(got->endpoint,untype,got->elen);
             break;
         default:
             got->endpoint = untype;
@@ -354,11 +337,9 @@ void rpcbuff_remove(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len){
                     rpcstruct_free(got->endpoint);
                     got->endpoint = (void*)0xCAFE;
                     break;
-                case STR:
+                default:
                     free(got->endpoint);
                     got->endpoint = (void*)0xCAFE;
-                    break;
-                default:
                     break;
             }
         }
@@ -421,6 +402,9 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
                     break;
                 case STR:
                     create_str_type(el->endpoint,1,&otypes[i]);
+                    break;
+                case SIZEDBUF:
+                    create_sizedbuf_type(el->endpoint,el->elen,1,&otypes[i]);
                     break;
                 default:
                     break;
@@ -489,7 +473,7 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
         struct rpcbuff_el* el = tqueque_pop(fque,NULL,NULL);
         el->type = ptypes[i].type;
         if(el->type == VOID) continue;
-        if(el->type != RPCBUFF && el->type != RPCSTRUCT && el->type != STR){
+        if(el->type != RPCBUFF && el->type != RPCSTRUCT && el->type != STR && el->type != SIZEDBUF){
             el->is_packed = 1;
             uint64_t cpylen = be64_to_cpu(ptypes[i].datalen);
             el->endpoint = malloc(cpylen);
@@ -508,6 +492,11 @@ struct rpcbuff* buf_to_rpcbuff(char* buf){
                 case STR:
                     el->endpoint = unpack_str_type(&ptypes[i]);
                     ptypes[i].data = NULL;
+                    break;
+                case SIZEDBUF:
+                    el->endpoint = unpack_sizedbuf_type(&ptypes[i],&el->elen);
+                    ptypes[i].data = NULL;
+                    break;
                 default:
                     break;
             }
