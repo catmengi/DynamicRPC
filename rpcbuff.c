@@ -193,10 +193,6 @@ int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,
             *(double*)otype = ch;
             return 0;
         }
-        if(type == STR){
-            *(char**)otype = got->endpoint;
-            return 0;
-        }
         if(type == SIZEDBUF){
             uint64_t tmp = 0;
             uint64_t* len = NULL;

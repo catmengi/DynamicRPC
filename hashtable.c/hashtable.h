@@ -5,7 +5,60 @@
 #define ENOSPACE 3
 #include <sys/types.h>
 #include <stdint.h>
+#include <stdbool.h>
+
+
+struct ht_llist{
+    uint64_t hash;
+
+    struct ht_entry* entry;
+    struct ht_entry* last_acc;
+
+    struct ht_llist* next;
+    struct ht_llist* prev;
+};
+
+struct ht_entry{
+    char* key;
+    uint32_t keylen;
+
+    void* data;
+    uint64_t meta;
+
+    struct ht_entry* next;
+    struct ht_entry* prev;
+    struct ht_llist* parent;
+};
+
+struct ht_llist_cont{
+    struct ht_llist* llist;    //list of key/value pairs
+    struct ht_llist_cont* next; //separate chaining
+    struct ht_llist_cont* prev;
+    struct ht_bucket* parent;
+};
+
+struct ht_bucket{
+    struct ht_llist_cont* llist_cont;  //pointer to container
+    struct ht_bucket* next;  //pointer to next bucket(only valid if full is true)
+    struct ht_bucket* prev;
+    uint32_t occup;
+    bool full;    //if true we go to the "next" or try to found next free bucket but if hashtable is full we try to rehash;
+    bool freed;
+};
+
+struct hashtable{
+    struct ht_bucket* bucket;
+    struct ht_llist* llist_head;
+    struct ht_llist* llist_tail;
+    uint32_t bucket_amm;
+    uint32_t coll_pbuck;
+    uint32_t empty;
+    uint32_t rehashes;
+};
+
 typedef struct hashtable* hashtable_t;
+
+
 int hashtable_create(hashtable_t* ht,size_t size,size_t coll_pbuck);                             /*create new hashtable with size and collisions per bucket and pass it to hashtable_t pointer*/         
 
 

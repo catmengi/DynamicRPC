@@ -5,59 +5,12 @@
 #include <string.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "hashtable.h"
 #define ALLOC_ERR 2
 #define ARG_ERR 1
 #define ENOTFOUND 4
 #define ENOSPACE 3
 #define _GNU_SOURCE
-
-struct ht_llist{
-    uint64_t hash;
-
-    struct ht_entry* entry;
-    struct ht_entry* last_acc;
-
-    struct ht_llist* next;
-    struct ht_llist* prev;
-};
-
-struct ht_entry{
-    char* key;
-    uint32_t keylen;
-
-    void* data;
-    uint64_t meta;
-
-    struct ht_entry* next;
-    struct ht_entry* prev;
-    struct ht_llist* parent;
-};
-
-struct ht_llist_cont{
-    struct ht_llist* llist;    //list of key/value pairs
-    struct ht_llist_cont* next; //separate chaining
-    struct ht_llist_cont* prev;
-    struct ht_bucket* parent;
-};
-
-struct ht_bucket{
-    struct ht_llist_cont* llist_cont;  //pointer to container
-    struct ht_bucket* next;  //pointer to next bucket(only valid if full is true)
-    struct ht_bucket* prev;
-    uint32_t occup;
-    bool full;    //if true we go to the "next" or try to found next free bucket but if hashtable is full we try to rehash;
-    bool freed;
-};
-
-struct hashtable{
-    struct ht_bucket* bucket;
-    struct ht_llist* llist_head;
-    struct ht_llist* llist_tail;
-    uint32_t bucket_amm;
-    uint32_t coll_pbuck;
-    uint32_t empty;
-    uint32_t rehashes;
-};
 
 uint64_t _hash_fnc(char* str,uint32_t keylen){
   uint64_t h = (525201411107845655ull);
@@ -257,7 +210,6 @@ int hashtable_rehash(struct hashtable* ht,uint64_t size)
         bucket = &ht->bucket[index];
         if(bucket->full == true){
             for(int i = index; i < ht->bucket_amm && i != (index - 1); i++){
-                printf("%s: doing rehash\n",__PRETTY_FUNCTION__);
                 while(bucket->next != NULL && bucket->full == true) bucket = bucket->next;
 
                 if(bucket->full == false) break;
