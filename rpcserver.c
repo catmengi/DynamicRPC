@@ -568,7 +568,7 @@ void* rpcserver_client_thread(void* arg){
             type_to_arr(reply.payload,&uniq);
             free(uniq.data);
             if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
-            printf("%s: auth ok, OK is replyied to client\n",__PRETTY_FUNCTION__);
+            printf("%s: auth ok, OK is replyied to client (%s)\n",__PRETTY_FUNCTION__,thrd->client_uniq);
             if(thrd->serv->newclient_cb != NULL)
                 thrd->serv->newclient_cb(thrd->serv->newclient_cb_data,thrd->addr);
 
