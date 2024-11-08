@@ -132,9 +132,9 @@ struct rpcbuff_el* rpcbuff_el_getlast_from(struct  rpcbuff* rpcbuff, uint64_t* i
 int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,void* otype,uint64_t* otype_len,enum rpctypes type){
     assert(rpcbuff);
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    if(!got) return 1;
-    if(got->endpoint == (void*)0xCAFE) {return 1;}
-    if(got->type != type) return 1;
+    if(got == NULL) return MISS_NONE;
+    if(got->endpoint == (void*)0xCAFE) return MISS_NONE;
+    if(got->type != type) return MISS_TYPE;
     struct rpctype ptype = {0};
     if(got->is_packed){
         arr_to_type(got->endpoint,&ptype);
@@ -193,7 +193,6 @@ int rpcbuff_getfrom(struct  rpcbuff* rpcbuff, uint64_t* index, size_t index_len,
             return 0;
         }
     }
-    if(got->type != type) return 1;
     if(otype_len != NULL)
         *otype_len = got->elen;
     *(void**)otype = got->endpoint;
@@ -204,7 +203,7 @@ int rpcbuff_pushto(struct rpcbuff* rpcbuff, uint64_t* index, size_t index_len, v
     assert(rpcbuff);
     if(untype == NULL) return 1;
     struct rpcbuff_el* got = rpcbuff_el_getlast_from(rpcbuff,index,index_len);
-    if(got == NULL) return 1;
+    if(got == NULL) return MISS_NONE;
     if(got->endpoint != (void*)0xCAFE){
         if(got->is_packed == 1)
             free(got->endpoint);
@@ -425,7 +424,7 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
         out += sizeof(uint64_t);
     }
     out++;
-    assert(rpctypes_to_buf(otypes,types_amm,out) == 0);
+    rpctypes_to_buf(otypes,types_amm,out);
     rpctypes_free(otypes,types_amm);
     tqueque_free(fque);
     return ret;

@@ -156,8 +156,9 @@ int rpcstruct_set(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t typel
 int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t* typelen,enum rpctypes type){
     if(raw == NULL) return 1;
     struct rpcstruct_el* got = NULL;
-    if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got) != 0) return 1;
+    if(hashtable_get(rpcstruct->ht,key,strlen(key) + 1,(void**)&got) != 0) return MISS_NONE;
     struct rpctype ptype = {0};
+    if(got->type != type) return MISS_TYPE;
     if(got->is_packed){
         arr_to_type(got->endpoint,&ptype);
         if(type == CHAR){
@@ -215,7 +216,6 @@ int rpcstruct_get(struct rpcstruct* rpcstruct,char* key,void* raw,uint64_t* type
             return 0;
         }
     }
-    if(got->type != type) return 1;
     if(typelen != NULL)
         *typelen = got->elen;
     *(void**)raw = got->endpoint;
@@ -273,7 +273,6 @@ int buf_to_rpcstruct(char* arr, struct rpcstruct* rpcstruct){
     assert(rpcstruct);
     uint64_t count = 0;
     struct rpctype* types = buf_to_rpctypes(arr,&count);
-    if(!types) return 1;
     rpcstruct->count = count;
     assert(hashtable_create(&rpcstruct->ht,4,4) == 0);
     for(uint64_t i = 0; i < count; i++){

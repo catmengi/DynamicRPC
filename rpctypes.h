@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include "hashtable.c/hashtable.h"
+
 enum rpctypes{
   VOID = 0,
   CHAR = 1,
@@ -38,6 +39,13 @@ struct rpcstruct{
   hashtable_t ht;
   uint64_t count;
 };
+
+/*this used for rpcbuff and rpcstruct to specify why they returned*/
+enum rpctypes_errors{
+  MISS_NONE = 10,        //nothing at this key/index
+  MISS_TYPE = 20,        //attempt to get contain of key/index failed because type of stored at this index/key is wrong
+};
+
 struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len);  /*Multi-dimensional array
                                                                             Copies and pack type, not just storing pointer; dimsizes is a index(size) of array
                                                                             STR,SIZEDBUF,RPCSTRUCT,RPCBUFF is STORED AS POINTERS AND SERIALIZED LATER*/
