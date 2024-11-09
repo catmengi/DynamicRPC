@@ -183,7 +183,7 @@ Arguments are passed like in printf, but with folowing exceptions
 `void rpcclient_disconnect(struct rpcclient* self)` Disconnects from server
 
 
-
+------------
 
 
 `char* rpcclient_get_fingerprint(struct rpcclient* self)`
