@@ -16,7 +16,7 @@ int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* clie
     assert(check_que);
     size_t newservlen = 0;
     for(size_t i = 0; i < servlen;i++){
-        if(serv[i] != INTERFUNC && serv[i] != PSTORAGE && serv[i] != UNIQSTR){
+        if(serv[i] != INTERFUNC && serv[i] != PSTORAGE && serv[i] != FINGERPRINT){
             assert(tqueque_push(check_que,&serv[i],sizeof(enum rpctypes),NULL) == 0);
             if(serv[i] == SIZEDBUF) i++;
             newservlen++;
