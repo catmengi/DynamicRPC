@@ -180,7 +180,8 @@ Arguments are passed like in printf, but with folowing exceptions
 
 
 
-`void rpcclient_disconnect(struct rpcclient* self)` Disconnects from server
+`void rpcclient_disconnect(struct rpcclient* self)` 
+Disconnects from server
 
 
 ------------
