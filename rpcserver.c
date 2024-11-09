@@ -603,7 +603,7 @@ void* rpcserver_client_thread(void* arg){
                                         goto exit;
                                     }
                                     free(gotmsg.payload);
-                                    printf("%s: client (%s), called function: '%s'\n",__PRETTY_FUNCTION__,thrd->client_uniq,call.fn_name);
+                                    printf("%s: client (%s) called function: '%s'\n",__PRETTY_FUNCTION__,thrd->client_uniq,call.fn_name);
                                     pthread_mutex_lock(&thrd->serv->edit); pthread_mutex_unlock(&thrd->serv->edit);
                                     struct fn* cfn = NULL;hashtable_get(thrd->serv->fn_ht,call.fn_name,strlen(call.fn_name) + 1,(void**)&cfn);
                                     if(cfn == NULL){
