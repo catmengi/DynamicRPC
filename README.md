@@ -185,7 +185,9 @@ Arguments are passed like in printf, but with folowing exceptions
 
 
 
+
 `char* rpcclient_get_fingerprint(struct rpcclient* self)`
+
 Get unique string of client, same as FINGERPRINT type on server
 
 
