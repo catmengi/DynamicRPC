@@ -29,7 +29,7 @@ Most of the types are binding for native C types: **CHAR, STR, UINT16..64, INT16
 Other types are combination of C types or custom types designed to handle structures or 
 multi-dimensional arrays like: **SIZEDBUF, RPCBUFF, RPCSTRUCT**
 
-Also there are some special types like **PSTORAGE, INTERFUNC, UNIQSTR**
+Also there are some special types like **PSTORAGE, INTERFUNC, FINGERPRINT**  (DOESNT exist for client side (not passed from client side))
 for them refer to [rpctypes.h](http://github.com/catmengi/DynamicRPC/blob/master/rpctypes.h "rpctypes.h")
 
 All this types are declared in **enum rpctypes**
@@ -142,6 +142,14 @@ Also it sets pointer that will be used in **PSTORAGE** type (can be NULL), and m
 `void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);`
 Adds a key with a permission **perm** into a server
 
+
+------------
+
+`void rpcserver_set_interfunc(struct rpcserver* self, void* interfunc);`
+Set pointer for INTERFUNC type
+
+------------
+
 **there are also some APIs not covered here** refer to [rpcserver.h](https://github.com/catmengi/DynamicRPC/blob/master/rpcserver.h "rpcserver.h") for them
 
 ------------
@@ -153,7 +161,8 @@ Adds a key with a permission **perm** into a server
 connects to a server by address **host**, at port **portno** with **key** as password
 return **struct rpcclient** pointer on success or NULL on failures
 
-------------
+
+
 
 `int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,char* flags, uint8_t fn_prototype_len,void* fnret,...)`
 
@@ -168,13 +177,16 @@ Arguments are passed like in printf, but with folowing exceptions
 
 **NOTE** : currently return will be ALWAYS SEPARATED and in DIFFERENT chunk of memory than ANY arguments (even if on server side function returns passed argument with pointer type) because current rpc protocol doesnt know is return are one of arguments
 
-------------
 
 
 
 `void rpcclient_disconnect(struct rpcclient* self)` Disconnects from server
 
-------------
+
+
+
+`char* rpcclient_get_fingerprint(struct rpcclient* self)`
+Get unique string of client, same as FINGERPRINT type on server
 
 
 **there are also some APIs not covered here** refer to [rpcclient.h](https://github.com/catmengi/DynamicRPC/blob/master/rpcclient.h "rpcclient.h") for them

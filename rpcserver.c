@@ -37,7 +37,7 @@ ffi_type** rpctypes_to_ffi_types(enum rpctypes* rpctypes,size_t rpctypes_amm){
         if(rpctypes[i] == INT64){out[i] = &ffi_type_sint64; continue;}
         if(rpctypes[i] == RPCBUFF){out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == STR){out[i] = &ffi_type_pointer; continue;}
-        if(rpctypes[i] == UNIQSTR){out[i] = &ffi_type_pointer; continue;}
+        if(rpctypes[i] == FINGERPRINT){out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == PSTORAGE){ out[i] = &ffi_type_pointer; continue;}
         if(rpctypes[i] == SIZEDBUF){
             if(rpctypes[i+1] != UINT64) goto exit;
@@ -239,7 +239,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             *(void**)callargs[i] = serv->interfunc;
             continue;
         }
-        if(cfn->argtypes[i] == UNIQSTR){
+        if(cfn->argtypes[i] == FINGERPRINT){
             callargs[i] = calloc(1,sizeof(void*));
             assert(callargs[i]);
             *(void**)callargs[i] = uniq;
@@ -743,4 +743,8 @@ void rpcserver_add_key(struct rpcserver* serv, char* key, int perm){
     assert(lperm);
     memcpy(lperm,&perm,sizeof(perm));
     hashtable_add(serv->users,key,strlen(key) + 1,lperm,0);
+}
+void rpcserver_set_interfunc(struct rpcserver* self, void* interfunc){
+    assert(self);
+    self->interfunc = interfunc;
 }

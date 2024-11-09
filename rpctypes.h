@@ -15,12 +15,12 @@ enum rpctypes{
   INT64 = 8,
   FLOAT = 9,
   DOUBLE = 10,
-  RPCBUFF = 11,
-  SIZEDBUF = 12,   //1D array that will pass uint64_t typed value as his len in next arg: "void*, uint64_t". NOT RETURNABLE
-  PSTORAGE = 13,
-  INTERFUNC = 14,
-  RPCSTRUCT = 15,
-  UNIQSTR = 16,   //random str of 16 symbols, uniq for client
+  RPCBUFF = 11,       //multi-dimensional array that may doesnt know its dimensions on compile-time
+  SIZEDBUF = 12,      //1D array that will pass uint64_t typed value as his len in next arg: "void*, uint64_t". NOT RETURNABLE
+  PSTORAGE = 13,      //Doesnt exist for client side. SERVER ONLY. Storage that is same for call of SAME function
+  INTERFUNC = 14,     //Doesnt exist for client side. SERVER ONLY. Storage that is shared beetwen all functions
+  RPCSTRUCT = 15,     //RPCSTRUCT type. Hashtable-like struct replacement
+  FINGERPRINT = 16,   //random str of 16 symbols, that is uniq for every client. Doesnt exist for client side.SERVER ONLY
 };
 
 

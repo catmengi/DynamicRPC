@@ -63,3 +63,5 @@ void rpcserver_add_key(struct rpcserver* serv, char* key, int perm);            
 void rpcserver_register_newclient_cb(struct rpcserver* serv,rpcserver_client_cb callback, void* user);      //registers callback that will be called on every new client
 
 void rpcserver_register_clientdiscon_cb(struct rpcserver* serv,rpcserver_client_cb callback, void* user);   //registers callback that will be called on every client disconnection
+
+void rpcserver_set_interfunc(struct rpcserver* self, void* interfunc); //Register pointer to be INTERFUNC type

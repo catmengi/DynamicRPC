@@ -119,7 +119,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
       return NULL;
    }
    arr_to_type(gotmsg.payload,&auth);
-   self->uniq = unpack_str_type(&auth);
+   self->fingerprint = unpack_str_type(&auth);
    free(gotmsg.payload);
    self->fd = sockfd;
    pthread_create(&self->ping,NULL,rpcclient_keepalive,self);
@@ -414,7 +414,7 @@ void rpcclient_disconnect(struct rpcclient* self){
    if(self->disconnect_cb != NULL){
       self->disconnect_cb(self->disconnect_cb_user,INITIATED);
    }
-   free(self->uniq);
+   free(self->fingerprint);
    pthread_mutex_unlock(&self->send);
    pthread_join(self->ping,NULL);
    free(self);
@@ -423,4 +423,9 @@ void rpcclient_register_disconnect_cb(struct rpcclient* self, rpcclient_disconne
    assert(self);
    self->disconnect_cb_user = user;
    self->disconnect_cb = cb;
+}
+
+char* rpcclient_get_fingerprint(struct rpcclient* self){
+  assert(self);
+  return self->fingerprint;
 }
