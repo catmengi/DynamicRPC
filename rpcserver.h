@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include "hashtable.c/hashtable.h"
 
-typedef void (*rpcserver_client_cb)(void* userdata, struct sockaddr_in);  //callback type for NEW/DISCONNECT handling
+typedef void (*rpcserver_client_cb)(void* userdata,char* client_fingerprint,struct sockaddr_in);  //callback type for NEW/DISCONNECT handling
 
 struct rpcserver{
     int sfd;

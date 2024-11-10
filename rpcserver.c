@@ -570,7 +570,7 @@ void* rpcserver_client_thread(void* arg){
             if(send_rpcmsg(&reply,thrd->client_fd) != 0) goto exit;
             printf("%s: auth ok, OK is replyied to client (%s)\n",__PRETTY_FUNCTION__,thrd->client_uniq);
             if(thrd->serv->newclient_cb != NULL)
-                thrd->serv->newclient_cb(thrd->serv->newclient_cb_data,thrd->addr);
+                thrd->serv->newclient_cb(thrd->serv->newclient_cb_data,thrd->client_uniq,thrd->addr);
 
 
             while(thrd->serv->stop == 0){
@@ -658,7 +658,7 @@ exit:
     close(thrd->client_fd);
     thrd->serv->clientcount--;
     if(thrd->serv->clientdiscon_cb != NULL)
-        thrd->serv->clientdiscon_cb(thrd->serv->clientdiscon_cb_data, thrd->addr);
+        thrd->serv->clientdiscon_cb(thrd->serv->clientdiscon_cb_data,thrd->client_uniq,thrd->addr);
     free(thrd);
     pthread_detach(pthread_self());
     pthread_exit(NULL);
