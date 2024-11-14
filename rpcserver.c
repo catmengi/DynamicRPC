@@ -581,6 +581,7 @@ void* rpcserver_client_thread(void* arg){
                 memset(&reply,0,sizeof(reply));
                 struct rpccall call = {0}; struct rpcret ret = {0};
                 if(get_rpcmsg(&gotmsg,thrd->client_fd,(uint8_t*)cipher) != 0){
+                    free(gotmsg.payload);
                     printf("%s: disconected: %s(%s)\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
                     goto exit;
                 }

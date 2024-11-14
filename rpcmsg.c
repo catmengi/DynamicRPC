@@ -75,9 +75,10 @@ int get_rpcmsg(struct rpcmsg* msg ,int fd,uint8_t* aes128_key){
         uint64_t be64_msg_payload_len = 0;
         memcpy(&be64_msg_payload_len, wr, sizeof(uint64_t)); wr += sizeof(uint64_t);
         msg->payload_len = be64_to_cpu(be64_msg_payload_len);
-
-        msg->payload = malloc(msg->payload_len);
-        memcpy(msg->payload, wr, msg->payload_len);
+        if(msg->payload_len > 0){
+            msg->payload = malloc(msg->payload_len);
+            memcpy(msg->payload, wr, msg->payload_len);
+        }
     }
     free(enc);
     return 0;
