@@ -544,7 +544,7 @@ void* rpcserver_client_thread(void* arg){
     thrd->serv->clientcount++;
     int user_perm = 0;
     int is_authed = 0;
-    char cipher[128 / 8] = {0};
+    char cipher[16] = {0};
     if(get_rpcmsg(&gotmsg,thrd->client_fd,NULL) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
         struct rpctype type;
@@ -558,7 +558,7 @@ void* rpcserver_client_thread(void* arg){
                 user_perm = *gotusr;
                 char* got_user_key = NULL;
                 if(hashtable_get_key_by_hash(thrd->serv->users,hash,&got_user_key) != 0) is_authed = 1;
-                memcpy(cipher,got_user_key,strlen(got_user_key));
+                memcpy(cipher,got_user_key,(strlen(got_user_key) > 16 ? 16 : strlen(got_user_key)));
             }
         }
         free(type.data);
