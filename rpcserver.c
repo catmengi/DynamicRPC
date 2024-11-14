@@ -545,6 +545,7 @@ void* rpcserver_client_thread(void* arg){
     int user_perm = 0;
     int is_authed = 0;
     char cipher[16] = {0};
+    memset(cipher,0,sizeof(cipher));
     if(get_rpcmsg(&gotmsg,thrd->client_fd,NULL) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
         struct rpctype type;
