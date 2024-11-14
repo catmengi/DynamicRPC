@@ -35,8 +35,8 @@ int send_rpcmsg(struct rpcmsg* msg, int fd,uint8_t* aes128_key){
     if(msg->msg_type != CON && msg->msg_type != BAD && msg->msg_type != PING && msg->msg_type != DISCON){
         uint64_t be64_msg_payload_len = cpu_to_be64(msg->payload_len);
         memcpy(wr,&be64_msg_payload_len,sizeof(uint64_t)); wr += sizeof(uint64_t);
-
-        memcpy(wr,msg->payload, msg->payload_len);
+        if(msg->payload != NULL)
+            memcpy(wr,msg->payload, msg->payload_len);
         free(msg->payload);
     }
      if(aes128_key == NULL) aes128_key = default_key;
