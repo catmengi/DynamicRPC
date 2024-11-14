@@ -48,6 +48,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    if(host == NULL || key == NULL) return NULL;
    struct rpcclient* self = calloc(1,sizeof(struct rpcclient));
    assert(self);
+   memset(self->cipher,0,sizeof(self->cipher));
    pthread_mutex_init(&self->send,NULL);
    int sockfd;
    struct sockaddr_in serv_addr;
