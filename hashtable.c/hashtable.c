@@ -340,6 +340,47 @@ int hashtable_get_by_hash(struct hashtable* ht, uint64_t hash, void** out)
     }
     return ENOTFOUND;
 }
+int hashtable_get_key_by_hash(struct hashtable* ht, uint64_t hash, char** out)
+{
+    if(!ht)
+        return ARG_ERR;
+    struct ht_bucket* bucket = NULL;
+    struct ht_llist_cont* tmp_c = NULL;
+    struct ht_entry* tmp_e = NULL;
+    struct ht_llist* tmp_l = NULL;
+    uint64_t index = hash % ht->bucket_amm;
+    bucket = &ht->bucket[index];
+    while(bucket){
+        if(bucket->freed == true){
+            bucket = bucket->next;
+            continue;
+        }
+        if(bucket->llist_cont != NULL)
+            tmp_c = bucket->llist_cont;
+        else{
+            bucket = bucket->next;
+            continue;
+        }
+        while(tmp_c){
+            tmp_l = tmp_c->llist;
+            if(tmp_l->last_acc){
+                if(tmp_l->last_acc->parent->hash == hash){
+                    *out = tmp_l->last_acc->key;
+                    return 0;
+                }
+            }
+            if(tmp_l->hash == hash){
+                tmp_e = tmp_l->entry;
+                *out = tmp_e->key;
+                tmp_l->last_acc = tmp_e;
+                return 0;
+            }
+            tmp_c = tmp_c->next;
+        }
+        bucket = bucket->next;
+    }
+    return ENOTFOUND;
+}
 int hashtable_getwmeta(struct hashtable* ht, char* key, uint32_t keylen, void** out,uint64_t* meta)
 {
     if(!ht)

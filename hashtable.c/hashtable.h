@@ -82,4 +82,5 @@ void hashtable_free(hashtable_t ht);                                            
 int hashtable_iterate(struct hashtable* ht,void (*callback)(void* vptr));
 int hashtable_iterate_wkey(struct hashtable* ht,void* usr,void (*callback)(char*,void* vptr,void* usr,size_t iter));
 int hashtable_get_by_hash(struct hashtable* ht, uint64_t hash, void** out);
+int hashtable_get_key_by_hash(struct hashtable* ht, uint64_t hash, char** out);
 uint64_t _hash_fnc(char* str,uint32_t keylen);

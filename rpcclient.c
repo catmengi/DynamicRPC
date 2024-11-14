@@ -31,7 +31,7 @@ void* rpcclient_keepalive(void* arg){
    while(self->stop == 0){
       pthread_mutex_lock(&self->send);
       struct rpcmsg msg = {PING,0,0};
-      if(send_rpcmsg(&msg,self->fd) != 0 || get_rpcmsg(&msg,self->fd) != 0){
+      if(send_rpcmsg(&msg,self->fd,(uint8_t*)self->cipher) != 0 || get_rpcmsg(&msg,self->fd,(uint8_t*)self->cipher) != 0){
          self->stop = 1;
          close(self->fd);
          pthread_mutex_unlock(&self->send);
@@ -89,7 +89,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    struct rpcmsg reply = {0};
    struct rpcmsg gotmsg = {0};
    reply.msg_type = CON;
-   if(send_rpcmsg(&reply,sockfd) != 0){
+   if(send_rpcmsg(&reply,sockfd,NULL) != 0){
       close(sockfd);
       free(self);
       return NULL;
@@ -100,14 +100,14 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    reply.payload = malloc((reply.payload_len = type_buflen(&auth)));
    assert(reply.payload);
    type_to_arr(reply.payload,&auth);
-   if(send_rpcmsg(&reply,sockfd) != 0){
+   if(send_rpcmsg(&reply,sockfd,NULL) != 0){
       free(auth.data);
       close(sockfd);
       free(self);
       return NULL;
    }
    free(auth.data);
-   if(get_rpcmsg(&gotmsg,sockfd) != 0){
+   if(get_rpcmsg(&gotmsg,sockfd,NULL) != 0){
       close(sockfd);
       free(self);
       return NULL;
@@ -118,6 +118,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
       free(self);
       return NULL;
    }
+   memcpy(self->cipher,key,strlen(key));
    arr_to_type(gotmsg.payload,&auth);
    self->fingerprint = unpack_str_type(&auth);
    free(gotmsg.payload);
@@ -233,7 +234,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,c
    struct rpcmsg gotmsg = {0};
    reply.msg_type = CALL;
    reply.payload = rpccall_to_buf(&call,&reply.payload_len);
-   if(send_rpcmsg(&reply,self->fd) != 0){
+   if(send_rpcmsg(&reply,self->fd,(uint8_t*)self->cipher) != 0){
       rpctypes_free(args,fn_prototype_len);
       close(self->fd);
       self->stop = 1;
@@ -242,7 +243,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,c
       return NET_FAILURE;
    }
    rpctypes_free(args,fn_prototype_len);
-   if(get_rpcmsg(&gotmsg,self->fd) != 0){
+   if(get_rpcmsg(&gotmsg,self->fd,(uint8_t*)self->cipher) != 0){
       close(self->fd);
       self->stop = 1;
       pthread_mutex_unlock(&self->send);
@@ -344,12 +345,12 @@ struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t*
    pthread_mutex_lock(&self->send);
    struct rpcmsg reply = {LSFN,0,0};
    struct rpcmsg gotmsg = {0};
-   if(send_rpcmsg(&reply,self->fd) != 0){
+   if(send_rpcmsg(&reply,self->fd,(uint8_t*)self->cipher) != 0){
       pthread_mutex_unlock(&self->send);
       close(self->fd);
       __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
    }
-   if(get_rpcmsg(&gotmsg,self->fd) != 0){
+   if(get_rpcmsg(&gotmsg,self->fd,(uint8_t*)self->cipher) != 0){
       pthread_mutex_unlock(&self->send);
       close(self->fd);
       __rpcclient_disconnect_callback_initiate(self,NET_FAILURE);
@@ -405,12 +406,14 @@ void rpcclient_fninfo_free(struct rpcclient_fninfo* in,size_t len){
 }
 void rpcclient_disconnect(struct rpcclient* self){
    if(self == NULL) return;
-   if(self->stop == 1) return;
+   int prev_stop = self->stop;
    self->stop = 1;
    pthread_mutex_lock(&self->send);
    struct rpcmsg msg = {DISCON,0,0};
-   send_rpcmsg(&msg,self->fd);
-   close(self->fd);
+   if(prev_stop == 0){
+    send_rpcmsg(&msg,self->fd,(uint8_t*)self->cipher);
+    close(self->fd);
+   }
    if(self->disconnect_cb != NULL){
       self->disconnect_cb(self->disconnect_cb_user,INITIATED);
    }
