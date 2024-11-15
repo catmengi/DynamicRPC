@@ -9,8 +9,14 @@
 #include "rpccall.h"
 #include "lb_endian.h"
 #include "aes.h"
+#include <stdio.h>
 
-uint8_t default_key[] = {'D','Y','N','A','M','i','C','R','P','C','_',0x52,0x14,0x69,0x88,0x00};
+void cipher_xor(char* base, char* xor, uint8_t* out_buf,size_t out_buf_len){
+    for(size_t i = 0; i < strlen(base) && i < strlen(xor) && i <out_buf_len; i++){
+        out_buf[i] = base[i] ^ xor[i];
+    }
+}
+
 uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 
@@ -39,10 +45,12 @@ int send_rpcmsg(struct rpcmsg* msg, int fd,uint8_t* aes128_key){
             memcpy(wr,msg->payload, msg->payload_len);
         free(msg->payload);
     }
-     if(aes128_key == NULL) aes128_key = default_key;
-     struct AES_ctx ctx;
-     AES_init_ctx_iv(&ctx,aes128_key,iv);
-     AES_CBC_encrypt_buffer(&ctx,(uint8_t*)enc,encrypt_msg_len);
+
+    if(aes128_key){
+        struct AES_ctx ctx;
+        AES_init_ctx_iv(&ctx,aes128_key,iv);
+        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)enc,encrypt_msg_len);
+    }
 
     int ret = 0;
     if(send(fd,fullmsg,full_msg_len,MSG_NOSIGNAL) <= 0){ret = 1; goto exit;}
@@ -63,11 +71,11 @@ int get_rpcmsg(struct rpcmsg* msg ,int fd,uint8_t* aes128_key){
     assert(encrypt_msg_len);
     if(recv(fd,enc,encrypt_msg_len,MSG_NOSIGNAL) <= 0) {free(enc); return 1;}
 
-     if(aes128_key == NULL) aes128_key = default_key;
+    if(aes128_key){
      struct AES_ctx ctx;
      AES_init_ctx_iv(&ctx,aes128_key,iv);
      AES_CBC_decrypt_buffer(&ctx,(uint8_t*)enc,encrypt_msg_len);
-
+    }
     char* wr = enc;
 
     msg->msg_type = *wr; wr++;

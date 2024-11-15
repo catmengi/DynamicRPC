@@ -15,7 +15,7 @@ struct rpcclient{
    pthread_t ping;
    pthread_mutex_t send;
    void* disconnect_cb_user;
-   char cipher[16];
+   uint8_t cipher[16];
    rpcclient_disconnect_cb disconnect_cb;
 };
 struct rpcclient_fninfo{

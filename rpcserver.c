@@ -544,7 +544,8 @@ void* rpcserver_client_thread(void* arg){
     thrd->serv->clientcount++;
     int user_perm = 0;
     int is_authed = 0;
-    char cipher[16] = {0};
+    uint8_t cipher[16] = {0};
+    char* got_user_key = NULL;
     memset(cipher,0,sizeof(cipher));
     if(get_rpcmsg(&gotmsg,thrd->client_fd,NULL) == 0 && gotmsg.msg_type == AUTH && gotmsg.payload != NULL){
         uint64_t credlen = 0;
@@ -557,15 +558,14 @@ void* rpcserver_client_thread(void* arg){
                 assert(gotusr);
                 is_authed = 1;
                 user_perm = *gotusr;
-                char* got_user_key = NULL;
                 if(hashtable_get_key_by_hash(thrd->serv->users,hash,&got_user_key) != 0) is_authed = 1;
-                memcpy(cipher,got_user_key,(strlen(got_user_key) > 16 ? 16 : strlen(got_user_key)));
             }
         }
         free(type.data);
         if(is_authed){
             reply.msg_type = OK;
             __get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
+            cipher_xor(thrd->client_uniq,got_user_key,cipher,sizeof(cipher));
             struct rpctype uniq = {0};
             create_str_type(thrd->client_uniq,0,&uniq);
             reply.payload = malloc((reply.payload_len = type_buflen(&uniq)));
@@ -587,7 +587,7 @@ void* rpcserver_client_thread(void* arg){
                 }
                 switch(gotmsg.msg_type){
                     case LSFN:
-                                    printf("%s: client requested list of registred functions!\n",__PRETTY_FUNCTION__);
+                                    printf("%s: client (%s) requested list of registred functions!\n",__PRETTY_FUNCTION__,thrd->client_uniq);
                                     reply.payload = __rpcserver_lsfn(thrd->serv,&reply.payload_len,user_perm);
                                     reply.msg_type = LSFN;
                                     if(send_rpcmsg(&reply,thrd->client_fd,(uint8_t*)cipher) != 0) goto exit;

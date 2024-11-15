@@ -118,9 +118,9 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
       free(self);
       return NULL;
    }
-   memcpy(self->cipher,key,(strlen(key) > 16 ? 16 : strlen(key)));
    arr_to_type(gotmsg.payload,&auth);
    self->fingerprint = unpack_str_type(&auth);
+   cipher_xor(self->fingerprint,key,self->cipher,sizeof(self->cipher));
    free(gotmsg.payload);
    self->fd = sockfd;
    pthread_create(&self->ping,NULL,rpcclient_keepalive,self);
