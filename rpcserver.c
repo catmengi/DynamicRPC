@@ -565,24 +565,21 @@ void* rpcserver_client_thread(void* arg){
         }
         free(type.data);
         if(is_authed){
-            reply.msg_type = OK;
+            get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
+
             uint8_t cipher_raw[16];
             arc4random_buf(cipher_raw,sizeof(cipher_raw));
             cipher_xor(cipher_raw,got_user_key,cipher,sizeof(cipher));
 
-
-            struct rpctype uniq = {0};
-            create_sizedbuf_type((char*)cipher_raw,sizeof(cipher_raw),0,&uniq);
-            reply.payload = malloc((reply.payload_len = type_buflen(&uniq)));
+            reply.msg_type = OK;
+            struct rpctype packed_cipher = {0};
+            create_sizedbuf_type((char*)cipher_raw,sizeof(cipher_raw),0,&packed_cipher);
+            reply.payload = malloc((reply.payload_len = type_buflen(&packed_cipher)));
             assert(reply.payload);
-            type_to_arr(reply.payload,&uniq);
-            free(uniq.data);
-
-            get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
-
-
-
+            type_to_arr(reply.payload,&packed_cipher);
+            free(packed_cipher.data);
             if(send_rpcmsg(&reply,thrd->client_fd,NULL) != 0) goto exit;
+
             printf("%s: %s's fingerprint is %s\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
             printf("%s: auth ok, OK is replyied to client (%s)\n",__PRETTY_FUNCTION__,thrd->client_uniq);
             if(thrd->serv->newclient_cb != NULL)
