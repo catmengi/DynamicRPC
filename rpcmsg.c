@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 void cipher_xor(char* base, char* xor, uint8_t* out_buf,size_t out_buf_len){
+    memset(out_buf,0,out_buf_len);
     for(size_t i = 0; i < strlen(base) && i < strlen(xor) && i <out_buf_len; i++){
         out_buf[i] = base[i] ^ xor[i];
     }

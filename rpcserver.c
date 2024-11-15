@@ -573,6 +573,7 @@ void* rpcserver_client_thread(void* arg){
             type_to_arr(reply.payload,&uniq);
             free(uniq.data);
             if(send_rpcmsg(&reply,thrd->client_fd,NULL) != 0) goto exit;
+            printf("%s: %s's fingerprint is %s\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
             printf("%s: auth ok, OK is replyied to client (%s)\n",__PRETTY_FUNCTION__,thrd->client_uniq);
             if(thrd->serv->newclient_cb != NULL)
                 thrd->serv->newclient_cb(thrd->serv->newclient_cb_data,thrd->client_uniq,thrd->addr);
