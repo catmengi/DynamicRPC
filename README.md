@@ -9,13 +9,13 @@
 
  If you want server-client build you could use something like this
  
- `gcc -c rpc*.c hashtable.c/hashtable.c tqueque/tqueque.c `
+ `gcc -c rpc*.c aes.chashtable.c/hashtable.c tqueque/tqueque.c `
  
  and then link they with your .o files and libffi and pthread
  
 ** OR**
  
- `gcc -o some_project rpc*.c hashtable.c/hashtable.c tqueque.c/tqueque.c -lffi -pthread`
+ `gcc -o some_project rpc*.c aes.c hashtable.c/hashtable.c tqueque.c/tqueque.c -lffi -pthread`
  
 ------------
 
