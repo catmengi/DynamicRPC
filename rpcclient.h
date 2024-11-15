@@ -10,7 +10,6 @@ typedef void (*rpcclient_disconnect_cb)(void* user, enum rpcclient_disconnect_re
 
 struct rpcclient{
    int fd;
-   char* fingerprint;
    int stop;
    pthread_t ping;
    pthread_mutex_t send;
@@ -31,4 +30,3 @@ void rpcclient_disconnect(struct rpcclient* self);
 struct rpcclient_fninfo* rpcclient_list_functions(struct rpcclient* self,size_t* fn_len);
 void rpcclient_fninfo_free(struct rpcclient_fninfo* in,size_t len);
 void rpcclient_register_disconnect_cb(struct rpcclient* self, rpcclient_disconnect_cb cb, void* user);
-char* rpcclient_get_fingerprint(struct rpcclient* self);       //gets client uniq fingerprint, same as FINGERPRINT type on server

@@ -530,14 +530,16 @@ static char* __rpcserver_lsfn(struct rpcserver* serv,uint64_t* outlen,int user_p
     free(otype.data);
     return out;
 }
-static void __get_uniq(char* uniq,int L){
+
+void get_uniq(char* uniq,size_t L){
     uniq[L - 1] = '\0';
+    arc4random_buf(uniq, L - 1);
     char charset[] = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890!@#$%&*";
-    srand((unsigned int)time(NULL));
     for(int i = 0; i < L - 1; i++){
-        uniq[i] = charset[(rand() % (sizeof(charset) - 1))];
+        uniq[i] = charset[(uniq[i] % (sizeof(charset) - 1))];
     }
 }
+
 void* rpcserver_client_thread(void* arg){
     struct client_thread* thrd = (struct client_thread*)arg;
     struct rpcmsg gotmsg = {0},reply = {0};
@@ -564,14 +566,22 @@ void* rpcserver_client_thread(void* arg){
         free(type.data);
         if(is_authed){
             reply.msg_type = OK;
-            __get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
-            cipher_xor(thrd->client_uniq,got_user_key,cipher,sizeof(cipher));
+            uint8_t cipher_raw[16];
+            arc4random_buf(cipher_raw,sizeof(cipher_raw));
+            cipher_xor(cipher_raw,got_user_key,cipher,sizeof(cipher));
+
+
             struct rpctype uniq = {0};
-            create_str_type(thrd->client_uniq,0,&uniq);
+            create_sizedbuf_type((char*)cipher_raw,sizeof(cipher_raw),0,&uniq);
             reply.payload = malloc((reply.payload_len = type_buflen(&uniq)));
             assert(reply.payload);
             type_to_arr(reply.payload,&uniq);
             free(uniq.data);
+
+            get_uniq(thrd->client_uniq,sizeof(thrd->client_uniq));
+
+
+
             if(send_rpcmsg(&reply,thrd->client_fd,NULL) != 0) goto exit;
             printf("%s: %s's fingerprint is %s\n",__PRETTY_FUNCTION__,inet_ntoa(thrd->addr.sin_addr),thrd->client_uniq);
             printf("%s: auth ok, OK is replyied to client (%s)\n",__PRETTY_FUNCTION__,thrd->client_uniq);
@@ -609,9 +619,13 @@ void* rpcserver_client_thread(void* arg){
                                         goto exit;
                                     }
                                     free(gotmsg.payload);
+
+
                                     printf("%s: client (%s) called function: '%s'\n",__PRETTY_FUNCTION__,thrd->client_uniq,call.fn_name);
                                     pthread_mutex_lock(&thrd->serv->edit); pthread_mutex_unlock(&thrd->serv->edit);
                                     struct fn* cfn = NULL;hashtable_get(thrd->serv->fn_ht,call.fn_name,strlen(call.fn_name) + 1,(void**)&cfn);
+
+
                                     if(cfn == NULL){
                                         reply.msg_type = NOFN;
                                         printf("%s: '%s' no such function\n",__PRETTY_FUNCTION__,call.fn_name);
@@ -626,6 +640,8 @@ void* rpcserver_client_thread(void* arg){
                                         if(send_rpcmsg(&reply,thrd->client_fd,(uint8_t*)cipher) != 0) goto exit;
                                         break;
                                     }
+
+
                                     reply.msg_type = RET;
                                     int callret = 0;
                                     if((callret = __rpcserver_call_fn(&ret,thrd->serv,&call,cfn,thrd->client_uniq)) != 0){

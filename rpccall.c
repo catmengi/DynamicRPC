@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+
 int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* client, uint64_t clientlen){
     if(!serv && !client) return 1;
     struct tqueque* check_que = tqueque_create();
