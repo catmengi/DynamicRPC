@@ -124,6 +124,7 @@ struct rpcclient* rpcclient_connect(char* host,int portno,char* key){
    uint8_t* cipher = unpack_sizedbuf_type(&auth,&cipherlen);
 
    cipher_xor(cipher,key,self->cipher,sizeof(self->cipher));
+   free(cipher);
 
    free(gotmsg.payload);
    self->fd = sockfd;
