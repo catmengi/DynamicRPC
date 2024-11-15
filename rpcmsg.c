@@ -54,8 +54,8 @@ int send_rpcmsg(struct rpcmsg* msg, int fd,uint8_t* aes128_key){
     }
 
     int ret = 0;
-    if(send(fd,fullmsg,full_msg_len,MSG_NOSIGNAL) <= 0){ret = 1; goto exit;}
-exit:
+    if(send(fd,fullmsg,full_msg_len,MSG_NOSIGNAL) <= 0) ret = 1;
+
     memset(msg,0,sizeof(*msg));
     free(fullmsg);
     return ret;
