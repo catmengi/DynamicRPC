@@ -1,3 +1,7 @@
+
+/*
+  This code is taken from kokke/tiny-AES-c
+  go and visit his repo https://github.com/kokke/tiny-AES-c
 /*
 
 This is an implementation of the AES algorithm, specifically ECB, CTR and CBC mode.
