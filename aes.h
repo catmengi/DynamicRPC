@@ -1,3 +1,7 @@
+/*
+  This code is taken from kokke/tiny-AES-c
+  go and visit his repo https://github.com/kokke/tiny-AES-c
+/*
 #ifndef _AES_H_
 #define _AES_H_
 
