@@ -47,16 +47,7 @@ void* tqueque_pop(struct tqueque* tque){
 
 
 uint64_t tqueque_get_len(struct tqueque* tque){
-    assert(tque != NULL);
-    pthread_mutex_lock(&tque->lock);
-    struct tqueque_el* cur = tque->cur;
-    ssize_t len = 0;
-    while(cur){
-            len++;
-        cur = cur->next;
-    }
-    pthread_mutex_unlock(&tque->lock);
-    return len;
+    return tque->len;
 }
 
 void tqueque_free(struct tqueque* tque){
