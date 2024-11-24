@@ -243,7 +243,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             callargs[i] = calloc(1,sizeof(void*));
             assert(callargs[i]);
             *(void**)callargs[i] = uniq;
-            if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);
+            if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i]);
             continue;
         }
         // if(j < call->args_amm){
@@ -252,9 +252,9 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 assert(callargs[i]);
                 *(void**)callargs[i] = unpack_rpcbuff_type(&call->args[j]);
                 if(call->args[j].flag == 1)                                    //this flag means "Do i need to resend modified version of this argument to client?"
-                    tqueque_push(rpcbuff_upd,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcbuff_upd,*(void**)callargs[i]);
                 else
-                    tqueque_push(rpcbuff_freeQ,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcbuff_freeQ,*(void**)callargs[i]);
                 free(call->args[j].data);
                 call->args[j].data = NULL;
                 j++;
@@ -265,9 +265,9 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 assert(callargs[i]);
                 *(void**)callargs[i] = unpack_rpcstruct_type(&call->args[j]);
                 if(call->args[j].flag == 1)                                   //this flag means "Do i need to resend modified version of this argument to client?"
-                    tqueque_push(rpcstruct_upd,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcstruct_upd,*(void**)callargs[i]);
                 else
-                    tqueque_push(rpcstruct_freeQ,*(void**)callargs[i],1,NULL);
+                    tqueque_push(rpcstruct_freeQ,*(void**)callargs[i]);
                 free(call->args[j].data);
                 call->args[j].data = NULL;
                 j++;
@@ -288,7 +288,7 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
                 callargs[i] = calloc(1,sizeof(char*));
                 assert(callargs[i]);
                 *(void**)callargs[i] =  unpack_str_type(&call->args[j]);
-                if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i],1,NULL);  //If return type is str we are pushing this string to que, because we need
+                if(cfn->rtype == STR) tqueque_push(strret_free,*(void**)callargs[i]);  //If return type is str we are pushing this string to que, because we need
                 j++;                                                                          // to check to free this str or leave it for return
                 continue;
             }
@@ -382,13 +382,13 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
             /*This copy-pasted shit used to check do we need that pointer in future (like resending it)*/
             create_str_type(*(char**)fnret,0,&ret->ret);
             int needfree = 1;
-            size_t el = tqueque_get_tagamm(strret_free,NULL);   //gets ammount of pointers in que
+            size_t el = tqueque_get_len(strret_free);   //gets ammount of pointers in que
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;                            //this is just breaked, it exit loop if needfree is set to 0
-                void* ptr = tqueque_pop(strret_free,NULL,NULL);
+                void* ptr = tqueque_pop(strret_free);
                 if(ptr == *(char**)fnret) needfree = 0;         //If this is true it means this pointer was in arguments, and it will be freed in code that used to free arguments
 
-                assert(tqueque_push(strret_free,ptr,sizeof(struct rpcstruct),NULL) == 0);
+                tqueque_push(strret_free,ptr);
             }
             if(needfree) free(*(char**)fnret);                  //free it if it wasnt used in arguments
         }else if(rtype == STR && *(void**)fnret == NULL){
@@ -397,22 +397,22 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
         if(rtype == RPCBUFF && *(void**)fnret != NULL){
             /*ABSOLUTLY the same code as STR but it checks for rpc*_upd que*/
             int needfree = 1;
-            size_t el = tqueque_get_tagamm(rpcbuff_upd,NULL);
+            size_t el = tqueque_get_len(rpcbuff_upd);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(rpcbuff_upd,NULL,NULL);
+                void* ptr = tqueque_pop(rpcbuff_upd);
                 if(ptr == *(struct rpcbuff**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcbuff_upd,ptr,sizeof(struct rpcbuff),NULL) == 0);
+                tqueque_push(rpcbuff_upd,ptr);
             }
             el = 0;
-            el = tqueque_get_tagamm(rpcbuff_freeQ,NULL);
+            el = tqueque_get_len(rpcbuff_freeQ);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(rpcbuff_freeQ,NULL,NULL);
+                void* ptr = tqueque_pop(rpcbuff_freeQ);
                 if(ptr == *(struct rpcbuff**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcbuff_freeQ,ptr,sizeof(struct rpcbuff),NULL) == 0);
+                tqueque_push(rpcbuff_freeQ,ptr);
             }
             create_rpcbuff_type(*(struct rpcbuff**)fnret,0,&ret->ret);
             if(needfree) rpcbuff_free(*(struct rpcbuff**)fnret);
@@ -422,22 +422,22 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
         if(rtype == RPCSTRUCT && *(void**)fnret != NULL){
             /*ABSOLUTLY the same code as RPCBUFF but it checks for rpc*_upd que*/
             int needfree = 1;
-            size_t el = tqueque_get_tagamm(rpcstruct_upd,NULL);
+            size_t el = tqueque_get_len(rpcstruct_upd);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(rpcstruct_upd,NULL,NULL);
+                void* ptr = tqueque_pop(rpcstruct_upd);
                 if(ptr == *(struct rpcstruct**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcstruct_upd,ptr,sizeof(struct rpcstruct),NULL) == 0);
+                tqueque_push(rpcstruct_upd,ptr);
             }
             el = 0;
-            el = tqueque_get_tagamm(rpcstruct_freeQ,NULL);
+            el = tqueque_get_len(rpcstruct_freeQ);
             for(size_t i = 0; i < el; i++){
                 if(!needfree) break;
-                void* ptr = tqueque_pop(rpcstruct_freeQ,NULL,NULL);
+                void* ptr = tqueque_pop(rpcstruct_freeQ);
                 if(ptr == *(struct rpcstruct**)fnret) needfree = 0;
 
-                assert(tqueque_push(rpcstruct_freeQ,ptr,sizeof(struct rpcstruct),NULL) == 0);
+                tqueque_push(rpcstruct_freeQ,ptr);
             }
             create_rpcstruct_type(*(struct rpcstruct**)fnret,0,&ret->ret);
             if(needfree) {rpcstruct_free(*(struct rpcstruct**)fnret);}
@@ -449,13 +449,13 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     ret->resargs = rpctypes_clean_nonres_args(call->args,call->args_amm,&ret->resargs_amm);    //removing ALL not resendable arguments from call->args
     for(uint64_t i = 0; i < ret->resargs_amm; i++){                                            //then we check which types we need to update via rpc*_upd ques
         if(ret->resargs[i].type == RPCBUFF){
-            struct rpcbuff* buf = tqueque_pop(rpcbuff_upd,NULL,NULL);
+            struct rpcbuff* buf = tqueque_pop(rpcbuff_upd);
             assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcbuff_free(buf);
         }
         if(ret->resargs[i].type == RPCSTRUCT){
-            struct rpcstruct* buf = tqueque_pop(rpcstruct_upd,NULL,NULL);
+            struct rpcstruct* buf = tqueque_pop(rpcstruct_upd);
             assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
             create_rpcstruct_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcstruct_free(buf);
@@ -464,8 +464,8 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
     void* buf = NULL;
-    while((buf = tqueque_pop(rpcbuff_freeQ,NULL,NULL)) != NULL) rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcstruct_freeQ,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
+    while((buf = tqueque_pop(rpcbuff_freeQ)) != NULL) rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcstruct_freeQ)) != NULL) {rpcstruct_free(buf);}
     tqueque_free(rpcbuff_freeQ);
     tqueque_free(rpcstruct_freeQ);
     free(fnret);
@@ -475,10 +475,10 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     free(callargs);
     return 0;
 exit:
-    while((buf = tqueque_pop(rpcbuff_freeQ,NULL,NULL)) != NULL) rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcbuff_upd,NULL,NULL)) != NULL) rpcbuff_free(buf);
-    while((buf = tqueque_pop(rpcstruct_upd,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
-    while((buf = tqueque_pop(rpcstruct_freeQ,NULL,NULL)) != NULL) {rpcstruct_free(buf);}
+    while((buf = tqueque_pop(rpcbuff_freeQ)) != NULL) rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcbuff_upd)) != NULL) rpcbuff_free(buf);
+    while((buf = tqueque_pop(rpcstruct_upd)) != NULL) {rpcstruct_free(buf);}
+    while((buf = tqueque_pop(rpcstruct_freeQ)) != NULL) {rpcstruct_free(buf);}
     tqueque_free(rpcbuff_freeQ);
     tqueque_free(rpcbuff_upd);
     tqueque_free(rpcstruct_upd);
@@ -500,14 +500,14 @@ static void __rpcserver_lsfn_create_callback(char* key, void* fn, void* Pusr,siz
         assert(check_que);
         size_t newservlen = 0;
         for(size_t i = 0; i < ((struct fn*)fn)->nargs;i++){
-            assert(tqueque_push(check_que,&((struct fn*)fn)->argtypes[i],sizeof(enum rpctypes),NULL) == 0);
+            tqueque_push(check_que,&((struct fn*)fn)->argtypes[i]);
             if(((struct fn*)fn)->argtypes[i] == SIZEDBUF) i++;
             newservlen++;
         }
         char* newserv = calloc(newservlen,sizeof(char));
         assert(newserv);
         for(size_t i = 0; i < newservlen; i++){
-            newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
+            newserv[i] = *(enum rpctypes*)tqueque_pop(check_que);
         }
         
         assert(rpcstruct_set(usr[1],key,newserv,newservlen,SIZEDBUF) == 0);
@@ -609,12 +609,7 @@ void* rpcserver_client_thread(void* arg){
                                     printf("%s: client (%s) disconnected normaly\n",__PRETTY_FUNCTION__,thrd->client_uniq);
                                     goto exit;
                     case CALL:
-                                    if(buf_to_rpccall(&call,gotmsg.payload) != 0 ){
-                                        printf("%s: bad 'CALL' msg! \n",__PRETTY_FUNCTION__);
-                                        free(gotmsg.payload);
-                                        free(call.fn_name);
-                                        goto exit;
-                                    }
+                                    buf_to_rpccall(&call,gotmsg.payload);
                                     free(gotmsg.payload);
 
 

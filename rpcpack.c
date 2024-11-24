@@ -101,6 +101,7 @@ struct rpctype* arr_to_type(char* rawarr,struct rpctype* type){
         memcpy(&type->datalen,rawarr, sizeof(uint64_t));
         rawarr += sizeof(uint64_t);
         type->data = calloc(be64_to_cpu(type->datalen), sizeof(char));
+        assert(type->data);
         memcpy(type->data, rawarr, be64_to_cpu(type->datalen));
     }else type->datalen = 0;
     return type;

@@ -260,7 +260,7 @@ int rpcclient_call(struct rpcclient* self,char* fn,enum rpctypes* fn_prototype,c
       return gotmsg.msg_type;
    }
    pthread_mutex_unlock(&self->send);
-   assert(buf_to_rpcret(&ret,gotmsg.payload) == 0);
+   buf_to_rpcret(&ret,gotmsg.payload);
    free(gotmsg.payload);
    assert(resargs_updl == ret.resargs_amm);
    for(uint64_t i = 0; i < ret.resargs_amm; i++){

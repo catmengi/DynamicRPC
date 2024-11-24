@@ -18,7 +18,7 @@ int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* clie
     size_t newservlen = 0;
     for(size_t i = 0; i < servlen;i++){
         if(serv[i] != INTERFUNC && serv[i] != PSTORAGE && serv[i] != FINGERPRINT){
-            assert(tqueque_push(check_que,&serv[i],sizeof(enum rpctypes),NULL) == 0);
+            tqueque_push(check_que,&serv[i]);
             if(serv[i] == SIZEDBUF) i++;
             newservlen++;
         }
@@ -35,7 +35,7 @@ int is_rpctypes_equal(enum rpctypes* serv, uint64_t servlen, enum rpctypes* clie
     enum rpctypes* newserv = calloc(newservlen,sizeof(enum rpctypes));
     assert(newserv);
     for(size_t i = 0; i < newservlen; i++){
-        newserv[i] = *(enum rpctypes*)tqueque_pop(check_que,NULL,NULL);
+        newserv[i] = *(enum rpctypes*)tqueque_pop(check_que);
     }
     int ret = 1;
     for(size_t i = 0; i < clientlen; i++)
@@ -52,7 +52,7 @@ uint64_t rpctypes_get_buflen(struct rpctype* rpctypes,uint64_t rpctypes_len){
     }
     return len;
 }
-int rpctypes_to_buf(struct rpctype* rpctypes,uint64_t rpctypes_amm, char* out){
+void rpctypes_to_buf(struct rpctype* rpctypes,uint64_t rpctypes_amm, char* out){
     assert(out);
     uint64_t be64_rpctypes_amm = cpu_to_be64(rpctypes_amm);
     memcpy(out,&be64_rpctypes_amm,sizeof(uint64_t));
@@ -60,7 +60,7 @@ int rpctypes_to_buf(struct rpctype* rpctypes,uint64_t rpctypes_amm, char* out){
     for(uint64_t i = 0; i < rpctypes_amm; i++){
         out += type_to_arr(out,&rpctypes[i]);
     }
-    return 0;
+    return;
 }
 struct rpctype* buf_to_rpctypes(char* in,uint64_t* rpctypes_amm){
     assert(in);
@@ -98,14 +98,14 @@ char* rpccall_to_buf(struct rpccall* rpccall, uint64_t* buflen){
     rpctypes_to_buf(rpccall->args,rpccall->args_amm,buf);
     return ret;
 }
-int buf_to_rpccall(struct rpccall* rpccall,char* in){
+void buf_to_rpccall(struct rpccall* rpccall,char* in){
     unsigned long fn_name_len = strlen(in);
     rpccall->fn_name = malloc(fn_name_len + 1);
     assert(rpccall->fn_name);
     memcpy(rpccall->fn_name,in,fn_name_len + 1);
     in += fn_name_len + 1;
     rpccall->args = buf_to_rpctypes(in,&rpccall->args_amm);
-    return 0;
+    return;
 }
 struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint64_t rpctypes_len,uint64_t* retargsamm_out){
     struct rpctype* resargs = NULL;
@@ -126,11 +126,11 @@ struct rpctype* rpctypes_clean_nonres_args(struct rpctype* rpctypes, uint64_t rp
             if(rpctypes[i].flag == 1){
                 resargs[res_i] = rpctypes[i];
                 res_i++;
-            }else tqueque_push(tque,&rpctypes[i],1,NULL);
-        }else tqueque_push(tque,&rpctypes[i],1,NULL);
+            }else tqueque_push(tque,&rpctypes[i]);
+        }else tqueque_push(tque,&rpctypes[i]);
     }
     struct rpctype* nonres = NULL;
-    while((nonres = tqueque_pop(tque,NULL,NULL)) != NULL){
+    while((nonres = tqueque_pop(tque)) != NULL){
         free(nonres->data);
     }
     tqueque_free(tque);
@@ -160,7 +160,7 @@ char* rpcret_to_buf(struct rpcret* rpcret, uint64_t* buflen){
     }
     return ret;
 }
-int buf_to_rpcret(struct rpcret* ret,char* in){
+void buf_to_rpcret(struct rpcret* ret,char* in){
     char rflag = *in; in++;
     char aflag = *in; in++;
     if(rflag == 1){
@@ -168,5 +168,5 @@ int buf_to_rpcret(struct rpcret* ret,char* in){
         in += type_buflen(&ret->ret);
     }
     if(aflag == 1) ret->resargs = buf_to_rpctypes(in,&ret->resargs_amm);
-    return 0;
+    return;
 }
