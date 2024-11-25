@@ -14,7 +14,7 @@
 struct rpcbuff_el{
     char is_packed;
     struct rpcbuff_el* childs;
-    enum rpctypes type;
+    char type;
     uint64_t elen;
     void* endpoint;
 };
@@ -46,7 +46,7 @@ struct rpcbuff* rpcbuff_create(uint64_t* dimsizes,uint64_t dimsizes_len){
                 cur->childs = calloc(dimsizes[i],sizeof(struct rpcbuff_el));
                 assert(cur->childs);
                 for(uint64_t k = 0; k <dimsizes[i]; k++){
-                tqueque_push(que,&cur->childs[k]);
+                    tqueque_push(que,&cur->childs[k]);
                 }
             }
         }
@@ -379,34 +379,34 @@ char* rpcbuff_to_buf(struct rpcbuff* rpcbuff,uint64_t* buflen){
     struct rpctype * otypes = calloc(types_amm,sizeof(*otypes));
     for(uint64_t i = 0; i < types_amm; i++){
         struct rpcbuff_el* el = tqueque_pop(fque);
-        if(el->endpoint == (void*)0xCAFE){
-            otypes[i].type = VOID;
-            continue;
-        }
-        if(el->is_packed){
-            char* tmp = malloc(el->elen);
-            assert(tmp);
-            memcpy(tmp,el->endpoint,el->elen);
-            otypes[i].data = tmp;
-            otypes[i].datalen = cpu_to_be64(el->elen);
-            otypes[i].flag = 1;
-            otypes[i].type = el->type;
-        }else{
-            switch(el->type){
-                case RPCBUFF:
-                    create_rpcbuff_type(el->endpoint,1,&otypes[i]);
-                    break;
-                case RPCSTRUCT:
-                    create_rpcstruct_type(el->endpoint,1,&otypes[i]);
-                    break;
-                case STR:
-                    create_str_type(el->endpoint,1,&otypes[i]);
-                    break;
-                case SIZEDBUF:
-                    create_sizedbuf_type(el->endpoint,el->elen,1,&otypes[i]);
-                    break;
-                default:
-                    break;
+        memset(&otypes[i],0,sizeof(otypes[i]));
+        if(el->endpoint != (void*)0xCAFE){
+            if(el->is_packed){
+                char* tmp = malloc(el->elen);
+                assert(tmp);
+                memcpy(tmp,el->endpoint,el->elen);
+                otypes[i].data = tmp;
+                otypes[i].datalen = cpu_to_be64(el->elen);
+                printf("%lu, %lu\n",cpu_to_be64(otypes[i].datalen),el->elen);
+                otypes[i].flag = 1;
+                otypes[i].type = el->type;
+            }else{
+                switch(el->type){
+                    case RPCBUFF:
+                        create_rpcbuff_type(el->endpoint,1,&otypes[i]);
+                        break;
+                    case RPCSTRUCT:
+                        create_rpcstruct_type(el->endpoint,1,&otypes[i]);
+                        break;
+                    case STR:
+                        create_str_type(el->endpoint,1,&otypes[i]);
+                        break;
+                    case SIZEDBUF:
+                        create_sizedbuf_type(el->endpoint,el->elen,1,&otypes[i]);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }

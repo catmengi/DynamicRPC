@@ -4,7 +4,7 @@
 #include <stdint.h>
 struct tqueque_el{
     void* ptr;
-    struct tqueque_el *next,*prev;
+    struct tqueque_el *next;
 };
 
 struct tqueque{
@@ -18,3 +18,6 @@ void tqueque_push(struct tqueque* tque, void* el);
 void* tqueque_pop(struct tqueque* tque);
 void tqueque_free(struct tqueque* tque);
 uint64_t tqueque_get_len(struct tqueque* tque);
+
+
+

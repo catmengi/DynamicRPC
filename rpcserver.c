@@ -450,13 +450,14 @@ static int __rpcserver_call_fn(struct rpcret* ret,struct rpcserver* serv,struct 
     for(uint64_t i = 0; i < ret->resargs_amm; i++){                                            //then we check which types we need to update via rpc*_upd ques
         if(ret->resargs[i].type == RPCBUFF){
             struct rpcbuff* buf = tqueque_pop(rpcbuff_upd);
-            assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
+            assert(buf); //Asserting because we cant trust in rpcserver anymore.....
+
             create_rpcbuff_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcbuff_free(buf);
         }
         if(ret->resargs[i].type == RPCSTRUCT){
             struct rpcstruct* buf = tqueque_pop(rpcstruct_upd);
-            assert(buf);                                                                       //Asserting because we cant trust in rpcserver anymore.....
+            assert(buf);//Asserting because we cant trust in rpcserver anymore.....
             create_rpcstruct_type(buf,ret->resargs[i].flag,&ret->resargs[i]);
             rpcstruct_free(buf);
         }

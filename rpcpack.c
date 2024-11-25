@@ -72,38 +72,37 @@ char* unpack_str_type(struct rpctype* type){
 }
 uint64_t type_buflen(struct rpctype* type){
     if(type == NULL) return 0;
-    uint64_t len = 0;
-    len = (sizeof(char) * 2);
-    if(type->type != VOID) len += be64_to_cpu(type->datalen) + sizeof(uint64_t);
-    return len;
+    if(type->type == VOID) return 1;
+    return 2 + sizeof(uint64_t) + be64_to_cpu(type->datalen);
 }
 uint64_t type_to_arr(char* out,struct rpctype* type){
-    if(type == NULL) return 0;
-    assert(out);
-    *out = type->type;
-    out++;
-    *out = type->flag;
-    out++;
-    if(type->type == VOID) return 2;
-    memcpy(out, &type->datalen, sizeof(uint64_t));
-    out += sizeof(uint64_t);
-    memcpy(out, type->data, be64_to_cpu(type->datalen));
-    uint64_t ret = type_buflen(type);
-    return ret;
+    uint64_t retlen = 0;
+
+    *out = type->type; out++;
+    if(type == VOID) goto exit;
+
+    *out = type->flag; out++;
+
+    memcpy(out,&type->datalen,sizeof(uint64_t)); out += sizeof(uint64_t);
+
+    memcpy(out,type->data,be64_to_cpu(type->datalen)); out += be64_to_cpu(type->datalen);
+
+exit:
+    return type_buflen(type);
 }
 struct rpctype* arr_to_type(char* rawarr,struct rpctype* type){
-    if(!rawarr) return NULL;
-    type->type = *rawarr;
-    rawarr++;
-    type->flag = *rawarr;
-    rawarr++;
-    if(type->type != VOID){
-        memcpy(&type->datalen,rawarr, sizeof(uint64_t));
-        rawarr += sizeof(uint64_t);
-        type->data = calloc(be64_to_cpu(type->datalen), sizeof(char));
-        assert(type->data);
-        memcpy(type->data, rawarr, be64_to_cpu(type->datalen));
-    }else type->datalen = 0;
+    memset(type,0,sizeof(*type));
+
+    type->type = *rawarr; rawarr++;
+    if(type->type == VOID) return type;
+
+    type->flag = *rawarr; rawarr++;
+
+    memcpy(&type->datalen,rawarr,sizeof(uint64_t)); rawarr += sizeof(uint64_t);
+
+    type->data = malloc(be64_to_cpu(type->datalen));
+    memcpy(type->data,rawarr,be64_to_cpu(type->datalen));
+
     return type;
 }
 
