@@ -1,3 +1,4 @@
+//привет ворлд!!!
 #pragma once
 #include <sys/types.h>
 #include "drpc_types.h"
