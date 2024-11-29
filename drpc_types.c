@@ -255,5 +255,5 @@ void drpc_types_free(struct drpc_type* types, size_t len){
     for(size_t i = 0; i < len; i++){
         drpc_type_free(&types[i]);
     }
-    // TODO: free(types);
+    free(types);
 }

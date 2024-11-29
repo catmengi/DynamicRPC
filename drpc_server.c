@@ -414,12 +414,12 @@ int main(){
     fn.return_type = d_str;
     fn.personal = "HbhnjgvtYUETA";
 
-    struct drpc_type arguments[2];
+    struct drpc_type* arguments = calloc(2,sizeof(*arguments));
     int32_to_drpc(&arguments[0],123);
     sizedbuf_to_drpc(&arguments[1],"1ggggggg23",11);
 
     struct drpc_return returned;
-    assert(drpc_server_call_fn(arguments,sizeof(arguments) / sizeof(arguments[0]),&fn,NULL,&returned) == 0);
+    assert(drpc_server_call_fn(arguments,2,&fn,NULL,&returned) == 0);
 
 
     char* free_later;
@@ -428,7 +428,6 @@ int main(){
 
 
     drpc_types_free(returned.updated_arguments,returned.updated_arguments_len);
-    free(returned.updated_arguments);
     free(fn.ffi_prototype);
     free(fn.cif);
     free(returned.returned.packed_data);
