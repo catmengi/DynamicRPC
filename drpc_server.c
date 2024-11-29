@@ -1,3 +1,4 @@
+#include "drpc_struct.h"
 #include "drpc_types.h"
 #include "drpc_protocol.h"
 #include "drpc_server.h"
@@ -116,7 +117,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
             if(arguments[j].type == d_array){
                 ffi_arguments[k] = calloc(1,sizeof(void*));
                 assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = "THIS IS A PLACEHOLDER";
+                *(void**)ffi_arguments[k] = drpc_to_d_array(&arguments[j]);
 
                 struct drpc_type_update* update = calloc(1,sizeof(*update));
                 update->type = d_array;
@@ -129,7 +130,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
             if(arguments[j].type == d_struct){
                 ffi_arguments[k] = calloc(1,sizeof(void*));
                 assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = "THIS IS A PLACEHOLDER";
+                *(void**)ffi_arguments[k] = drpc_to_d_struct(&arguments[j]);
 
                 struct drpc_type_update* update = calloc(1,sizeof(*update));
                 update->type = d_struct;
@@ -318,7 +319,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 break;
             case d_struct:
                 d_struct_to_drpc(&returned->updated_arguments[i],repack->ptr);
-                //TODO: d_struct_free(repack->ptr);
+                d_struct_free(repack->ptr);
                 break;
             case d_array:
                 d_array_to_drpc(&returned->updated_arguments[i],repack->ptr);
@@ -386,7 +387,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
             case d_struct:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_struct_to_drpc(&returned->returned,(void*)native_return);
-                //d_struct_free((void*)native_return);
+                d_struct_free((void*)native_return);
                 break;
             default: break;
         }
@@ -431,4 +432,21 @@ int main(){
     free(fn.ffi_prototype);
     free(fn.cif);
     free(returned.returned.packed_data);
+
+
+
+    struct d_struct* d_struct = new_d_struct();
+    int32_t in = 322772;
+    int32_t out = 0;
+    d_struct_set(d_struct,"abcd",&in,d_int32);
+    d_struct_set(d_struct,"abcd1",&in,d_int32);
+    d_struct_set(d_struct,"abcd2",&in,d_int32);
+    d_struct_set(d_struct,"abcd3",&in,d_int32);
+    d_struct_set(d_struct,"abcd4",&in,d_int32);
+    d_struct_set(d_struct,"abcd5",&in,d_int32);
+    d_struct_get(d_struct,"abcd",&out,d_int32);
+    d_struct_remove(d_struct,"abcd");
+
+    printf("out %d %d\n",out,d_struct_unlink(d_struct,"abcd",d_int32));
+    d_struct_free(d_struct);
 }

@@ -247,9 +247,13 @@ struct drpc_type* buf_drpc_types(char* buf, size_t *len){
     return types;
 }
 
+void drpc_type_free(struct drpc_type* type){
+    free(type->packed_data);
+}
+
 void drpc_types_free(struct drpc_type* types, size_t len){
     for(size_t i = 0; i < len; i++){
-        free(types[i].packed_data);
+        drpc_type_free(&types[i]);
     }
     // TODO: free(types);
 }

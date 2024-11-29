@@ -124,3 +124,4 @@ void drpc_types_buf(struct drpc_type* types,size_t len,char* buf);
 struct drpc_type* buf_drpc_types(char* buf, size_t *len);
 
 void drpc_types_free(struct drpc_type* types, size_t len);
+void drpc_type_free(struct drpc_type* type);
