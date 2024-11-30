@@ -27,9 +27,9 @@ struct drpc_server* new_drpc_server(uint16_t port){
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              void* pstorage, size_t prototype_len, int perm){
-    struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
+    struct drpc_function* fn_info = malloc(sizeof(*fn_info)); assert(fn_info);
 
-    fn_info->delayed_massage_que = drpc_que_create();
+    fn_info->delayed_massage_que = NULL;
     fn_info->fn_name = strdup(fn_name);
     fn_info->fn = fn;
     fn_info->minimal_permission_level = perm;
@@ -58,7 +58,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
     assert(check_que);
     size_t newservlen = 0;
     for(size_t i = 0; i < servlen;i++){
-        if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo){
+        if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo && serv[i] != d_delayed_massage_queue){
             drpc_que_push(check_que,&serv[i]);
             newservlen++;
         }
@@ -417,51 +417,4 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_que_free(to_repack);
     drpc_que_free(to_fill);
     return 0;
-}
-
-void test(struct d_struct* dstruct){
-    char* to_print = NULL;
-
-    d_struct_get(dstruct,"125",&to_print,d_str);
-    puts(to_print);
-
-    d_struct_set(dstruct,"125","УТЕЧКИ НЕТ ЮХУ",d_str);
-}
-
-int main(){
-    struct drpc_function fn = {0};
-    enum drpc_types prototype[] = {d_struct};
-    fn.fn = FFI_FN(test);
-    fn.fn_name = "test";
-    fn.return_type = d_void;
-    fn.prototype = prototype;
-    fn.prototype_len = 1;
-
-    struct drpc_return ret = {0};
-    struct drpc_type* arguments = calloc(1,sizeof(*arguments));
-
-    struct d_struct* dstruct = new_d_struct();
-    d_struct_set(dstruct,"125","тестовое сообщение для утечки памяти!",d_str);
-    d_struct_set(dstruct,"12564","123",d_sizedbuf,4);
-    d_struct_to_drpc(&arguments[0],(void*)dstruct);
-    d_struct_free(dstruct);
-
-    drpc_server_call_fn(arguments,1,&fn,NULL,&ret);
-    struct d_struct* unpacked = drpc_to_d_struct(&ret.updated_arguments[0]);
-    char* to_print = NULL;
-
-    d_struct_get(unpacked,"125",&to_print,d_str);
-    puts(to_print);
-    size_t len = 0;
-    d_struct_get(unpacked,"12564",&to_print,d_sizedbuf,&len);
-    printf("%lu got length\n",len);
-
-
-    d_struct_free(unpacked);
-
-    drpc_types_free(ret.updated_arguments,ret.updated_arguments_len);
-
-    free(fn.cif);
-    free(fn.ffi_prototype);
-
 }
