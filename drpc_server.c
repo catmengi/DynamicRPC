@@ -28,7 +28,9 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              void* pstorage, size_t prototype_len, int perm){
     struct drpc_function* fn_info = malloc(sizeof(*fn_info)); assert(fn_info);
-
+    assert(fn_info->return_type != d_sizedbuf   || fn_info->return_type != d_fn_pstorage
+        || fn_info->return_type != d_clientinfo || fn_info->return_type != d_interfunc
+        || fn_info->return_type != d_delayed_massage_queue);
     fn_info->delayed_massage_que = NULL;
     fn_info->fn_name = strdup(fn_name);
     fn_info->fn = fn;
@@ -268,9 +270,6 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
 }
 
 int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_connection* client_info, struct drpc_return* returned){
-    if(fn_info->return_type == d_sizedbuf || fn_info->return_type == d_fn_pstorage
-    || fn_info->return_type == d_clientinfo || fn_info->return_type == d_interfunc
-    || fn_info->return_type == d_delayed_massage_queue) return 1;
     enum drpc_types* extracted_prototype = drpc_types_extract_prototype(arguments,arguments_len);
     if(is_arguments_equal_prototype(fn_info->prototype,fn_info->prototype_len,extracted_prototype,arguments_len)){
         free(extracted_prototype);
@@ -324,9 +323,10 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
     for(size_t i = 0; i < repack_len; i++){
         struct drpc_type_update* repack = drpc_que_pop(to_repack);
-        assert(!(repack->type == d_sizedbuf && repack->ptr == (void*)native_return));
-
-        if(repack->type == fn_info->return_type && repack->ptr == (void*)native_return) return_is = i;
+        if(repack->ptr == (void*)native_return) {
+            assert(repack->type == fn_info->return_type);    //dumb protection, you SHOULDNT return argument that is different type than return_type
+            return_is = i;
+        }
 
         switch(repack->type){
             case d_str:
