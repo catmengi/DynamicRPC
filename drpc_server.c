@@ -442,6 +442,7 @@ int main(){
 
     struct d_struct* dstruct = new_d_struct();
     d_struct_set(dstruct,"125","тестовое сообщение для утечки памяти!",d_str);
+    d_struct_set(dstruct,"12564","123",d_sizedbuf,4);
     d_struct_to_drpc(&arguments[0],(void*)dstruct);
     d_struct_free(dstruct);
 
@@ -451,6 +452,10 @@ int main(){
 
     d_struct_get(unpacked,"125",&to_print,d_str);
     puts(to_print);
+    size_t len = 0;
+    d_struct_get(unpacked,"12564",&to_print,d_sizedbuf,&len);
+    printf("%lu got length\n",len);
+
 
     d_struct_free(unpacked);
 

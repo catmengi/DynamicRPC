@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdarg.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -151,6 +152,12 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
     switch(type){
         default:
             *(void**)native_type = element->data;
+            if(type == d_sizedbuf){
+                va_list varargs;
+                va_start(varargs,type);
+                size_t* sizedbuf_len = va_arg(varargs,size_t*);
+                *sizedbuf_len = element->sizedbuf_len;
+            }
             break;
         case d_int8:
             *(int8_t*)native_type = drpc_to_int8(element->data);

@@ -12,6 +12,7 @@ struct d_struct* drpc_call_to_massage(struct drpc_call* call){
     char* arguments_buf = malloc(arguments_buflen); assert(arguments_buf);
     drpc_types_buf(call->arguments,call->arguments_len,arguments_buf);
 
+    d_struct_set(massage,"packed_arguments",arguments_buf,d_sizedbuf,arguments_buflen);
 
     return massage;
 }
