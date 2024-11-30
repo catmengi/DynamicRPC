@@ -27,10 +27,11 @@ struct drpc_server* new_drpc_server(uint16_t port){
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              void* pstorage, size_t prototype_len, int perm){
+    assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
+        || return_type != d_clientinfo || return_type != d_interfunc
+        || return_type != d_delayed_massage_queue);
     struct drpc_function* fn_info = malloc(sizeof(*fn_info)); assert(fn_info);
-    assert(fn_info->return_type != d_sizedbuf   || fn_info->return_type != d_fn_pstorage
-        || fn_info->return_type != d_clientinfo || fn_info->return_type != d_interfunc
-        || fn_info->return_type != d_delayed_massage_queue);
+
     fn_info->delayed_massage_que = NULL;
     fn_info->fn_name = strdup(fn_name);
     fn_info->fn = fn;
