@@ -38,10 +38,11 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
                     //d_array_free(element->data);
                     break;
                 case d_struct:
-                    //d_struct_free(element->data);
+                    d_struct_free(element->data);
                     break;
             }
         }
+        dstruct->current_len--;
     }
 
     switch(type){
@@ -291,6 +292,9 @@ void d_struct_pack_CB(char* key, void* element_p, void* out_p, size_t index){
     packed[index].packed_data = original_buf;
     packed[index].type = type;
     packed[index].len = strlen(key) + 1 + drpc_type_buflen(packed_type);
+
+    drpc_type_free(packed_type);
+    free(packed_type);
 }
 
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
@@ -322,7 +326,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 element->is_packed = 0;
                 element->type = packed_types[i].type;
                 element->data = drpc_to_str(type);
-                drpc_type_free(type);
+                drpc_type_free(type);free(type);
                 break;
             case d_sizedbuf:
                 type = malloc(sizeof(*type)); assert(type);
@@ -330,7 +334,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 element->is_packed = 0;
                 element->type = packed_types[i].type;
                 element->data = drpc_to_sizedbuf(type,&element->sizedbuf_len);
-                drpc_type_free(type);;
+                drpc_type_free(type);free(type);
                 break;
             case d_array:
                 type = malloc(sizeof(*type)); assert(type);
@@ -338,7 +342,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 element->is_packed = 0;
                 element->type = packed_types[i].type;
                 element->data = drpc_to_d_array(type);
-                drpc_type_free(type);
+                drpc_type_free(type);free(type);
                 break;
             case d_struct:
                 type = malloc(sizeof(*type)); assert(type);
@@ -346,7 +350,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 element->is_packed = 0;
                 element->type = packed_types[i].type;
                 element->data = drpc_to_d_struct(type);
-                drpc_type_free(type);
+                drpc_type_free(type);free(type);
                 break;
 
             default:

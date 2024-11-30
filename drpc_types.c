@@ -111,7 +111,7 @@ void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen){
 void d_array_to_drpc(struct drpc_type* type, void* d_arrayp){
     type->type = d_array;
 }
-void d_struct_to_drpc(struct drpc_type* type, struct d_struct* dstruct){
+void d_struct_to_drpc(struct drpc_type* type, void* dstruct){
     type->type = d_struct;
     type->packed_data = d_struct_buf(dstruct,&type->len);
 

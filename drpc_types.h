@@ -89,7 +89,7 @@ void return_is_to_drpc(struct drpc_type* type, uint8_t native);
 void str_to_drpc(struct drpc_type* type, char* native);
 void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen);
 void d_array_to_drpc(struct drpc_type* type, void* d_array);
-void d_struct_to_drpc(struct drpc_type* type, struct d_struct* dstruct);
+void d_struct_to_drpc(struct drpc_type* type, void* dstruct);
 
 
 

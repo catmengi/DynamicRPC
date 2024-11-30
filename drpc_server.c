@@ -419,18 +419,42 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     return 0;
 }
 
-void test(){
-    puts("Hewwouw");
+void test(struct d_struct* dstruct){
+    char* to_print = NULL;
+
+    d_struct_get(dstruct,"125",&to_print,d_str);
+    puts(to_print);
+
+    d_struct_set(dstruct,"125","УТЕЧКИ НЕТ ЮХУ",d_str);
 }
 
 int main(){
     struct drpc_function fn = {0};
+    enum drpc_types prototype[] = {d_struct};
     fn.fn = FFI_FN(test);
     fn.fn_name = "test";
     fn.return_type = d_void;
+    fn.prototype = prototype;
+    fn.prototype_len = 1;
 
     struct drpc_return ret = {0};
-    drpc_server_call_fn(NULL,0,&fn,NULL,&ret);
+    struct drpc_type* arguments = calloc(1,sizeof(*arguments));
+
+    struct d_struct* dstruct = new_d_struct();
+    d_struct_set(dstruct,"125","тестовое сообщение для утечки памяти!",d_str);
+    d_struct_to_drpc(&arguments[0],(void*)dstruct);
+    d_struct_free(dstruct);
+
+    drpc_server_call_fn(arguments,1,&fn,NULL,&ret);
+    struct d_struct* unpacked = drpc_to_d_struct(&ret.updated_arguments[0]);
+    char* to_print = NULL;
+
+    d_struct_get(unpacked,"125",&to_print,d_str);
+    puts(to_print);
+
+    d_struct_free(unpacked);
+
+    drpc_types_free(ret.updated_arguments,ret.updated_arguments_len);
 
     free(fn.cif);
     free(fn.ffi_prototype);
