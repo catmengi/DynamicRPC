@@ -1,9 +1,11 @@
 #include "drpc_types.h"
+#include "drpc_struct.h"
 
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
+
 
 #define drpc_convert(type,native) type->packed_data = malloc(sizeof(native)); assert(type->packed_data); type->len = sizeof(native); memcpy(type->packed_data,&native, sizeof(native));
 #define drpc_deconvert(type,native_type) native_type ret = 0; memcpy(&ret,type->packed_data,sizeof(ret)); return ret;
@@ -109,8 +111,9 @@ void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen){
 void d_array_to_drpc(struct drpc_type* type, void* d_arrayp){
     type->type = d_array;
 }
-void d_struct_to_drpc(struct drpc_type* type, void* d_structp){
+void d_struct_to_drpc(struct drpc_type* type, struct d_struct* dstruct){
     type->type = d_struct;
+    type->packed_data = d_struct_buf(dstruct,&type->len);
 
 }
 
@@ -172,10 +175,11 @@ void* drpc_to_d_array(struct drpc_type* type){
 
     return NULL;
 }
-void* drpc_to_d_struct(struct drpc_type* type){
+struct d_struct* drpc_to_d_struct(struct drpc_type* type){
+    struct d_struct* ret = new_d_struct();
+    buf_d_struct(type->packed_data,ret);
 
-
-    return NULL;
+    return ret;
 }
 
 

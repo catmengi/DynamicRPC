@@ -24,6 +24,25 @@ struct drpc_server* new_drpc_server(uint16_t port){
     return drpc_serv;
 }
 
+void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
+                             enum drpc_types return_type, enum drpc_types* prototype,
+                             void* pstorage, size_t prototype_len, int perm){
+    struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
+
+    fn_info->delayed_massage_que = drpc_que_create();
+    fn_info->fn_name = strdup(fn_name);
+    fn_info->fn = fn;
+    fn_info->minimal_permission_level = perm;
+    fn_info->return_type = return_type;
+    fn_info->personal = pstorage;
+    fn_info->prototype_len = prototype_len;
+    fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
+    memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
+
+    assert(hashtable_add(server->functions,fn_name, strlen(fn_name) + 1,fn_info,0) == 0);
+
+}
+
 enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_t drpc_types_len){
     if(drpc_types == NULL) return NULL;
     enum drpc_types* ret = malloc(drpc_types_len * sizeof(enum drpc_types));
@@ -297,9 +316,10 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
     size_t repack_len = drpc_que_get_len(to_repack);
 
-    returned->updated_arguments = calloc(repack_len,sizeof(*returned->updated_arguments));
-    assert(returned->updated_arguments);
-
+    if(repack_len > 0){
+        returned->updated_arguments = calloc(repack_len,sizeof(*returned->updated_arguments));
+        assert(returned->updated_arguments);
+    }else returned->updated_arguments = NULL;
     returned->updated_arguments_len = repack_len;
 
     for(size_t i = 0; i < repack_len; i++){
@@ -399,53 +419,20 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     return 0;
 }
 
-char* test(int8_t a,char* p, char* c, size_t sizedbuf_len){
-    printf("%d,%s(%lu == %lu) %s\n",a,c,sizedbuf_len,strlen(c) + 1,p);
-    return strdup("hello there");
+void test(){
+    puts("Hewwouw");
 }
 
 int main(){
     struct drpc_function fn = {0};
-    enum drpc_types prototype[] = {d_int32,d_fn_pstorage,d_sizedbuf};
-
-    fn.prototype = prototype;
-    fn.prototype_len = sizeof(prototype) / sizeof(prototype[0]);
     fn.fn = FFI_FN(test);
-    fn.return_type = d_str;
-    fn.personal = "HbhnjgvtYUETA";
+    fn.fn_name = "test";
+    fn.return_type = d_void;
 
-    struct drpc_type* arguments = calloc(2,sizeof(*arguments));
-    int32_to_drpc(&arguments[0],123);
-    sizedbuf_to_drpc(&arguments[1],"1ggggggg23",11);
+    struct drpc_return ret = {0};
+    drpc_server_call_fn(NULL,0,&fn,NULL,&ret);
 
-    struct drpc_return returned;
-    assert(drpc_server_call_fn(arguments,2,&fn,NULL,&returned) == 0);
-
-
-    char* free_later;
-    printf("%s <--- return_is\n",(free_later = drpc_to_str(&returned.returned)));
-    free(free_later);
-
-
-    drpc_types_free(returned.updated_arguments,returned.updated_arguments_len);
-    free(fn.ffi_prototype);
     free(fn.cif);
-    free(returned.returned.packed_data);
+    free(fn.ffi_prototype);
 
-
-
-    struct d_struct* d_struct = new_d_struct();
-    int32_t in = 322772;
-    int32_t out = 0;
-    d_struct_set(d_struct,"abcd",&in,d_int32);
-    d_struct_set(d_struct,"abcd1",&in,d_int32);
-    d_struct_set(d_struct,"abcd2",&in,d_int32);
-    d_struct_set(d_struct,"abcd3",&in,d_int32);
-    d_struct_set(d_struct,"abcd4",&in,d_int32);
-    d_struct_set(d_struct,"abcd5",&in,d_int32);
-    d_struct_get(d_struct,"abcd",&out,d_int32);
-    d_struct_remove(d_struct,"abcd");
-
-    printf("out %d %d\n",out,d_struct_unlink(d_struct,"abcd",d_int32));
-    d_struct_free(d_struct);
 }

@@ -24,3 +24,7 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
 int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type);
 void d_struct_free(struct d_struct* dstruct);
 int d_struct_remove(struct d_struct* dstruct, char* key);
+void d_struct_free_internal(struct d_struct* dstruct);
+
+char* d_struct_buf(struct d_struct* dstruct, size_t* buflen);
+void buf_d_struct(char* buf, struct d_struct* dstruct);

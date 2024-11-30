@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include <sys/types.h>
 #include <stdint.h>
 #include <ffi.h>
@@ -60,6 +61,7 @@ struct drpc_type{
     char* packed_data;
 };
 
+#include "drpc_struct.h"
 
 size_t drpc_proto_to_ffi_len_adjust(enum  drpc_types* prototype, size_t prototype_len);
 ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len);
@@ -87,7 +89,7 @@ void return_is_to_drpc(struct drpc_type* type, uint8_t native);
 void str_to_drpc(struct drpc_type* type, char* native);
 void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen);
 void d_array_to_drpc(struct drpc_type* type, void* d_array);
-void d_struct_to_drpc(struct drpc_type* type, void* d_struct);
+void d_struct_to_drpc(struct drpc_type* type, struct d_struct* dstruct);
 
 
 
@@ -110,7 +112,7 @@ char* drpc_to_sizedbuf(struct drpc_type* type, size_t* len);
 
 char* drpc_to_str(struct drpc_type* type);
 void* drpc_to_d_array(struct drpc_type* type);
-void* drpc_to_d_struct(struct drpc_type* type);
+struct d_struct* drpc_to_d_struct(struct drpc_type* type);
 
 
 size_t drpc_buflen(struct drpc_type* type);

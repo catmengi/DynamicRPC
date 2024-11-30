@@ -1,4 +1,4 @@
-//привет ворлд!!!
+//привет ворлд!!! Ну привет
 #pragma once
 #include <sys/types.h>
 #include "drpc_types.h"
@@ -33,5 +33,7 @@ struct drpc_return{
 };
 
 struct drpc_massage{
+    enum drpc_protocol massage_type;
+    struct d_struct* massage;
 };
 
