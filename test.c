@@ -82,6 +82,10 @@ int main(){
     drpc_return_free(ret);
     free(ret);
 
+    msg.massage = NULL;
+    msg.massage_type = drpc_disconnect;
+    // drpc_send_massage(&msg,client_fd);
+
     getchar();
     drpc_server_free(serv);
 }

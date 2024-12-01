@@ -483,7 +483,11 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     struct drpc_massage send;
 
     while(client->drpc_server->should_stop == 0){
-        if(drpc_recv_massage(&recv,client->fd) != 0) return;
+        if(drpc_recv_massage(&recv,client->fd) != 0) {
+            puts("");
+            printf("%s: no massage provided,exiting\n",__PRETTY_FUNCTION__);
+            return;
+        }
 
         switch(recv.massage_type){
             case drpc_ping:
@@ -492,6 +496,8 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 drpc_send_massage(&send,client->fd);
                 break;
             case drpc_disconnect:
+                puts("");
+                printf("%s: client disconnected\n",__PRETTY_FUNCTION__);
                 return;
             case drpc_send_delayed:
                 puts("");
