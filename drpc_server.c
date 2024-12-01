@@ -492,7 +492,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_send_delayed:
                 struct d_struct* to_put = NULL;
                 char* fn_name = NULL;
-                if(d_struct_get(recv.massage,"payload",&to_put,d_struct) != 0 ||d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
+                if(d_struct_get(recv.massage,"payload",&to_put,d_struct) != 0 || d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
                     d_struct_free(to_put);
 
                     send.massage = NULL;
@@ -522,12 +522,12 @@ void* drpc_server_client_auth(void* drpc_connection_P){
    struct drpc_connection* client = drpc_connection_P;
    pthread_detach(pthread_self());
 
-   struct drpc_massage msg;
-   if(drpc_recv_massage(&msg,client->fd) != 0){
+   struct drpc_massage recv;
+   if(drpc_recv_massage(&recv,client->fd) != 0){
        printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
-   if(msg.massage_type != drpc_auth){
+   if(recv.massage_type != drpc_auth){
        printf("%s: request is not auth!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
