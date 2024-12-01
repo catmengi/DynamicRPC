@@ -557,14 +557,9 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
 
                 send.massage_type = drpc_return;
                 send.massage = drpc_return_to_massage(&ret);
-                drpc_return_free(&ret);
-
                 if(drpc_send_massage(&send,client->fd) != 0){
                     printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
                 }
-
-                drpc_return_free(&ret);
-
                 break;
         }
     }

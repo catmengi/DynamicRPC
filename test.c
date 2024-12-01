@@ -1,16 +1,19 @@
 #include "drpc_protocol.h"
 #include "drpc_server.h"
+#include "drpc_types.h"
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-void test(){
-    puts("I was called !!!!!!");
+#include <stdlib.h>
+
+void test(char* str1, int32_t b){
+    printf("%s, %d\n",str1,b);
 }
 int main(){
     struct drpc_server* serv = new_drpc_server(2077);
     drpc_server_start(serv);
-
-    drpc_server_register_fn(serv,"TEST",test,d_void,NULL,0,NULL,0);
+    enum drpc_types prototype[] = {d_str, d_int32};
+    drpc_server_register_fn(serv,"TEST",test,d_void,prototype,2,NULL,0);
 
     int client_fd = socket(AF_INET,SOCK_STREAM,0);
 
@@ -31,9 +34,12 @@ int main(){
 
     struct drpc_call call = {
         .fn_name = strdup("TEST"),
-        .arguments = NULL,
-        .arguments_len = 0,
+        .arguments = calloc(2,sizeof(*call.arguments)),
+        .arguments_len = 2,
     };
+
+    str_to_drpc(&call.arguments[0],"здесь точно нет утечек память Agaagakaneshn");
+    int32_to_drpc(&call.arguments[1],52521488);
 
     msg.massage_type = drpc_call;
     msg.massage = drpc_call_to_massage(&call);
