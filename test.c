@@ -6,14 +6,15 @@
 #include <string.h>
 #include <stdlib.h>
 
-void test(char* str1, int32_t b){
+char* test(char* str1, int32_t b){
     printf("%s, %d\n",str1,b);
+    return strdup("ugrdsyutesruiteio");
 }
 int main(){
     struct drpc_server* serv = new_drpc_server(2077);
     drpc_server_start(serv);
     enum drpc_types prototype[] = {d_str, d_int32};
-    drpc_server_register_fn(serv,"TEST",test,d_void,prototype,2,NULL,0);
+    drpc_server_register_fn(serv,"TEST",test,d_str,prototype,2,NULL,0);
 
     int client_fd = socket(AF_INET,SOCK_STREAM,0);
 
@@ -45,6 +46,21 @@ int main(){
     msg.massage = drpc_call_to_massage(&call);
 
     drpc_send_massage(&msg,client_fd);
+
+    drpc_recv_massage(&msg,client_fd);
+
+    assert(msg.massage_type == drpc_return);
+    struct drpc_return* ret = massage_to_drpc_return(msg.massage);
+
+
+    char* to_free = drpc_to_str(&ret->updated_arguments[0]);
+    printf("%s : output of upd[0]\n",to_free); free(to_free);
+
+    to_free = drpc_to_str(&ret->returned);
+    printf("%s : output of return\n",to_free); free(to_free);
+
+    drpc_return_free(ret);
+    free(ret);
 
     getchar();
     drpc_server_free(serv);
