@@ -2,9 +2,15 @@
 #include "drpc_server.h"
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
+void test(){
+    puts("I was called !!!!!!");
+}
 int main(){
     struct drpc_server* serv = new_drpc_server(2077);
     drpc_server_start(serv);
+
+    drpc_server_register_fn(serv,"TEST",test,d_void,NULL,0,NULL,0);
 
     int client_fd = socket(AF_INET,SOCK_STREAM,0);
 
@@ -20,6 +26,17 @@ int main(){
         .massage = NULL,
         .massage_type = drpc_auth,
     };
+
+    drpc_send_massage(&msg,client_fd);
+
+    struct drpc_call call = {
+        .fn_name = strdup("TEST"),
+        .arguments = NULL,
+        .arguments_len = 0,
+    };
+
+    msg.massage_type = drpc_call;
+    msg.massage = drpc_call_to_massage(&call);
 
     drpc_send_massage(&msg,client_fd);
 

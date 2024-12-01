@@ -24,7 +24,6 @@ struct d_struct* drpc_call_to_massage(struct drpc_call* call){
 
 
     free(call->fn_name);
-    free(call);
 
     return massage;
 }
@@ -34,16 +33,25 @@ struct drpc_call* massage_to_drpc_call(struct d_struct* massage){
 
     size_t unused = 0;
     char* packed_arguments = NULL;
-    d_struct_get(massage,"packed_arguments",&packed_arguments,d_sizedbuf,&unused);
+    if(d_struct_get(massage,"packed_arguments",&packed_arguments,d_sizedbuf,&unused) != 0){
+        free(call);
+        d_struct_free(massage);
+        return NULL;
+    }
 
     size_t unpacked_len = 0;
     call->arguments = buf_drpc_types(packed_arguments,&unpacked_len);
     call->arguments_len = (uint8_t)unpacked_len;
 
-    d_struct_get(massage,"fn_name",&call->fn_name,d_str);
+    if(d_struct_get(massage,"fn_name",&call->fn_name,d_str) != 0){
+        drpc_types_free(call->arguments,call->arguments_len);
+        free(call);
+        d_struct_free(massage);
+        return NULL;
+    }
+    d_struct_unlink(massage,"fn_name",d_str);
 
     d_struct_free(massage);
-
     return call;
 }
 
@@ -74,19 +82,39 @@ struct drpc_return* massage_to_drpc_return(struct d_struct* massage){
 
     size_t unused = 0;
     char* updated_arguments_buf = NULL;
-    d_struct_get(massage,"updated_arguments",&updated_arguments_buf,d_sizedbuf,&unused);
+    if(d_struct_get(massage,"updated_arguments",&updated_arguments_buf,d_sizedbuf,&unused) != 0){
+        free(drpc_return);
+        d_struct_free(massage);
+        return NULL;
+    }
 
     size_t updated_arguments_len = 0;
     drpc_return->updated_arguments = buf_drpc_types(updated_arguments_buf,&updated_arguments_len);
     drpc_return->updated_arguments_len = (uint8_t)updated_arguments_len;
 
     char* returned_buf = NULL;
-    d_struct_get(massage,"return",returned_buf,d_sizedbuf,&unused);
+    if(d_struct_get(massage,"return",&returned_buf,d_sizedbuf,&unused) != 0){
+        drpc_types_free(drpc_return->updated_arguments,drpc_return->updated_arguments_len);
+        free(drpc_return);
+        d_struct_free(massage);
+        return NULL;
+    }
 
     buf_drpc(&drpc_return->returned,returned_buf);
-
     d_struct_free(massage);
     return drpc_return;
+}
+
+void drpc_call_free(struct drpc_call* call){
+    free(call->fn_name);
+
+    // if(call->arguments_len == 0) free(call->arguments);
+    drpc_types_free(call->arguments,call->arguments_len);
+
+}
+void drpc_return_free(struct drpc_return* ret){
+    drpc_type_free(&ret->returned);
+    drpc_types_free(ret->updated_arguments,ret->updated_arguments_len);
 }
 
 int drpc_send_massage(struct drpc_massage* msg, int fd){

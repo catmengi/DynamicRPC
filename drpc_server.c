@@ -60,6 +60,8 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->prototype);
 
     drpc_que_free(fn_info->delayed_massage_que);
+
+    free(fn_info);
 }
 
 void drpc_server_free(struct drpc_server* server){
@@ -80,7 +82,7 @@ void drpc_server_free(struct drpc_server* server){
 
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
-                             void* pstorage, size_t prototype_len, int perm){
+                             size_t prototype_len, void* pstorage, int perm){
     assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
         || return_type != d_clientinfo || return_type != d_interfunc
         || return_type != d_delayed_massage_queue);
@@ -92,10 +94,11 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
     fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
     fn_info->personal = pstorage;
-    fn_info->prototype_len = prototype_len;
-    fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
-    memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
-
+    if(prototype != NULL){
+        fn_info->prototype_len = prototype_len;
+        fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
+        memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
+    }
     assert(hashtable_add(server->functions,fn_name, strlen(fn_name) + 1,fn_info,0) == 0);
 
 }
@@ -365,6 +368,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         }
         free(to_update);
     }
+    // if(arguments_len == 0) free(arguments);
     drpc_types_free(arguments,arguments_len);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
 
@@ -513,6 +517,54 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                     fn_info->delayed_massage_que = drpc_que_create();
                 }
                 drpc_que_push(fn_info->delayed_massage_que, to_put);
+                break;
+            case drpc_call:
+                puts("");
+                struct drpc_call* call = massage_to_drpc_call(recv.massage);
+                if(call == NULL){
+                    printf("%s: malformed call massage!\n",__PRETTY_FUNCTION__);
+                    send.massage = NULL;
+                    send.massage_type = drpc_bad;
+                    drpc_send_massage(&send,client->fd);
+                    d_struct_free(recv.massage);
+                    break;
+                }
+                printf("%s: requested to call %s\n",__PRETTY_FUNCTION__,call->fn_name);
+
+                struct drpc_function* call_fn = NULL;
+                if(hashtable_get(client->drpc_server->functions,call->fn_name,strlen(call->fn_name) + 1,(void**)&call_fn) != 0){
+                    printf("%s: no such function!\n",__PRETTY_FUNCTION__);
+                    drpc_call_free(call);
+                    free(call);
+                    send.massage = NULL;
+                    send.massage_type = drpc_nofn;
+                    drpc_send_massage(&send,client->fd);
+                    break;
+                }
+
+                struct drpc_return ret;
+                if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
+                    printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
+                    drpc_call_free(call);
+                    free(call);
+                    send.massage = NULL;
+                    send.massage_type = drpc_bad;
+                    drpc_send_massage(&send,client->fd);
+                }
+                printf("%s: call of %s succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
+                free(call->fn_name);
+                free(call);
+
+                send.massage_type = drpc_return;
+                send.massage = drpc_return_to_massage(&ret);
+                drpc_return_free(&ret);
+
+                if(drpc_send_massage(&send,client->fd) != 0){
+                    printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
+                }
+
+                drpc_return_free(&ret);
+
                 break;
         }
     }

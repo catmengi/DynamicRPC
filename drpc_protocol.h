@@ -48,3 +48,6 @@ struct drpc_return* massage_to_drpc_return(struct d_struct* massage);
 
 int drpc_send_massage(struct drpc_massage* msg, int fd);
 int drpc_recv_massage(struct drpc_massage* msg, int fd);
+
+void drpc_call_free(struct drpc_call* call);
+void drpc_return_free(struct drpc_return* ret);
