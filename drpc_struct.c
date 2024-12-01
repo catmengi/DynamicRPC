@@ -380,6 +380,7 @@ void d_struct_free_internal(struct d_struct* dstruct){
     hashtable_free(dstruct->hashtable);
 }
 void d_struct_free(struct d_struct* dstruct){
+    if(dstruct == NULL) return;
     d_struct_free_internal(dstruct);
     free(dstruct);
 }

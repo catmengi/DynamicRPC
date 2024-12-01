@@ -3,15 +3,25 @@
 #include "drpc_protocol.h"
 #include "drpc_server.h"
 #include "drpc_que.h"
+#include "hashtable.c/hashtable.h"
 
 
 #include <assert.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <string.h>
 #include <ffi.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <stdio.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+
+
+#define MAX_LISTEN 512
+
+void* drpc_server_dispatcher(void* drpc_server_P);
 
 struct drpc_server* new_drpc_server(uint16_t port){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
@@ -24,13 +34,57 @@ struct drpc_server* new_drpc_server(uint16_t port){
     return drpc_serv;
 }
 
+void drpc_server_start(struct drpc_server* server){
+    struct sockaddr_in addr = {
+        .sin_addr.s_addr = INADDR_ANY,
+        .sin_port = htons(server->port),
+        .sin_family = AF_INET,
+    };
+    server->server_fd = socket(AF_INET,SOCK_STREAM,0);
+    assert(server->server_fd > 0);
+
+    int opt = 1;
+    assert(setsockopt(server->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,sizeof(opt)) == 0);
+    assert(bind(server->server_fd,(struct sockaddr*)&addr,sizeof(addr)) == 0);
+    assert(listen(server->server_fd,MAX_LISTEN) == 0);
+
+    assert(pthread_create(&server->dispatcher,NULL,drpc_server_dispatcher,server) == 0);
+}
+
+void drpc_fn_info_free_CB(void* fn_info_P){
+    struct drpc_function* fn_info = fn_info_P;
+
+    free(fn_info->cif);
+    free(fn_info->fn_name);
+    free(fn_info->ffi_prototype);
+    free(fn_info->prototype);
+
+    drpc_que_free(fn_info->delayed_massage_que);
+}
+
+void drpc_server_free(struct drpc_server* server){
+    server->should_stop = 1;
+    while(server->client_ammount != 0) sleep(1);
+
+    shutdown(server->server_fd, SHUT_RD);
+    close(server->server_fd);
+    pthread_join(server->dispatcher,NULL);
+
+    hashtable_iterate(server->functions,drpc_fn_info_free_CB);
+    hashtable_free(server->functions);
+
+    hashtable_free(server->users);
+
+    free(server);
+}
+
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              void* pstorage, size_t prototype_len, int perm){
     assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
         || return_type != d_clientinfo || return_type != d_interfunc
         || return_type != d_delayed_massage_queue);
-    struct drpc_function* fn_info = malloc(sizeof(*fn_info)); assert(fn_info);
+    struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
     fn_info->delayed_massage_que = NULL;
     fn_info->fn_name = strdup(fn_name);
@@ -418,4 +472,106 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_que_free(to_repack);
     drpc_que_free(to_fill);
     return 0;
+}
+
+void drpc_handle_client(struct drpc_connection* client, int client_perm){
+    struct drpc_massage recv;
+    struct drpc_massage send;
+
+    while(client->drpc_server->should_stop == 0){
+        if(drpc_recv_massage(&recv,client->fd) != 0) return;
+
+        switch(recv.massage_type){
+            case drpc_ping:
+                send.massage = NULL;
+                send.massage_type = drpc_ping;
+                drpc_send_massage(&send,client->fd);
+                break;
+            case drpc_disconnect:
+                return;
+            case drpc_send_delayed:
+                struct d_struct* to_put = NULL;
+                char* fn_name = NULL;
+                if(d_struct_get(recv.massage,"payload",&to_put,d_struct) != 0 ||d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
+                    d_struct_free(to_put);
+
+                    send.massage = NULL;
+                    send.massage_type = drpc_bad;
+                    drpc_send_massage(&send,client->fd);
+                    break;
+                }
+                struct drpc_function* fn_info = NULL;
+                if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn_info) != 0){
+                    d_struct_free(to_put);
+
+                    send.massage = NULL;
+                    send.massage_type = drpc_bad;
+                    drpc_send_massage(&send,client->fd);
+                    break;
+                }
+                if(fn_info->delayed_massage_que == NULL){
+                    fn_info->delayed_massage_que = drpc_que_create();
+                }
+                drpc_que_push(fn_info->delayed_massage_que, to_put);
+                break;
+        }
+    }
+}
+
+void* drpc_server_client_auth(void* drpc_connection_P){
+   struct drpc_connection* client = drpc_connection_P;
+   pthread_detach(pthread_self());
+
+   struct drpc_massage msg;
+   if(drpc_recv_massage(&msg,client->fd) != 0){
+       printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
+       goto exit;
+   }
+   if(msg.massage_type != drpc_auth){
+       printf("%s: request is not auth!\n",__PRETTY_FUNCTION__);
+       goto exit;
+   }else{
+       client->drpc_server->client_ammount++;
+       printf("%s: client authenticated succesfully!\n",__PRETTY_FUNCTION__);
+       //TODO: authentication code!!!!!
+   }
+   drpc_handle_client(client,-1);
+   client->drpc_server->client_ammount--;
+exit:
+   free(client);
+   return NULL;
+}
+
+
+
+void* drpc_server_dispatcher(void* drpc_server_P){
+    struct drpc_server* server = drpc_server_P;
+    printf("%s: started\n",__PRETTY_FUNCTION__);
+    while(server->should_stop == 0){
+        socklen_t client_addr_len = sizeof(struct sockaddr_in);
+        struct sockaddr_in client_addr;
+        int client_fd = accept(server->server_fd,(struct sockaddr*)&client_addr,&client_addr_len);
+        if(client_fd > 0){
+
+            printf("%s: picked up client: %s\n",__PRETTY_FUNCTION__,inet_ntoa(client_addr.sin_addr));
+
+            struct drpc_connection* client = calloc(1,sizeof(*client)); assert(client);
+            client->client_addr = client_addr;
+            client->drpc_server = server;
+            client->fd = client_fd;
+
+            struct timeval time;
+            time.tv_sec = 5;
+            time.tv_usec = 0;
+            assert(setsockopt(client_fd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
+            assert(setsockopt(client_fd,SOL_SOCKET,SO_SNDTIMEO,&time,sizeof(time)) == 0);
+
+            pthread_t client_auth;
+            assert(pthread_create(&client_auth,NULL,drpc_server_client_auth,client) == 0);
+        }else{
+            break;
+        }
+    }
+    pthread_detach(pthread_self());
+    return NULL;
 }

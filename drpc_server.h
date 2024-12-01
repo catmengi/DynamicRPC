@@ -2,6 +2,9 @@
 
 #include <sys/types.h>
 #include <pthread.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdatomic.h>
 
 #include "drpc_types.h"
 #include "drpc_que.h"
@@ -16,9 +19,16 @@ struct drpc_server{
     uint16_t port;
 
     pthread_t dispatcher;
+
+    int server_fd;
+
+    int should_stop;
+
+    atomic_ullong client_ammount;
 };
 
 struct drpc_function{
+
     char* fn_name;
 
     size_t prototype_len;
@@ -36,8 +46,10 @@ struct drpc_function{
 };
 
 struct drpc_connection{
+    int fd;
+    struct sockaddr_in client_addr;
+
     struct drpc_server* drpc_server;
-    //......
 };
 
 struct drpc_type_update{
@@ -45,3 +57,14 @@ struct drpc_type_update{
     size_t len; //if availible
     void* ptr;
 };
+
+struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
+
+void drpc_server_start(struct drpc_server* server); //starts drpc server
+
+void drpc_server_free(struct drpc_server* server);
+
+void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
+                             enum drpc_types return_type, enum drpc_types* prototype,
+                             void* pstorage, size_t prototype_len, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
+                                                                                    //call this function
