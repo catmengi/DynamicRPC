@@ -494,9 +494,12 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_disconnect:
                 return;
             case drpc_send_delayed:
+                puts("");
+                printf("%s: delayed massage sent!\n",__PRETTY_FUNCTION__);
                 struct d_struct* to_put = NULL;
                 char* fn_name = NULL;
                 if(d_struct_get(recv.massage,"payload",&to_put,d_struct) != 0 || d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
+                    printf("%s: malformed drpc_send_delayed\n",__PRETTY_FUNCTION__);
                     d_struct_free(to_put);
 
                     send.massage = NULL;
@@ -506,17 +509,22 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 }
                 struct drpc_function* fn_info = NULL;
                 if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn_info) != 0){
-                    d_struct_free(to_put);
-
+                    printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
                     send.massage = NULL;
                     send.massage_type = drpc_bad;
                     drpc_send_massage(&send,client->fd);
+                    d_struct_free(recv.massage);
                     break;
                 }
                 if(fn_info->delayed_massage_que == NULL){
                     fn_info->delayed_massage_que = drpc_que_create();
                 }
+                d_struct_unlink(recv.massage,"payload",d_struct);
+                d_struct_free(recv.massage);
                 drpc_que_push(fn_info->delayed_massage_que, to_put);
+                send.massage = NULL;
+                send.massage_type = drpc_ok;
+                drpc_send_massage(&send,client->fd);
                 break;
             case drpc_call:
                 puts("");
@@ -561,6 +569,10 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                     printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
                 }
                 break;
+            default:
+                printf("%s: client provided bad request\n",__PRETTY_FUNCTION__);
+                d_struct_free(recv.massage);
+                return;
         }
     }
 }
