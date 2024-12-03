@@ -31,7 +31,6 @@ struct d_struct* drpc_call_to_massage(struct drpc_call* call){
 
     d_struct_set(massage,"fn_name", call->fn_name, d_str);
 
-    drpc_call_free(call);
     return massage;
 }
 
@@ -42,7 +41,6 @@ struct drpc_call* massage_to_drpc_call(struct d_struct* massage){
     char* packed_arguments = NULL;
     if(d_struct_get(massage,"packed_arguments",&packed_arguments,d_sizedbuf,&unused) != 0){
         free(call);
-        d_struct_free(massage);
         return NULL;
     }
 
@@ -53,12 +51,9 @@ struct drpc_call* massage_to_drpc_call(struct d_struct* massage){
     if(d_struct_get(massage,"fn_name",&call->fn_name,d_str) != 0){
         drpc_types_free(call->arguments,call->arguments_len);
         free(call);
-        d_struct_free(massage);
         return NULL;
     }
     d_struct_unlink(massage,"fn_name",d_str);
-
-    d_struct_free(massage);
     return call;
 }
 
@@ -79,7 +74,6 @@ struct d_struct* drpc_return_to_massage(struct drpc_return* drpc_return){
     d_struct_set(massage,"return",returned_buf,d_sizedbuf,returned_buflen);
     free(returned_buf);
 
-    drpc_return_free(drpc_return);
 
     return massage;
 }
@@ -91,7 +85,6 @@ struct drpc_return* massage_to_drpc_return(struct d_struct* massage){
     char* updated_arguments_buf = NULL;
     if(d_struct_get(massage,"updated_arguments",&updated_arguments_buf,d_sizedbuf,&unused) != 0){
         free(drpc_return);
-        d_struct_free(massage);
         return NULL;
     }
 
@@ -103,12 +96,10 @@ struct drpc_return* massage_to_drpc_return(struct d_struct* massage){
     if(d_struct_get(massage,"return",&returned_buf,d_sizedbuf,&unused) != 0){
         drpc_types_free(drpc_return->updated_arguments,drpc_return->updated_arguments_len);
         free(drpc_return);
-        d_struct_free(massage);
         return NULL;
     }
 
     buf_drpc(&drpc_return->returned,returned_buf);
-    d_struct_free(massage);
     return drpc_return;
 }
 
@@ -117,7 +108,6 @@ int drpc_send_massage(struct drpc_massage* msg, int fd){
     char* buf = NULL;
     if(msg->massage != NULL){
         buf = d_struct_buf(msg->massage,&buflen);
-        d_struct_free(msg->massage);
     }
 
     uint64_t buflen_cpy = buflen;

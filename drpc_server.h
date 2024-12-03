@@ -50,12 +50,24 @@ struct drpc_connection{
     struct sockaddr_in client_addr;
 
     struct drpc_server* drpc_server;
+
+    char* username;
 };
 
 struct drpc_type_update{
     enum drpc_types type;
     size_t len; //if availible
     void* ptr;
+};
+
+struct drpc_user{
+    int perm;
+    uint64_t hash;
+};
+
+struct drpc_delayed_massage{
+    char* client;
+    struct d_struct* massage;
 };
 
 struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
@@ -68,3 +80,4 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              size_t prototype_len, void* pstorage, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
                                                                                     //call this function
+void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);

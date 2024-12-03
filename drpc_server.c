@@ -493,26 +493,20 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_ping:
                 send.massage = NULL;
                 send.massage_type = drpc_ping;
-                drpc_send_massage(&send,client->fd);
+                if(drpc_send_massage(&send,client->fd) != 0) return;
                 break;
             case drpc_disconnect:
                 puts("");
                 printf("%s: client disconnected\n",__PRETTY_FUNCTION__);
                 return;
             case drpc_send_delayed:
+                struct d_struct* massage = NULL;
+                char* fn_name = NULL;
                 puts("");
                 printf("%s: delayed massage sent!\n",__PRETTY_FUNCTION__);
-                struct d_struct* to_put = NULL;
-                char* fn_name = NULL;
-                if(d_struct_get(recv.massage,"payload",&to_put,d_struct) != 0 || d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
-                    printf("%s: malformed drpc_send_delayed\n",__PRETTY_FUNCTION__);
-                    d_struct_free(to_put);
 
-                    send.massage = NULL;
-                    send.massage_type = drpc_bad;
-                    drpc_send_massage(&send,client->fd);
-                    break;
-                }
+                assert(d_struct_get(recv.massage,"payload",&massage,d_struct) == 0 && d_struct_get(recv.massage,"fn_name",&fn_name,d_str) == 0);
+
                 struct drpc_function* fn_info = NULL;
                 if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn_info) != 0){
                     printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
@@ -525,9 +519,17 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 if(fn_info->delayed_massage_que == NULL){
                     fn_info->delayed_massage_que = drpc_que_create();
                 }
+
                 d_struct_unlink(recv.massage,"payload",d_struct);
                 d_struct_free(recv.massage);
-                drpc_que_push(fn_info->delayed_massage_que, to_put);
+
+                struct drpc_delayed_massage* to_push = malloc(sizeof(*to_push)); assert(to_push);
+
+                to_push->client = strdup(client->username);
+                to_push->massage = massage;
+
+                drpc_que_push(fn_info->delayed_massage_que, to_push);
+
                 send.massage = NULL;
                 send.massage_type = drpc_ok;
                 drpc_send_massage(&send,client->fd);
@@ -535,14 +537,9 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_call:
                 puts("");
                 struct drpc_call* call = massage_to_drpc_call(recv.massage);
-                if(call == NULL){
-                    printf("%s: malformed call massage!\n",__PRETTY_FUNCTION__);
-                    send.massage = NULL;
-                    send.massage_type = drpc_bad;
-                    drpc_send_massage(&send,client->fd);
-                    d_struct_free(recv.massage);
-                    break;
-                }
+                assert(call != NULL);
+                d_struct_free(recv.massage);
+
                 printf("%s: requested to call %s\n",__PRETTY_FUNCTION__,call->fn_name);
 
                 struct drpc_function* call_fn = NULL;
@@ -557,24 +554,38 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 }
 
                 struct drpc_return ret;
-                if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
-                    printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
+                if(client_perm > fn_info->minimal_permission_level || client_perm == -1){
+                    if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
+                        printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
+                        drpc_call_free(call);
+                        free(call);
+                        send.massage = NULL;
+                        send.massage_type = drpc_bad;
+                        drpc_send_massage(&send,client->fd);
+                        break;
+                    }
+                    printf("%s: call of %s succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
+                    free(call->fn_name);
+                    free(call);
+
+
+                    send.massage_type = drpc_return;
+                    send.massage = drpc_return_to_massage(&ret);
+                    drpc_return_free(&ret);
+                    if(drpc_send_massage(&send,client->fd) != 0){
+                        printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
+                    }
+                    d_struct_free(send.massage);
+                }else{
+                    printf("%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,fn_info->fn_name, client_perm,fn_info->minimal_permission_level);
                     drpc_call_free(call);
                     free(call);
                     send.massage = NULL;
-                    send.massage_type = drpc_bad;
+                    send.massage_type = drpc_eperm;
                     drpc_send_massage(&send,client->fd);
                 }
-                printf("%s: call of %s succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
-                free(call->fn_name);
-                free(call);
-
-                send.massage_type = drpc_return;
-                send.massage = drpc_return_to_massage(&ret);
-                if(drpc_send_massage(&send,client->fd) != 0){
-                    printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
-                }
                 break;
+
             default:
                 printf("%s: client provided bad request\n",__PRETTY_FUNCTION__);
                 d_struct_free(recv.massage);
@@ -588,21 +599,72 @@ void* drpc_server_client_auth(void* drpc_connection_P){
    pthread_detach(pthread_self());
 
    struct drpc_massage recv;
+   struct drpc_massage send;
+   int perm = 0;
+   puts("");
    if(drpc_recv_massage(&recv,client->fd) != 0){
        printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
-   if(recv.massage_type != drpc_auth){
-       printf("%s: request is not auth!\n",__PRETTY_FUNCTION__);
+   if(recv.massage_type != drpc_auth || recv.massage == NULL){
+       send.massage_type = drpc_bad;
+       send.massage = NULL;
+       drpc_send_massage(&send,client->fd);
+       printf("%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
-       client->drpc_server->client_ammount++;
-       printf("%s: client authenticated succesfully!\n",__PRETTY_FUNCTION__);
-       //TODO: authentication code!!!!!
+       char* username;
+       uint64_t hash;
+       struct drpc_user* user;
+       if(d_struct_get(recv.massage,"username",&username,d_str) != 0){
+           printf("%s: auth malformed\n",__PRETTY_FUNCTION__);
+           d_struct_free(recv.massage);
+           send.massage_type = drpc_bad;
+           send.massage = NULL;
+           drpc_send_massage(&send,client->fd);
+           goto exit;
+       }
+       if(d_struct_get(recv.massage,"passwd_hash",&hash,d_uint64) != 0){
+           printf("%s: auth malformed\n",__PRETTY_FUNCTION__);
+           d_struct_free(recv.massage);
+           send.massage_type = drpc_bad;
+           send.massage = NULL;
+           drpc_send_massage(&send,client->fd);
+           goto exit;
+       }
+       d_struct_unlink(recv.massage,"username",d_str);
+       d_struct_free(recv.massage);
+       if(hashtable_get(client->drpc_server->users,username,strlen(username) + 1,(void**)&user) != 0){
+           printf("%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
+           send.massage_type = drpc_bad;
+           send.massage = NULL;
+           free(username);
+           drpc_send_massage(&send,client->fd);
+           goto exit;
+       }
+       if(user->hash != hash){
+           printf("%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
+           send.massage_type = drpc_bad;
+           send.massage = NULL;
+           free(username);
+           drpc_send_massage(&send,client->fd);
+           goto exit;
+       }
+       perm = user->perm;
+       client->username = username;
+
+       send.massage = NULL;
+       send.massage_type = drpc_ok;
+       drpc_send_massage(&send,client->fd);
+       printf("%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
-   drpc_handle_client(client,-1);
+   client->drpc_server->client_ammount++;
+   drpc_handle_client(client,perm);
    client->drpc_server->client_ammount--;
 exit:
+   shutdown(client->fd,SHUT_RD);
+   close(client->fd);
+   free(client->username);
    free(client);
    return NULL;
 }
@@ -639,4 +701,12 @@ void* drpc_server_dispatcher(void* drpc_server_P){
     }
     pthread_detach(pthread_self());
     return NULL;
+}
+void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm){
+    struct drpc_user* user = malloc(sizeof(*user)); assert(user);
+
+    user->hash = _hash_fnc(username,strlen(passwd));
+    user->perm = perm;
+
+    hashtable_add(serv->users,username,strlen(username) + 1, user,0);
 }

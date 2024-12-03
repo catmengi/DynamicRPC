@@ -300,8 +300,10 @@ void d_struct_pack_CB(char* key, void* element_p, void* out_p, size_t index){
     packed[index].type = type;
     packed[index].len = strlen(key) + 1 + drpc_type_buflen(packed_type);
 
-    drpc_type_free(packed_type);
-    free(packed_type);
+    if(element->is_packed == 0) {
+        drpc_type_free(packed_type);
+        free(packed_type);
+    }
 }
 
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){

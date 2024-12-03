@@ -10,6 +10,7 @@ enum drpc_protocol{
     drpc_nofn,           //function doesnt exist
     drpc_bad,            //arguments missmatch or other errors
     drpc_ok,             //auth ok
+    drpc_eperm,
 
     drpc_auth,
 
