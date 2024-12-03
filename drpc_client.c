@@ -95,6 +95,7 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
 }
 
 void drpc_client_disconnect(struct drpc_client* client){
+    if(client == NULL) return;
     client->client_stop = 1;
     pthread_mutex_lock(&client->connection_mutex);
 
