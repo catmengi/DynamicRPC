@@ -1,51 +1,25 @@
-#include "drpc_types.h"
-#include "drpc_struct.h"
 #include "drpc_queue.h"
+#include "drpc_que.h"
+#include "drpc_struct.h"
+#include "drpc_types.h"
 
 #include <assert.h>
-#include <stdarg.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
-struct d_struct* new_d_struct(){
-    struct d_struct* d_struct = malloc(sizeof(*d_struct)); assert(d_struct);
+struct d_queue* new_d_queue(){
+    struct d_queue* dque = malloc(sizeof(*dque)); assert(dque);
 
-    hashtable_create(&d_struct->hashtable,16,2);
-    d_struct->current_len = 0;
+    dque->que = drpc_que_create();
 
-    return d_struct;
+    return dque;
 }
 
-void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum drpc_types type,...){
-    assert(dstruct); assert(key); assert(native_type); assert(type > 0);
-    struct d_struct_element* element = NULL;
+void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
+    assert(dqueue); assert(native_type);
 
-    if(hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element) == ENOTFOUND){
-        element = malloc(sizeof(*element)); assert(element);
-        hashtable_add(dstruct->hashtable,key,strlen(key) + 1,element,0);
-    }else{
-        if(element->is_packed == 1){
-            drpc_type_free(element->data);
-            free(element->data);
-        }else{
-            switch(element->type){
-                case d_sizedbuf:
-                    free(element->data);
-                    break;
-                case d_str:
-                    free(element->data);
-                    break;
-                case d_array:
-                    //d_array_free(element->data);
-                    break;
-                case d_struct:
-                    d_struct_free(element->data);
-                    break;
-            }
-        }
-        dstruct->current_len--;
-    }
+    struct d_struct_element* element = calloc(1,sizeof(*element)); assert(element);
 
     switch(type){
         case d_int8:
@@ -145,15 +119,19 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
             break;
         default: break;
     }
-    dstruct->current_len++;
+    drpc_que_push(dqueue->que,element);
 }
 
-int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drpc_types type,...){
-    assert(dstruct); assert(key); assert(native_type); assert(type > 0);
-    struct d_struct_element* element = NULL;
-    int ret = hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element);
-    if(ret != 0) return ret;
-    if(element->type != type) return 1;
+int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
+    assert(dqueue); assert(native_type);
+
+    if(dqueue->que->cur == NULL) return 1;
+
+    struct d_struct_element* check = dqueue->que->cur->ptr;
+    if(check->type != type) return 1;
+
+    struct d_struct_element* element = drpc_que_pop(dqueue->que);
+    assert(element != NULL);
 
     switch(type){
         default:
@@ -167,180 +145,159 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
             break;
         case d_int8:
             *(int8_t*)native_type = drpc_to_int8(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_uint8:
             *(uint8_t*)native_type = drpc_to_uint8(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_int16:
             *(int16_t*)native_type = drpc_to_int16(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_uint16:
             *(uint16_t*)native_type = drpc_to_uint16(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_int32:
             *(int32_t*)native_type = drpc_to_int32(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_uint32:
             *(uint32_t*)native_type = drpc_to_uint32(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_int64:
             *(int64_t*)native_type = drpc_to_int64(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_uint64:
             *(uint64_t*)native_type = drpc_to_uint64(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_float:
             *(float*)native_type = drpc_to_float(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
             break;
         case d_double:
             *(double*)native_type = drpc_to_double(element->data);
-            break;
-    }
-
-    return 0;
-}
-
-int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type){
-    assert(dstruct); assert(key); assert(type > 0);
-    struct d_struct_element* element = NULL;
-    int ret = hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element);
-    if(ret != 0) return ret;
-    if(element->type != type || element->is_packed == 1) return 1;
-    element->data = NULL;
-
-    dstruct->current_len--;
-    return 0;
-}
-
-int d_struct_remove(struct d_struct* dstruct, char* key){
-    struct d_struct_element* element = NULL;
-    int ret = hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element);
-    if(ret != 0) return ret;
-
-    dstruct->current_len--;
-
-    if(element->is_packed == 1){
-        drpc_type_free(element->data);
-        free(element->data);
-        hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
-        free(element);
-        return 0;
-    }
-    switch(element->type){
-        case d_sizedbuf:
+            drpc_type_free(element->data);
             free(element->data);
-            break;
-        case d_str:
-            free(element->data);
-            break;
-        case d_struct:
-            d_struct_free(element->data);
-            break;
-        case d_queue:
-            d_queue_free(element->data);
-            break;
-        case d_array:
-            //d_array_free(element->data);
             break;
     }
     free(element);
     return 0;
 }
+void d_queue_free_internals(struct d_queue* dqueue){
+    size_t que_len = drpc_que_get_len(dqueue->que);
 
-void d_struct_free_CB(void* element_ptr){
-    struct d_struct_element* element = element_ptr;
-    if(element->is_packed == 1){
-        drpc_type_free(element->data);
-        free(element->data);
-        free(element);
-        return;
-    }
-    switch(element->type){
-        case d_sizedbuf:
+    for(size_t i = 0; i < que_len; i++){
+        struct d_struct_element* element = drpc_que_pop(dqueue->que);
+        if(element->is_packed == 1){
+            drpc_type_free(element->data);
             free(element->data);
-            break;
-        case d_str:
-            free(element->data);
-            break;
-        case d_struct:
-            d_struct_free(element->data);
-            break;
-        case d_queue:
-            d_queue_free(element->data);
-            break;
-        case d_array:
-            //d_array_free(element->data);
-            break;
-    }
-    free(element);
-}
-
-void d_struct_pack_CB(char* key, void* element_p, void* out_p, size_t index){
-    struct d_struct_element* element = element_p;
-    struct drpc_type* packed = out_p;
-
-    enum drpc_types type = element->type;
-    struct drpc_type* packed_type = NULL;
-    if(element->is_packed == 1){
-        packed_type = element->data;
-    }else{
-        packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
-        switch(type){
+            free(element);
+            return;
+        }
+        switch(element->type){
             case d_sizedbuf:
-                sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
-                break;
-            case d_struct:
-                d_struct_to_drpc(packed_type,element->data);
-                break;
-            case d_queue:
-                d_queue_to_drpc(packed_type,element->data);
-                break;
-            case d_array:
-                d_array_to_drpc(packed_type,element->data);
+                free(element->data);
                 break;
             case d_str:
-                str_to_drpc(packed_type,element->data);
+                free(element->data);
                 break;
-            default: break;
+            case d_struct:
+                d_struct_free(element->data);
+                break;
+            case d_queue:
+                d_queue_free(element->data);
+                break;
+            case d_array:
+                //d_array_free(element->data);
+                break;
         }
+        free(element);
     }
-    char* original_buf = malloc(strlen(key) + 1 + drpc_type_buflen(packed_type)); assert(original_buf);
-    char* buf = original_buf;
 
-    memcpy(buf,key,strlen(key) + 1); buf += strlen(key) + 1;
-
-    drpc_buf(packed_type,buf);
-
-    packed[index].packed_data = original_buf;
-    packed[index].type = type;
-    packed[index].len = strlen(key) + 1 + drpc_type_buflen(packed_type);
-
-    if(element->is_packed == 0) {
-        drpc_type_free(packed_type);
-        free(packed_type);
-    }
+    drpc_que_free(dqueue->que);
 }
+void d_queue_free(struct d_queue* dqueue){
+    d_queue_free_internals(dqueue);
+    free(dqueue);
+}
+char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
+    size_t packed_types_len = drpc_que_get_len(dqueue->que);
+    struct drpc_type* packed = calloc(packed_types_len,sizeof(*packed)); assert(packed);
 
-char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
-    struct drpc_type* packed_types = calloc(dstruct->current_len, sizeof(*packed_types));
+    for(size_t index = 0; index < packed_types_len; index++){
+        struct d_struct_element* element = drpc_que_pop(dqueue->que);
 
-    hashtable_iterate_wkey(dstruct->hashtable,packed_types,d_struct_pack_CB);
+        enum drpc_types type = element->type;
+        struct drpc_type* packed_type = NULL;
+        if(element->is_packed == 1){
+            packed_type = element->data;
+        }else{
+            packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
+            switch(type){
+                case d_sizedbuf:
+                    sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
+                    break;
+                case d_struct:
+                    d_struct_to_drpc(packed_type,element->data);
+                    break;
+                case d_queue:
+                    d_queue_to_drpc(packed_type,element->data);
+                    break;
+                case d_array:
+                    d_array_to_drpc(packed_type,element->data);
+                    break;
+                case d_str:
+                    str_to_drpc(packed_type,element->data);
+                    break;
+                default: break;
+            }
+        }
+        char* buf = malloc(drpc_type_buflen(packed_type)); assert(buf);
 
-    *buflen = drpc_types_buflen(packed_types,dstruct->current_len);
-    char* buf = malloc(*buflen);
-    drpc_types_buf(packed_types,dstruct->current_len,buf);
-    drpc_types_free(packed_types,dstruct->current_len);
+        drpc_buf(packed_type,buf);
+
+        packed[index].packed_data = buf;
+        packed[index].type = type;
+        packed[index].len = drpc_type_buflen(packed_type);
+
+        if(element->is_packed == 0) {
+            drpc_type_free(packed_type);
+            free(packed_type);
+        }
+        drpc_que_push(dqueue->que,element);
+    }
+
+
+    *buflen = drpc_types_buflen(packed,packed_types_len);
+    char* buf = malloc(*buflen); assert(buf);
+
+    drpc_types_buf(packed,packed_types_len,buf);
+
+    drpc_types_free(packed,packed_types_len);
 
     return buf;
 }
-void buf_d_struct(char* buf, struct d_struct* dstruct){
+void buf_d_queue(char* buf, struct d_queue* dqueue){
     size_t packed_types_len = 0;
     struct drpc_type* packed_types = buf_drpc_types(buf,&packed_types_len);
 
     for(size_t i = 0; i < packed_types_len; i++){
-        char* key = packed_types[i].packed_data;
-        void* type_packed = packed_types[i].packed_data + strlen(key) + 1;
-        struct drpc_type* type = NULL;;
+        void* type_packed = packed_types[i].packed_data;
+        struct drpc_type* type = NULL;
 
         struct d_struct_element* element = calloc(1,sizeof(*element));
         switch(packed_types[i].type){
@@ -381,7 +338,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 buf_drpc(type,type_packed);
                 element->is_packed = 0;
                 element->type = packed_types[i].type;
-                element->data = drpc_to_d_queue(type);
+                element->data =  drpc_to_d_queue(type);
                 drpc_type_free(type);free(type);
                 break;
             default:
@@ -392,19 +349,12 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 buf_drpc(element->data,type_packed);
                 break;
         }
-
-        hashtable_add(dstruct->hashtable,key, strlen(key) + 1,element,0);
-        dstruct->current_len++;
+        drpc_que_push(dqueue->que,element);
     }
     drpc_types_free(packed_types,packed_types_len);
 }
 
-void d_struct_free_internal(struct d_struct* dstruct){
-    hashtable_iterate(dstruct->hashtable,d_struct_free_CB);
-    hashtable_free(dstruct->hashtable);
-}
-void d_struct_free(struct d_struct* dstruct){
-    if(dstruct == NULL) return;
-    d_struct_free_internal(dstruct);
-    free(dstruct);
+size_t d_queue_len(struct d_queue* dqueue){
+    size_t len = drpc_que_get_len(dqueue->que);
+    return len;
 }

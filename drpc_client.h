@@ -1,5 +1,7 @@
 #pragma once
 
+#include "drpc_types.h"
+
 #include <pthread.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -16,3 +18,4 @@ struct drpc_client{
 
 struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, char* passwd);
 void drpc_client_disconnect(struct drpc_client* client);
+int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...);

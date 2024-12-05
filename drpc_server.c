@@ -3,6 +3,7 @@
 #include "drpc_protocol.h"
 #include "drpc_server.h"
 #include "drpc_que.h"
+#include "drpc_queue.h"
 #include "hashtable.c/hashtable.h"
 
 
@@ -75,6 +76,7 @@ void drpc_server_free(struct drpc_server* server){
     hashtable_iterate(server->functions,drpc_fn_info_free_CB);
     hashtable_free(server->functions);
 
+    hashtable_iterate(server->users, free);
     hashtable_free(server->users);
 
     free(server);
@@ -213,6 +215,19 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
 
                 struct drpc_type_update* update = calloc(1,sizeof(*update));
                 update->type = d_struct;
+                update->ptr = *(void**)ffi_arguments[k];
+                drpc_que_push(to_repack,update);
+
+                j++;k++;
+                continue;
+            }
+            if(arguments[j].type == d_queue){
+                ffi_arguments[k] = calloc(1,sizeof(void*));
+                assert(ffi_arguments[k]);
+                *(void**)ffi_arguments[k] = drpc_to_d_queue(&arguments[j]);
+
+                struct drpc_type_update* update = calloc(1,sizeof(*update));
+                update->type = d_queue;
                 update->ptr = *(void**)ffi_arguments[k];
                 drpc_que_push(to_repack,update);
 
@@ -400,6 +415,10 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 d_struct_to_drpc(&returned->updated_arguments[i],repack->ptr);
                 d_struct_free(repack->ptr);
                 break;
+            case d_queue:
+                d_queue_to_drpc(&returned->updated_arguments[i],repack->ptr);
+                d_queue_free(repack->ptr);
+                break;
             case d_array:
                 d_array_to_drpc(&returned->updated_arguments[i],repack->ptr);
                 //TODO: d_array_free(repack->ptr);
@@ -468,6 +487,11 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 else                             d_struct_to_drpc(&returned->returned,(void*)native_return);
                 d_struct_free((void*)native_return);
                 break;
+            case d_queue:
+                if((char*)native_return == NULL) void_to_drpc(&returned->returned);
+                else                             d_queue_to_drpc(&returned->returned,(void*)native_return);
+                d_queue_free((void*)native_return);
+            break;
             default: break;
         }
     }else{
@@ -554,7 +578,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 }
 
                 struct drpc_return ret;
-                if(client_perm > fn_info->minimal_permission_level || client_perm == -1){
+                if(client_perm > call_fn->minimal_permission_level || client_perm == -1){
                     if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
                         printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
                         drpc_call_free(call);

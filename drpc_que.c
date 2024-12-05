@@ -50,8 +50,7 @@ uint64_t drpc_que_get_len(struct drpc_que* drpcq){
     uint64_t len = 0;
     return drpcq->len;
 }
-
-void drpc_que_free(struct drpc_que* drpcq){
+void drpc_que_free_internals(struct drpc_que* drpcq){
     if(drpcq == NULL)
         return;
     pthread_mutex_lock(&drpcq->lock);
@@ -63,5 +62,9 @@ void drpc_que_free(struct drpc_que* drpcq){
     }
     pthread_mutex_unlock(&drpcq->lock);
     pthread_mutex_destroy(&drpcq->lock);
+}
+void drpc_que_free(struct drpc_que* drpcq){
+    drpc_que_free_internals(drpcq);
     free(drpcq);
 }
+

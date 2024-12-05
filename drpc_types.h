@@ -30,6 +30,7 @@ enum drpc_types{
     d_sizedbuf,
     d_array,
     d_struct,
+    d_queue,
 
     d_fn_pstorage,
     d_clientinfo,
@@ -51,7 +52,7 @@ static ffi_type* drpc_ffi_convert_table[d_return_is] =
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer,
+    &ffi_type_pointer,  &ffi_type_pointer,
 
 };
 
@@ -90,7 +91,7 @@ void str_to_drpc(struct drpc_type* type, char* native);
 void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen);
 void d_array_to_drpc(struct drpc_type* type, void* d_array);
 void d_struct_to_drpc(struct drpc_type* type, void* dstruct);
-
+void d_queue_to_drpc(struct drpc_type* type, void* dqueue);
 
 
 
@@ -113,7 +114,7 @@ char* drpc_to_sizedbuf(struct drpc_type* type, size_t* len);
 char* drpc_to_str(struct drpc_type* type);
 void* drpc_to_d_array(struct drpc_type* type);
 struct d_struct* drpc_to_d_struct(struct drpc_type* type);
-
+struct d_queue* drpc_to_d_queue(struct drpc_type* type);
 
 size_t drpc_buflen(struct drpc_type* type);
 size_t drpc_buf(struct drpc_type* type, char* buf);

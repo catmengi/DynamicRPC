@@ -1,5 +1,6 @@
 #include "drpc_types.h"
 #include "drpc_struct.h"
+#include "drpc_queue.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -114,9 +115,11 @@ void d_array_to_drpc(struct drpc_type* type, void* d_arrayp){
 void d_struct_to_drpc(struct drpc_type* type, void* dstruct){
     type->type = d_struct;
     type->packed_data = d_struct_buf(dstruct,&type->len);
-
 }
-
+void d_queue_to_drpc(struct drpc_type* type, void* dqueue){
+    type->type = d_queue;
+    type->packed_data = d_queue_buf(dqueue,&type->len);
+}
 
 
 
@@ -178,6 +181,12 @@ void* drpc_to_d_array(struct drpc_type* type){
 struct d_struct* drpc_to_d_struct(struct drpc_type* type){
     struct d_struct* ret = new_d_struct();
     buf_d_struct(type->packed_data,ret);
+
+    return ret;
+}
+struct d_queue* drpc_to_d_queue(struct drpc_type* type){
+    struct d_queue* ret = new_d_queue();
+    buf_d_queue(type->packed_data,ret);
 
     return ret;
 }
