@@ -392,7 +392,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
     d_struct_set(massage,"fn_name",fn_name,d_str);
     d_struct_set(massage,"payload",delayed_massage,d_struct);
 
-    struct drpc_massage recv = {drpc_bad};
+    struct drpc_massage recv = {0};
     struct drpc_massage send = {
         .massage = massage,
         .massage_type = drpc_send_delayed,
@@ -407,7 +407,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
 
     d_struct_unlink(massage,"payload",d_struct);
     d_struct_free(massage);
-    if(drpc_recv_massage(&recv,client->fd) != 0 ){
+    if(drpc_recv_massage(&recv,client->fd) != 0 || recv.massage_type != drpc_ok){
         pthread_mutex_unlock(&client->connection_mutex);
         return BADREPLY;
     }
