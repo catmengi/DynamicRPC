@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include <stdio.h>
 
 #define drpc_convert(type,native) type->packed_data = malloc(sizeof(native)); assert(type->packed_data); type->len = sizeof(native); memcpy(type->packed_data,&native, sizeof(native));
 #define drpc_deconvert(type,native_type) native_type ret = 0; memcpy(&ret,type->packed_data,sizeof(ret)); return ret;
@@ -224,7 +225,7 @@ size_t buf_drpc(struct drpc_type* type, char* buf){
     memcpy(&len64,buf,sizeof(uint64_t)); buf += sizeof(uint64_t);
     type->len = (size_t)len64;
 
-    type->packed_data = malloc(type->len); assert(type->len);
+    type->packed_data = malloc(type->len); assert(type->packed_data);
     memcpy(type->packed_data,buf,type->len);
 exit:
     return drpc_type_buflen(type);

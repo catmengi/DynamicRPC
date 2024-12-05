@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
 
@@ -104,51 +105,58 @@ struct drpc_return* massage_to_drpc_return(struct d_struct* massage){
 }
 
 int drpc_send_massage(struct drpc_massage* msg, int fd){
-    size_t buflen = 0;
-    char* buf = NULL;
-    if(msg->massage != NULL){
-        buf = d_struct_buf(msg->massage,&buflen);
+    struct d_struct* massage = new_d_struct();
+
+    uint8_t type = msg->massage_type;
+    d_struct_set(massage,"msg_type",&type,d_uint8);
+
+    if(msg->massage)
+        d_struct_set(massage,"msg",msg->massage,d_struct);
+
+    size_t massage_len = 0;
+    char* send_buf = d_struct_buf(massage,&massage_len); uint64_t send_len = massage_len;
+
+    d_struct_unlink(massage,"msg",d_struct);
+
+
+    int ret = 0;
+    if(send(fd,&send_len,sizeof(uint64_t),MSG_NOSIGNAL) != sizeof(uint64_t)){
+        ret = 1;
+        goto exit;
+    }
+    if(send(fd,send_buf,massage_len,MSG_NOSIGNAL) != massage_len){
+        ret = 1;
+        goto exit;
     }
 
-    uint64_t buflen_cpy = buflen;
-    char header[sizeof(uint64_t) + 1];
-
-    header[0] = msg->massage_type;
-    memcpy(&header[1],&buflen_cpy,sizeof(uint64_t));
-
-    if(send(fd,header,sizeof(header),MSG_NOSIGNAL) != sizeof(header)){
-        free(buf);
-        return 1;
-    }
-    if(buflen > 0){
-        if(send(fd,buf,buflen,MSG_NOSIGNAL) != buflen){
-            free(buf);
-            return 1;
-        }
-    }
-    free(buf);
-    return 0;
+exit:
+    d_struct_free(massage);
+    free(send_buf);
+    return ret;
 }
 int drpc_recv_massage(struct drpc_massage* msg, int fd){
-    char header[sizeof(uint64_t) + 1];
-    if(recv(fd,header,sizeof(header),MSG_NOSIGNAL) != sizeof(header)){
-        return 1;
-    }
-    msg->massage_type = header[0];
+    uint64_t len64 = 0;
+    if(recv(fd,&len64,sizeof(uint64_t),MSG_NOSIGNAL) != sizeof(uint64_t)) return 1;
 
-    uint64_t recv_len = 0;
-    memcpy(&recv_len,&header[1],sizeof(uint64_t));
-    size_t msg_len = recv_len;
+    size_t recvlen = len64;
+    char* buf = calloc(recvlen,sizeof(char)); assert(buf);
 
-    if(msg_len > 0){
-        char* buf = malloc(msg_len); assert(buf);
-        if(recv(fd,buf,msg_len,MSG_NOSIGNAL) != msg_len){
-            free(buf);
-            return 1;
-        }
-        msg->massage = new_d_struct();
-        buf_d_struct(buf,msg->massage);
-        free(buf);
-    }
+    size_t dbg = 0;
+    if(recv(fd,buf,recvlen,MSG_NOSIGNAL) != recvlen){free(buf); return 1;}
+
+    struct d_struct* container = new_d_struct();
+    buf_d_struct(buf,container);
+    free(buf);
+
+    uint8_t utype = 0;
+
+    d_struct_get(container,"msg_type",&utype,d_uint8);
+    msg->massage_type = utype;
+
+    if(d_struct_get(container,"msg",&msg->massage,d_struct) == 0)
+        d_struct_unlink(container,"msg",d_struct);
+
+    d_struct_free(container);
+
     return 0;
 }

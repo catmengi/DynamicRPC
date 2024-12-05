@@ -3,6 +3,7 @@
 #include "drpc_types.h"
 
 struct d_queue{
+    pthread_mutex_t lock;
     struct drpc_que* que;
 };
 

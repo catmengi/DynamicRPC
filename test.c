@@ -1,37 +1,34 @@
-#include "drpc_protocol.h"
 #include "drpc_server.h"
+#include "drpc_client.h"
+#include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
-#include "drpc_client.h"
 
-#include <stdio.h>
 #include <assert.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdio.h>
 
-char* test(char* str1, int32_t b, struct drpc_que* que){
-    if(que == NULL) {puts("ПУСТАЯ ОЧЕРЕДЬ");return strdup("wnope");}
-    struct drpc_delayed_massage * got = drpc_que_pop(que);
 
-    char* print = NULL;
-    d_struct_get(got->massage,"check",&print,d_str);
-    puts(print);
-    d_struct_free(got->massage);
-    free(got->client);
-    free(got);
 
-    // printf("%s, %d\n",str1,b);
-    return strdup("ugrdsyutesruiteio");
-}
-int main(){
-    struct drpc_server* serv = new_drpc_server(2077);
-    drpc_server_start(serv);
-    enum drpc_types prototype[] = {d_str, d_int32,d_delayed_massage_queue};
-    drpc_server_register_fn(serv,"TEST",test,d_str,prototype,3,NULL,0);
-    drpc_server_add_user(serv,"abcd","abcd",-1);
+int main(void){
 
-    struct drpc_client* client = drpc_client_connect("127.0.0.1",2077,"abcd","abcd");
+    struct d_struct* new = new_d_struct();
+
+    for(size_t i = 0; i < 100000; i++){
+        char str[64];
+        sprintf(str,"%lu",i);
+
+        d_struct_set(new,str,str,d_str);
+    }
+
+    size_t n = 0;
+    struct d_struct* check = new_d_struct();
+    buf_d_struct(d_struct_buf(new,&n),check);
+
+    struct drpc_client* client = drpc_client_connect("127.0.0.1",2067,"test_user","0");
+    struct d_struct* dstruct = new_d_struct();
+    d_struct_set(dstruct,"322","NU I PIZDA",d_str);
+    printf("\n%d\n",drpc_client_send_delayed(client,"fn",check));
+    drpc_client_call(client,"fn",NULL,0,NULL);drpc_client_call(client,"fn",NULL,0,NULL);
+    d_struct_free(dstruct);
     drpc_client_disconnect(client);
-    getchar();
-    drpc_server_free(serv);
 }

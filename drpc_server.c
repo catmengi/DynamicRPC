@@ -60,7 +60,8 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->ffi_prototype);
     free(fn_info->prototype);
 
-    d_queue_free(fn_info->pstorage.delayed_massages);
+   if(fn_info->pstorage.delayed_massages)
+       d_queue_free(fn_info->pstorage.delayed_massages);
 
     free(fn_info);
 }
@@ -100,6 +101,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
         fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
         memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
     }
+    fn_info->pstorage.delayed_massages = new_d_queue();
     assert(hashtable_add(server->functions,fn_name, strlen(fn_name) + 1,fn_info,0) == 0);
 
 }
@@ -539,10 +541,6 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                     d_struct_free(recv.massage);
                     break;
                 }
-                if(fn_info->pstorage.delayed_massages == NULL){
-                    fn_info->pstorage.delayed_massages = new_d_queue();
-                }
-
                 d_struct_unlink(recv.massage,"payload",d_struct);
                 d_struct_set(massage,"sentby",client->username,d_str);
 
@@ -695,6 +693,7 @@ exit:
 
 void* drpc_server_dispatcher(void* drpc_server_P){
     struct drpc_server* server = drpc_server_P;
+    pthread_detach(pthread_self());
     printf("%s: started\n",__PRETTY_FUNCTION__);
     while(server->should_stop == 0){
         socklen_t client_addr_len = sizeof(struct sockaddr_in);
@@ -717,11 +716,9 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 
             pthread_t client_auth;
             assert(pthread_create(&client_auth,NULL,drpc_server_client_auth,client) == 0);
-        }else{
-            break;
-        }
+            // sleep(1);
+        }else return NULL;
     }
-    pthread_detach(pthread_self());
     return NULL;
 }
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm){

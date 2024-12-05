@@ -5,6 +5,8 @@
 
 
 struct d_struct{
+    pthread_mutex_t lock;
+
     hashtable_t hashtable;
     size_t current_len;   //ammount of elements in d_struct currently
 };

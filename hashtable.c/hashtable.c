@@ -26,7 +26,7 @@ int hashtable_create(struct hashtable** ht,size_t size,size_t coll_pbuck)
 {
     if(!ht)
         return ARG_ERR;
-    *ht= calloc(1,sizeof(*(*ht)));
+    *ht = calloc(1,sizeof(*(*ht)));
     if(!*ht)
         return ALLOC_ERR;
     (*ht)->bucket_amm = size;
