@@ -572,7 +572,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 }
 
                 struct drpc_return ret;
-                if(client_perm > call_fn->minimal_permission_level || client_perm == -1){
+                if((client_perm > call_fn->minimal_permission_level && call_fn->minimal_permission_level != -1) || client_perm == -1){
                     if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
                         printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
                         drpc_call_free(call);
