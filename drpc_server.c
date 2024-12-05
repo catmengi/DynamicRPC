@@ -60,7 +60,7 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->ffi_prototype);
     free(fn_info->prototype);
 
-    drpc_que_free(fn_info->delayed_massage_que);
+    d_queue_free(fn_info->pstorage.delayed_massages);
 
     free(fn_info);
 }
@@ -90,12 +90,11 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
         || return_type != d_delayed_massage_queue);
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
-    fn_info->delayed_massage_que = NULL;
     fn_info->fn_name = strdup(fn_name);
     fn_info->fn = fn;
     fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
-    fn_info->personal = pstorage;
+    fn_info->pstorage.pstorage = pstorage;
     if(prototype != NULL){
         fn_info->prototype_len = prototype_len;
         fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
@@ -368,7 +367,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         struct drpc_type_update* to_update = drpc_que_pop(to_fill);
         switch(to_update->type){
             case d_fn_pstorage:
-                **(void***)to_update->ptr = fn_info->personal;
+                **(void***)to_update->ptr = &fn_info->pstorage;
                 break;
             case d_interfunc:
                 **(void***)to_update->ptr = client_info->drpc_server->interfunc;
@@ -377,7 +376,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 **(void***)to_update->ptr = client_info;
                 break;
             case d_delayed_massage_queue:
-                **(void***)to_update->ptr = fn_info->delayed_massage_que;
+                **(void***)to_update->ptr = fn_info->pstorage.delayed_massages;
             default:
                 break;
         }
@@ -535,24 +534,21 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn_info) != 0){
                     printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
                     send.massage = NULL;
-                    send.massage_type = drpc_bad;
+                    send.massage_type = drpc_nofn;
                     drpc_send_massage(&send,client->fd);
                     d_struct_free(recv.massage);
                     break;
                 }
-                if(fn_info->delayed_massage_que == NULL){
-                    fn_info->delayed_massage_que = drpc_que_create();
+                if(fn_info->pstorage.delayed_massages == NULL){
+                    fn_info->pstorage.delayed_massages = new_d_queue();
                 }
 
                 d_struct_unlink(recv.massage,"payload",d_struct);
+                d_struct_set(massage,"sentby",client->username,d_str);
+
                 d_struct_free(recv.massage);
 
-                struct drpc_delayed_massage* to_push = malloc(sizeof(*to_push)); assert(to_push);
-
-                to_push->client = strdup(client->username);
-                to_push->massage = massage;
-
-                drpc_que_push(fn_info->delayed_massage_que, to_push);
+                d_queue_push(fn_info->pstorage.delayed_massages,massage,d_struct);
 
                 send.massage = NULL;
                 send.massage_type = drpc_ok;
@@ -731,7 +727,7 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm){
     struct drpc_user* user = malloc(sizeof(*user)); assert(user);
 
-    user->hash = _hash_fnc(username,strlen(passwd));
+    user->hash = _hash_fnc(passwd,strlen(passwd));
     user->perm = perm;
 
     hashtable_add(serv->users,username,strlen(username) + 1, user,0);

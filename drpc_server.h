@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <stdatomic.h>
 
+#include "drpc_queue.h"
 #include "drpc_types.h"
 #include "drpc_que.h"
 #include "hashtable.c/hashtable.h"
@@ -27,6 +28,11 @@ struct drpc_server{
     atomic_ullong client_ammount;
 };
 
+struct drpc_pstorage{
+    struct d_queue* delayed_massages;
+    void* pstorage;
+};
+
 struct drpc_function{
 
     char* fn_name;
@@ -35,10 +41,8 @@ struct drpc_function{
     enum drpc_types* prototype;
     enum drpc_types return_type;
 
-    void* personal;
+    struct drpc_pstorage pstorage;
     int minimal_permission_level;
-
-    struct drpc_que* delayed_massage_que;
 
     void* fn;
     ffi_cif* cif;
@@ -65,10 +69,6 @@ struct drpc_user{
     uint64_t hash;
 };
 
-struct drpc_delayed_massage{
-    char* client;
-    struct d_struct* massage;
-};
 
 struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
 

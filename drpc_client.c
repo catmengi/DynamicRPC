@@ -119,7 +119,7 @@ void drpc_client_disconnect(struct drpc_client* client){
 
 
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...){
-    if(client->client_stop == 1) return 1;
+    if(client->client_stop != 0) return 1;
 
     va_list varargs;
     va_start(varargs,native_return);
@@ -367,5 +367,33 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         }
     }
     drpc_return_free(ret); free(ret);
+    return 0;
+}
+
+int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_massage){
+    if(client->client_stop != 0) return 1;
+
+    struct d_struct* massage = new_d_struct();
+
+    d_struct_set(massage,"fn_name",fn_name,d_str);
+    d_struct_set(massage,"payload",delayed_massage,d_struct);
+
+    struct drpc_massage recv;
+    struct drpc_massage send = {
+        .massage = massage,
+        .massage_type = drpc_send_delayed,
+    };
+
+    if(drpc_send_massage(&send,client->fd) != 0){
+        d_struct_unlink(massage,"payload",d_struct);
+        d_struct_free(massage);
+        return ENETWORK;
+    }
+
+    d_struct_unlink(massage,"payload",d_struct);
+    d_struct_free(massage);
+    if(drpc_recv_massage(&recv,client->fd) != 0 || recv.massage_type != drpc_ok){
+        return BADREPLY;
+    }
     return 0;
 }
