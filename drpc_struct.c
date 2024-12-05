@@ -1,6 +1,7 @@
 #include "drpc_types.h"
 #include "drpc_struct.h"
 #include "drpc_queue.h"
+#include "hashtable.c/hashtable.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -423,6 +424,29 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
     }
     drpc_types_free(packed_types,packed_types_len);
     pthread_mutex_unlock(&dstruct->lock);
+}
+void d_struct_fields_CB(char* key,void* elementP, void* userP, size_t index){
+    struct d_struct_element* element = elementP;
+
+    void** cb_container = userP;
+
+    char** keys = cb_container[0];
+    enum drpc_types* types = cb_container[1];
+
+    keys[index] = key;
+    types[index] = element->type;
+}
+size_t d_struct_fields(struct d_struct* dstruct, char*** keys, enum drpc_types** types){
+    size_t len = dstruct->current_len;
+
+    *keys = calloc(len,sizeof(char**));             assert(*keys != NULL);
+    *types = calloc(len,sizeof(enum drpc_types*)); assert(*types != NULL);
+
+    void* cb_container[] = {*keys,*types};
+
+    hashtable_iterate_wkey(dstruct->hashtable,cb_container,d_struct_fields_CB);
+
+    return len;
 }
 
 void d_struct_free_internal(struct d_struct* dstruct){

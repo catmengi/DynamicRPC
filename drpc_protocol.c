@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
 
@@ -140,8 +139,6 @@ int drpc_recv_massage(struct drpc_massage* msg, int fd){
 
     size_t recvlen = len64;
     char* buf = calloc(recvlen,sizeof(char)); assert(buf);
-
-    size_t dbg = 0;
     if(recv(fd,buf,recvlen,MSG_NOSIGNAL) != recvlen){free(buf); return 1;}
 
     struct d_struct* container = new_d_struct();
