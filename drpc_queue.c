@@ -4,6 +4,7 @@
 #include "drpc_types.h"
 
 #include <assert.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -360,4 +361,14 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
 size_t d_queue_len(struct d_queue* dqueue){
     size_t len = drpc_que_get_len(dqueue->que);
     return len;
+}
+enum drpc_types d_queue_top_type(struct d_queue* dqueue){
+    if(dqueue == NULL) return NULL;
+    pthread_mutex_lock(&dqueue->lock);
+    if(dqueue->que->cur == NULL) {pthread_mutex_unlock(&dqueue->lock);return d_void;}
+
+
+    enum drpc_types ret = ((struct d_struct_element*)dqueue->que->cur->ptr)->type;
+    pthread_mutex_unlock(&dqueue->lock);
+    return ret;
 }

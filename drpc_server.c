@@ -384,7 +384,6 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         }
         free(to_update);
     }
-    // if(arguments_len == 0) free(arguments);
     drpc_types_free(arguments,arguments_len);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
 
@@ -502,6 +501,120 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_que_free(to_fill);
     return 0;
 }
+int drpc_handle_call(struct drpc_massage recv, struct drpc_connection* client, int client_perm){
+    printf("\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
+    struct drpc_massage send;
+
+    struct drpc_call* call = massage_to_drpc_call(recv.massage);
+    d_struct_free(recv.massage);
+
+    if(call == NULL){
+        printf("%s: malformed call massage\n",__PRETTY_FUNCTION__);
+        send.massage = NULL;
+        send.massage_type = drpc_bad;
+        drpc_send_massage(&send,client->fd);
+        return 1;
+    }
+    struct drpc_function* call_fn = NULL;
+    if(hashtable_get(client->drpc_server->functions,call->fn_name,strlen(call->fn_name) + 1,(void**)&call_fn) != 0){
+        printf("%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
+        drpc_call_free(call);
+        free(call);
+        send.massage = NULL;
+        send.massage_type = drpc_nofn;
+        drpc_send_massage(&send,client->fd);
+        return 1;
+    }
+
+    struct drpc_return ret;
+    if((client_perm > call_fn->minimal_permission_level && call_fn->minimal_permission_level != -1) || client_perm == -1){
+        if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
+            printf("%s: bad arguments for function '%s'! \n",__PRETTY_FUNCTION__,call_fn->fn_name);
+            drpc_call_free(call);
+            free(call);
+            send.massage = NULL;
+            send.massage_type = drpc_bad;
+            drpc_send_massage(&send,client->fd);
+            return 1;
+        }
+        printf("%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
+        free(call->fn_name);
+        free(call);
+
+
+        send.massage_type = drpc_return;
+        send.massage = drpc_return_to_massage(&ret);
+        drpc_return_free(&ret);
+        if(drpc_send_massage(&send,client->fd) != 0){
+            printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
+            d_struct_free(send.massage);
+            return 1;
+        }
+        d_struct_free(send.massage);
+        return 0;
+    }
+    printf("%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name, client_perm,call_fn->minimal_permission_level);
+    drpc_call_free(call);
+    free(call);
+    send.massage = NULL;
+    send.massage_type = drpc_eperm;
+    drpc_send_massage(&send,client->fd);
+    return 1;
+}
+int drpc_handle_delayed_massage(struct drpc_massage recv, struct drpc_connection* client, int client_perm){
+    struct drpc_massage send;
+    struct d_struct* massage = NULL;
+    char* fn_name = NULL;
+
+    printf("\n%s: delayed massage received\n",__PRETTY_FUNCTION__);
+
+    if(d_struct_get(recv.massage,"fn_name",&fn_name,d_str) != 0){
+        printf("%s: malformed delayed massage, no 'fn_name\n",__PRETTY_FUNCTION__);
+        d_struct_free(recv.massage);
+        return 1;
+    }
+
+    struct drpc_function* receiver = NULL;  // who gonna get this massage
+    if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&receiver) != 0){
+        printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
+        send.massage = NULL;
+        send.massage_type = drpc_nofn;
+        d_struct_free(recv.massage);
+        drpc_send_massage(&send,client->fd);
+        return 1;
+    }
+    printf("%s: receiver is '%s'",__PRETTY_FUNCTION__,receiver->fn_name);
+
+    if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
+
+        if(d_struct_get(recv.massage,"payload",&massage,d_struct) != 0){
+            printf("%s: malformed delayed massage, no 'payload'\n",__PRETTY_FUNCTION__);
+            d_struct_free(recv.massage);
+            return 1;
+        }
+
+        d_struct_unlink(recv.massage,"payload",d_struct);
+        d_struct_free(recv.massage);
+
+
+        d_struct_set(massage,"sender",client->username,d_str);   //setting or overwriting sender of this massage
+
+
+        d_queue_push(receiver->pstorage.delayed_massages,massage,d_struct);
+
+        send.massage = NULL;
+        send.massage_type = drpc_ok;
+        drpc_send_massage(&send,client->fd);
+        return 0;
+    }
+
+    d_struct_free(recv.massage);
+
+    send.massage = NULL;
+    send.massage_type = drpc_eperm;
+    drpc_send_massage(&send,client->fd);
+    return 1;
+}
 
 void drpc_handle_client(struct drpc_connection* client, int client_perm){
     struct drpc_massage recv;
@@ -509,105 +622,26 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
 
     while(client->drpc_server->should_stop == 0){
         if(drpc_recv_massage(&recv,client->fd) != 0) {
-            puts("");
-            printf("%s: no massage provided,exiting\n",__PRETTY_FUNCTION__);
-            return;
+            printf("\n%s: no massage provided,exiting\n",__PRETTY_FUNCTION__); return;
         }
 
         switch(recv.massage_type){
             case drpc_ping:
-                send.massage = NULL;
-                send.massage_type = drpc_ping;
+                send.massage = NULL; send.massage_type = drpc_ping;
                 if(drpc_send_massage(&send,client->fd) != 0) return;
                 break;
             case drpc_disconnect:
-                puts("");
-                printf("%s: client disconnected\n",__PRETTY_FUNCTION__);
+                printf("\n%s: client disconnected\n",__PRETTY_FUNCTION__);
                 return;
             case drpc_send_delayed:
-                struct d_struct* massage = NULL;
-                char* fn_name = NULL;
-                puts("");
-                printf("%s: delayed massage sent!\n",__PRETTY_FUNCTION__);
-
-                assert(d_struct_get(recv.massage,"payload",&massage,d_struct) == 0 && d_struct_get(recv.massage,"fn_name",&fn_name,d_str) == 0);
-
-                struct drpc_function* fn_info = NULL;
-                if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn_info) != 0){
-                    printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
-                    send.massage = NULL;
-                    send.massage_type = drpc_nofn;
-                    drpc_send_massage(&send,client->fd);
-                    d_struct_free(recv.massage);
-                    break;
-                }
-                d_struct_unlink(recv.massage,"payload",d_struct);
-                d_struct_set(massage,"sentby",client->username,d_str);
-
-                d_struct_free(recv.massage);
-
-                d_queue_push(fn_info->pstorage.delayed_massages,massage,d_struct);
-
-                send.massage = NULL;
-                send.massage_type = drpc_ok;
-                drpc_send_massage(&send,client->fd);
+                if(drpc_handle_delayed_massage(recv,client,client_perm) != 0) return;
                 break;
             case drpc_call:
-                puts("");
-                struct drpc_call* call = massage_to_drpc_call(recv.massage);
-                assert(call != NULL);
-                d_struct_free(recv.massage);
-
-                printf("%s: requested to call %s\n",__PRETTY_FUNCTION__,call->fn_name);
-
-                struct drpc_function* call_fn = NULL;
-                if(hashtable_get(client->drpc_server->functions,call->fn_name,strlen(call->fn_name) + 1,(void**)&call_fn) != 0){
-                    printf("%s: no such function!\n",__PRETTY_FUNCTION__);
-                    drpc_call_free(call);
-                    free(call);
-                    send.massage = NULL;
-                    send.massage_type = drpc_nofn;
-                    drpc_send_massage(&send,client->fd);
-                    break;
-                }
-
-                struct drpc_return ret;
-                if((client_perm > call_fn->minimal_permission_level && call_fn->minimal_permission_level != -1) || client_perm == -1){
-                    if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
-                        printf("%s: bad function call! \n",__PRETTY_FUNCTION__);
-                        drpc_call_free(call);
-                        free(call);
-                        send.massage = NULL;
-                        send.massage_type = drpc_bad;
-                        drpc_send_massage(&send,client->fd);
-                        break;
-                    }
-                    printf("%s: call of %s succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
-                    free(call->fn_name);
-                    free(call);
-
-
-                    send.massage_type = drpc_return;
-                    send.massage = drpc_return_to_massage(&ret);
-                    drpc_return_free(&ret);
-                    if(drpc_send_massage(&send,client->fd) != 0){
-                        printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
-                        d_struct_free(send.massage);
-                        return;
-                    }
-                    d_struct_free(send.massage);
-                }else{
-                    printf("%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,fn_info->fn_name, client_perm,fn_info->minimal_permission_level);
-                    drpc_call_free(call);
-                    free(call);
-                    send.massage = NULL;
-                    send.massage_type = drpc_eperm;
-                    drpc_send_massage(&send,client->fd);
-                }
+                if(drpc_handle_call(recv,client,client_perm) != 0) return;
                 break;
 
             default:
-                printf("%s: client provided bad request\n",__PRETTY_FUNCTION__);
+                printf("\n%s: unknow request type %d\n",__PRETTY_FUNCTION__,recv.massage_type);
                 d_struct_free(recv.massage);
                 return;
         }
