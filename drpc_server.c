@@ -570,7 +570,7 @@ int drpc_handle_delayed_massage(struct drpc_massage recv, struct drpc_connection
         drpc_send_massage(&send,client->fd);
         return 1;
     }
-    printf("%s: receiver is '%s'",__PRETTY_FUNCTION__,receiver->fn_name);
+    printf("%s: receiver is '%s'\n",__PRETTY_FUNCTION__,receiver->fn_name);
 
     if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
 
@@ -587,6 +587,7 @@ int drpc_handle_delayed_massage(struct drpc_massage recv, struct drpc_connection
         d_struct_set(massage,"sender",client->username,d_str);   //setting or overwriting sender of this massage
 
 
+
         d_queue_push(receiver->pstorage.delayed_massages,massage,d_struct);
 
         send.massage = NULL;
@@ -595,6 +596,7 @@ int drpc_handle_delayed_massage(struct drpc_massage recv, struct drpc_connection
         return 0;
     }
 
+    printf("%s: too low permissions to drpc_send_delayed for this function, require %d (have: %d)\n",__PRETTY_FUNCTION__,receiver->minimal_permission_level,client_perm);
     d_struct_free(recv.massage);
 
     send.massage = NULL;

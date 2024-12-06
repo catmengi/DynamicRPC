@@ -6,27 +6,36 @@
 #include <assert.h>
 #include <stdio.h>
 
-void test(struct d_queue* delayed_massages){
-    struct d_struct* msg;
-    if(d_queue_pop(delayed_massages,&msg,d_struct) != 0) {puts("you are fucked)))");return;}
+#include <unistd.h>
 
-    char* out;
-    d_struct_get(msg,"322",&out,d_str);
-    puts(out);
-    d_struct_free(msg);
+void input_receiver(struct drpc_pstorage* pstorage){
 }
 
 int main(void){
-    struct drpc_server* server = new_drpc_server(2067);
+
+    enum drpc_types prototype[] = {d_fn_pstorage};
+
+    struct drpc_server* server = new_drpc_server(2077);
+
+    drpc_server_add_user(server,"game_client","",1);
+
+    drpc_server_register_fn(server,"input_receiver",input_receiver,d_void,prototype,sizeof(prototype) / sizeof(prototype[0])
+        ,NULL,0);
+
     drpc_server_start(server);
 
-    enum drpc_types prototype[] = {d_delayed_massage_queue};
+    struct d_queue* input_receiver_que = drpc_get_delayed_for(server,"input_receiver");
+    assert(input_receiver_que != NULL);
 
-    drpc_server_register_fn(server,"fn",test,d_void,prototype,sizeof(prototype) / sizeof(prototype[0]),NULL,0);
-    drpc_server_add_user(server,"test_user","0",-1);
+    while(1){
+        struct d_struct* massage = NULL;
+        if(d_queue_pop(input_receiver_que,&massage,d_struct) != 0) continue;
+        else{
+            char input = 'f';
+            assert(d_struct_get(massage,"input",&input,d_char) == 0);
+            d_struct_free(massage);
+            printf("%c\n",input);
+        }
+    }
 
-
-    getchar();
-
-    drpc_server_free(server);
 }
