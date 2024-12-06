@@ -40,8 +40,6 @@ void* drpc_ping_server(void* clientP){
             return NULL;
         }
         if(drpc_recv_massage(&recv,client->fd) != 0 || recv.massage_type != drpc_ping){
-            *(int*)1 = 0;
-            puts("НУ И ХУЛИ СУКА БЛщго34ц5ершлдрукирлоу");
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;

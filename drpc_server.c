@@ -67,12 +67,12 @@ void drpc_fn_info_free_CB(void* fn_info_P){
 }
 
 void drpc_server_free(struct drpc_server* server){
-    server->should_stop = 1;
+    server->should_stop = 1;  //this variable will stop while loops in dispatcher and client_handle
     while(server->client_ammount != 0) sleep(1);
 
     shutdown(server->server_fd, SHUT_RD);
     close(server->server_fd);
-    pthread_join(server->dispatcher,NULL);
+    pthread_join(server->dispatcher,NULL); // waiting for dispatcher
 
     hashtable_iterate(server->functions,drpc_fn_info_free_CB);
     hashtable_free(server->functions);
@@ -87,7 +87,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              size_t prototype_len, void* pstorage, int perm){
     assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
-        || return_type != d_clientinfo || return_type != d_interfunc);
+        || return_type != d_clientinfo || return_type != d_interfunc);  //you cannot return thoose types!
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
     fn_info->fn_name = strdup(fn_name);
@@ -96,6 +96,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
     fn_info->return_type = return_type;
     fn_info->pstorage.pstorage = pstorage;
     if(prototype != NULL){
+        /*copying prototype*/
         fn_info->prototype_len = prototype_len;
         fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
         memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
@@ -119,12 +120,15 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
     struct drpc_que* check_que = drpc_que_create();
     assert(check_que);
     size_t newservlen = 0;
+
+    //creating server prototypes without server-only types
     for(size_t i = 0; i < servlen;i++){
         if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo){
             drpc_que_push(check_que,&serv[i]);
             newservlen++;
         }
     }
+
     if((serv && !client) || (!serv && client)) {
         if(clientlen == 0 && newservlen == 0){
             drpc_que_free(check_que);
@@ -133,15 +137,24 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
         drpc_que_free(check_que);
         return 1;
     }
+
+    //if new len is different they are different
     if(newservlen != clientlen) {drpc_que_free(check_que);return 1;}
+
     enum drpc_types* newserv = calloc(newservlen,sizeof(enum drpc_types));
     assert(newserv);
+
+    //recreating new server prototype from que
     for(size_t i = 0; i < newservlen; i++){
         newserv[i] = *(enum drpc_types*)drpc_que_pop(check_que);
     }
+
     int ret = 0;
     for(size_t i = 0; i < clientlen; i++)
+        //if they are different breaking the loop
         if(newserv[i] != client[i]) {ret = 1;break;}
+
+
     drpc_que_free(check_que);
     free(newserv);
     return ret;
@@ -155,6 +168,9 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
     *ffi_len = adjusted_len;
     size_t j = 0; size_t k = 0;
     for(size_t i = 0; i < prototype_len; i++){
+        /*those types does not exist on the client side, so extracting them from prototype, and then via que providing
+          to the next layer
+        */
         if(prototype[i] == d_fn_pstorage){
             ffi_arguments[k] = calloc(1,sizeof(void*));
             assert(ffi_arguments[k]);
@@ -185,6 +201,10 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
             k++;
             continue;
         }
+        /*////////////////////////////////////////////////////////////////*/
+
+        /*Those types exist in arguments so unpacking them, some maybe pushed to the 'to_repack' and be provided to the
+         next layer*/
             if(arguments[j].type == d_array){
                 ffi_arguments[k] = calloc(1,sizeof(void*));
                 assert(ffi_arguments[k]);
@@ -328,6 +348,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 j++;k++;
                 continue;
             }
+            /*//////////////////////////////////////////////////*/
     }
     return ffi_arguments;
 }
@@ -338,21 +359,25 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         free(extracted_prototype);
         return 1;
     }
-    struct drpc_que* to_repack = drpc_que_create();
-    struct drpc_que* to_fill = drpc_que_create();
+    struct drpc_que* to_repack = drpc_que_create(); //this queue will be used for repackable arguments
+    struct drpc_que* to_fill = drpc_que_create();   //this queue will be used for server-only clients
 
     size_t ffi_len = 0;
     ffi_arg native_return = 0;
     int8_t return_is = -1;
 
+    //generating arguments for ffi_call
     void** ffi_arguments = ffi_from_drpc(arguments,fn_info->prototype,fn_info->prototype_len,&ffi_len,to_repack,to_fill);
     if(fn_info->cif == NULL){
+        //allocating CIF if it wasnt allocated already
         fn_info->cif = calloc(1,sizeof(*fn_info->cif)); assert(fn_info->cif);
         assert(ffi_prep_cif(fn_info->cif,FFI_DEFAULT_ABI,ffi_len,(ffi_type*)drpc_ffi_convert_table[fn_info->return_type],
                     (fn_info->ffi_prototype = drpc_proto_to_ffi(fn_info->prototype, fn_info->prototype_len))) == FFI_OK);
     }
     free(extracted_prototype);
 
+
+    //filling in server-only arguments
     size_t to_fill_len = drpc_que_get_len(to_fill);
     for(size_t i = 0; i <to_fill_len; i++){
         struct drpc_type_update* to_update = drpc_que_pop(to_fill);
@@ -382,8 +407,14 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     }else returned->updated_arguments = NULL;
     returned->updated_arguments_len = repack_len;
 
+
+    //this types will be in ret->updated_arguments and be used on client side to "emulate" pointers
+    //so we are getting pointer of raw arguments from to_repack que, then packing to drpc_type then free
     for(size_t i = 0; i < repack_len; i++){
         struct drpc_type_update* repack = drpc_que_pop(to_repack);
+
+        //if pointer is the same as native_return then we setting return_is variable to i,native_return will
+        //not be packed, and on client native_return will be same as the same as returned argument pointer
         if(repack->ptr == (void*)native_return) {
             assert(repack->type == fn_info->return_type);    //dumb protection, you SHOULDNT return argument that is different type than return_type
             return_is = i;
@@ -416,10 +447,12 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
     }
 
+    //free arguments
     for(size_t i = 0; i <ffi_len; i++){
         free(ffi_arguments[i]);
     }
     free(ffi_arguments);
+
 
     if(return_is == -1){
         switch(fn_info->return_type){
@@ -644,23 +677,22 @@ void* drpc_server_client_auth(void* drpc_connection_P){
    struct drpc_massage recv;
    struct drpc_massage send;
    int perm = 0;
-   puts("");
    if(drpc_recv_massage(&recv,client->fd) != 0){
-       printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
+       printf("\n%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
    if(recv.massage_type != drpc_auth || recv.massage == NULL){
        send.massage_type = drpc_bad;
        send.massage = NULL;
        drpc_send_massage(&send,client->fd);
-       printf("%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
+       printf("\n%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
        char* username;
        uint64_t hash;
        struct drpc_user* user;
        if(d_struct_get(recv.massage,"username",&username,d_str) != 0){
-           printf("%s: auth malformed\n",__PRETTY_FUNCTION__);
+           printf("\n%s: auth malformed\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.massage);
            send.massage_type = drpc_bad;
            send.massage = NULL;
@@ -668,7 +700,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(d_struct_get(recv.massage,"passwd_hash",&hash,d_uint64) != 0){
-           printf("%s: auth malformed\n",__PRETTY_FUNCTION__);
+           printf("\n%s: auth malformed\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.massage);
            send.massage_type = drpc_bad;
            send.massage = NULL;
@@ -678,7 +710,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        d_struct_unlink(recv.massage,"username",d_str);
        d_struct_free(recv.massage);
        if(hashtable_get(client->drpc_server->users,username,strlen(username) + 1,(void**)&user) != 0){
-           printf("%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
+           printf("\n%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
            send.massage_type = drpc_bad;
            send.massage = NULL;
            free(username);
@@ -686,7 +718,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(user->hash != hash){
-           printf("%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
+           printf("\n%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
            send.massage_type = drpc_bad;
            send.massage = NULL;
            free(username);
@@ -699,7 +731,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        send.massage = NULL;
        send.massage_type = drpc_ok;
        drpc_send_massage(&send,client->fd);
-       printf("%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
+       printf("\n%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
    client->drpc_server->client_ammount++;
    drpc_handle_client(client,perm);
@@ -717,7 +749,7 @@ exit:
 void* drpc_server_dispatcher(void* drpc_server_P){
     struct drpc_server* server = drpc_server_P;
     pthread_detach(pthread_self());
-    printf("%s: started\n",__PRETTY_FUNCTION__);
+    printf("\n%s: started\n",__PRETTY_FUNCTION__);
     while(server->should_stop == 0){
         socklen_t client_addr_len = sizeof(struct sockaddr_in);
         struct sockaddr_in client_addr;
@@ -739,7 +771,6 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 
             pthread_t client_auth;
             assert(pthread_create(&client_auth,NULL,drpc_server_client_auth,client) == 0);
-            // sleep(1);
         }else return NULL;
     }
     return NULL;
