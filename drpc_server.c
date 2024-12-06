@@ -87,8 +87,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
                              size_t prototype_len, void* pstorage, int perm){
     assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
-        || return_type != d_clientinfo || return_type != d_interfunc
-        || return_type != d_delayed_massage_queue);
+        || return_type != d_clientinfo || return_type != d_interfunc);
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
     fn_info->fn_name = strdup(fn_name);
@@ -121,7 +120,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
     assert(check_que);
     size_t newservlen = 0;
     for(size_t i = 0; i < servlen;i++){
-        if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo && serv[i] != d_delayed_massage_queue){
+        if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo){
             drpc_que_push(check_que,&serv[i]);
             newservlen++;
         }
@@ -181,16 +180,6 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
             assert(ffi_arguments[k]);
             struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
             fill_later_info->type = d_interfunc;
-            fill_later_info->ptr = &ffi_arguments[k];
-            drpc_que_push(fill_later,fill_later_info);
-            k++;
-            continue;
-        }
-        if(prototype[i] == d_delayed_massage_queue){
-            ffi_arguments[k] = calloc(1,sizeof(void*));
-            assert(ffi_arguments[k]);
-            struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
-            fill_later_info->type = d_delayed_massage_queue;
             fill_later_info->ptr = &ffi_arguments[k];
             drpc_que_push(fill_later,fill_later_info);
             k++;
@@ -377,8 +366,6 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
             case d_clientinfo:
                 **(void***)to_update->ptr = client_info;
                 break;
-            case d_delayed_massage_queue:
-                **(void***)to_update->ptr = fn_info->pstorage.delayed_massages;
             default:
                 break;
         }
@@ -762,4 +749,13 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
     user->perm = perm;
 
     hashtable_add(serv->users,username,strlen(username) + 1, user,0);
+}
+
+struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name){
+    struct drpc_function* fn = NULL;
+    if(hashtable_get(server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn) != 0){
+        return NULL;
+    }
+    return fn->pstorage.delayed_massages;
+
 }

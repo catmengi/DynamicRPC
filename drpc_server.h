@@ -81,3 +81,5 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              size_t prototype_len, void* pstorage, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
                                                                                     //call this function
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
+
+struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name); //gets pstorage.delayed_massages of fn_name for local use

@@ -35,7 +35,6 @@ enum drpc_types{
     d_fn_pstorage,
     d_clientinfo,
     d_interfunc,
-    d_delayed_massage_queue,
 
     d_return_is,   //this type will be used to say to the client that return is SAME as one of arguments, and to be provided to function
 
@@ -52,7 +51,7 @@ static ffi_type* drpc_ffi_convert_table[d_return_is] =
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer,  &ffi_type_pointer,
+    &ffi_type_pointer
 
 };
 

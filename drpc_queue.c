@@ -363,7 +363,7 @@ size_t d_queue_len(struct d_queue* dqueue){
     return len;
 }
 enum drpc_types d_queue_top_type(struct d_queue* dqueue){
-    if(dqueue == NULL) return NULL;
+    if(dqueue == NULL) return d_void;
     pthread_mutex_lock(&dqueue->lock);
     if(dqueue->que->cur == NULL) {pthread_mutex_unlock(&dqueue->lock);return d_void;}
 
