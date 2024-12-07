@@ -29,7 +29,7 @@ struct drpc_server{
 };
 
 struct drpc_pstorage{
-    struct d_queue* delayed_massages;
+    struct d_queue* delayed_messages;
     void* pstorage;
 };
 
@@ -82,4 +82,4 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                                                                                     //call this function
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
 
-struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name); //gets pstorage.delayed_massages of fn_name for local use
+struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name); //gets pstorage.delayed_messages of fn_name for local use

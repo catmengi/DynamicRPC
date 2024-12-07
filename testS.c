@@ -1,5 +1,4 @@
 #include "drpc_server.h"
-#include "drpc_client.h"
 #include "drpc_queue.h"
 #include "drpc_types.h"
 
@@ -27,7 +26,9 @@ int main(void){
     struct d_queue* input_receiver_que = drpc_get_delayed_for(server,"input_receiver");
     assert(input_receiver_que != NULL);
 
-    while(1){
+
+    int max_symbols = 50;
+    while(max_symbols){
         struct d_struct* massage = NULL;
         if(d_queue_pop(input_receiver_que,&massage,d_struct) != 0) continue;
         else{
@@ -35,7 +36,10 @@ int main(void){
             assert(d_struct_get(massage,"input",&input,d_char) == 0);
             d_struct_free(massage);
             printf("%c\n",input);
+            max_symbols--;
         }
     }
+
+    drpc_server_free(server);
 
 }

@@ -26,20 +26,20 @@ void* drpc_ping_server(void* clientP){
 
     while(client->client_stop == 0){
         pthread_mutex_lock(&client->connection_mutex);
-        struct drpc_massage send,recv;
+        struct drpc_message send,recv;
 
-        send.massage_type = drpc_ping;
-        send.massage = NULL;
+        send.message_type = drpc_ping;
+        send.message = NULL;
 
-        recv.massage = NULL;
-        recv.massage_type = drpc_bad;
+        recv.message = NULL;
+        recv.message_type = drpc_bad;
 
-        if(drpc_send_massage(&send,client->fd) != 0){
+        if(drpc_send_message(&send,client->fd) != 0){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
         }
-        if(drpc_recv_massage(&recv,client->fd) != 0 || recv.massage_type != drpc_ping){
+        if(drpc_recv_message(&recv,client->fd) != 0 || recv.message_type != drpc_ping){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
@@ -76,12 +76,12 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
     d_struct_set(auth,"username",username,d_str);
     d_struct_set(auth,"passwd_hash",&passwd_hash,d_uint64);
 
-    struct drpc_massage send = {
-        .massage_type = drpc_auth,
-        .massage = auth,
+    struct drpc_message send = {
+        .message_type = drpc_auth,
+        .message = auth,
     };
 
-    if(drpc_send_massage(&send,fd) != 0){
+    if(drpc_send_message(&send,fd) != 0){
         d_struct_free(auth);
         free(client);
         close(fd);
@@ -89,13 +89,13 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
     }
     d_struct_free(auth);
 
-    struct drpc_massage recv = {0};
-    if(drpc_recv_massage(&recv,fd) != 0){
+    struct drpc_message recv = {0};
+    if(drpc_recv_message(&recv,fd) != 0){
         free(client);
         close(fd);
         return NULL;
     }
-    if(recv.massage_type != drpc_ok){
+    if(recv.message_type != drpc_ok){
         free(client);
         close(fd);
         return NULL;
@@ -112,11 +112,11 @@ void drpc_client_disconnect(struct drpc_client* client){
     client->client_stop = 1;
     pthread_mutex_lock(&client->connection_mutex);
 
-    struct drpc_massage send = {
-        .massage_type = drpc_disconnect,
-        .massage = NULL,
+    struct drpc_message send = {
+        .message_type = drpc_disconnect,
+        .message = NULL,
     };
-    drpc_send_massage(&send,client->fd);
+    drpc_send_message(&send,client->fd);
     close(client->fd);
     pthread_mutex_unlock(&client->connection_mutex);
     pthread_join(client->ping_thread,NULL);
@@ -232,10 +232,10 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     };
 
 
-    struct drpc_massage recv;
-    struct drpc_massage send = {
-        .massage = drpc_call_to_massage(&call),
-        .massage_type = drpc_call,
+    struct drpc_message recv;
+    struct drpc_message send = {
+        .message = drpc_call_to_message(&call),
+        .message_type = drpc_call,
     };
     for(size_t i = 0; i < prototype_len; i++){
         drpc_type_free(&arguments[i]);
@@ -243,8 +243,8 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     free(arguments);
 
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_massage(&send,client->fd) != 0){
-        d_struct_free(send.massage);
+    if(drpc_send_message(&send,client->fd) != 0){
+        d_struct_free(send.message);
 
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
@@ -253,8 +253,8 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         pthread_mutex_unlock(&client->connection_mutex);
         return ENETWORK;
     }
-    d_struct_free(send.massage);
-    if(drpc_recv_massage(&recv,client->fd) != 0){
+    d_struct_free(send.message);
+    if(drpc_recv_message(&recv,client->fd) != 0){
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
 
@@ -262,7 +262,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         pthread_mutex_unlock(&client->connection_mutex);
         return ENETWORK;
     }
-    if(recv.massage_type != drpc_return){
+    if(recv.message_type != drpc_return){
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
 
@@ -272,8 +272,8 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     }
     pthread_mutex_unlock(&client->connection_mutex);
 
-    struct drpc_return* ret = massage_to_drpc_return(recv.massage);
-    d_struct_free(recv.massage);
+    struct drpc_return* ret = message_to_drpc_return(recv.message);
+    d_struct_free(recv.message);
 
     int8_t return_is = -1;
 
@@ -382,30 +382,30 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     return 0;
 }
 
-int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_massage){
+int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message){
     if(client->client_stop != 0) return 1;
 
-    struct d_struct* massage = new_d_struct();
+    struct d_struct* message = new_d_struct();
 
-    d_struct_set(massage,"fn_name",fn_name,d_str);
-    d_struct_set(massage,"payload",delayed_massage,d_struct);
+    d_struct_set(message,"fn_name",fn_name,d_str);
+    d_struct_set(message,"payload",delayed_message,d_struct);
 
-    struct drpc_massage recv = {0};
-    struct drpc_massage send = {
-        .massage = massage,
-        .massage_type = drpc_send_delayed,
+    struct drpc_message recv = {0};
+    struct drpc_message send = {
+        .message = message,
+        .message_type = drpc_send_delayed,
     };
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_massage(&send,client->fd) != 0){
-        d_struct_unlink(massage,"payload",d_struct);
-        d_struct_free(massage);
+    if(drpc_send_message(&send,client->fd) != 0){
+        d_struct_unlink(message,"payload",d_struct);
+        d_struct_free(message);
         pthread_mutex_unlock(&client->connection_mutex);
         return ENETWORK;
     }
 
-    d_struct_unlink(massage,"payload",d_struct);
-    d_struct_free(massage);
-    if(drpc_recv_massage(&recv,client->fd) != 0 || recv.massage_type != drpc_ok){
+    d_struct_unlink(message,"payload",d_struct);
+    d_struct_free(message);
+    if(drpc_recv_message(&recv,client->fd) != 0 || recv.message_type != drpc_ok){
         pthread_mutex_unlock(&client->connection_mutex);
         return BADREPLY;
     }

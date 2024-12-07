@@ -32,7 +32,7 @@ enum drpc_types{
     d_struct,
     d_queue,
 
-    d_fn_pstorage,     //this type provides struct drpc_pstorage type with delayed_massages queue and your void* pointer
+    d_fn_pstorage,     //this type provides struct drpc_pstorage type with delayed_messages queue and your void* pointer
     d_clientinfo,
     d_interfunc,
 
