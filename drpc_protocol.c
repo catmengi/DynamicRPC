@@ -103,6 +103,10 @@ struct drpc_return* message_to_drpc_return(struct d_struct* message){
     return drpc_return;
 }
 
+
+
+//Code below was EDITED by chatGPT
+
 int drpc_send_message(struct drpc_message* msg, int fd) {
     struct d_struct* message = new_d_struct();
 
