@@ -24,7 +24,7 @@ struct d_struct* new_d_struct(){
 }
 
 void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum drpc_types type,...){
-    assert(dstruct); assert(key); assert(type > 0);
+    assert(dstruct); assert(key);
     if(native_type == NULL) return;
 
     struct d_struct_element* element = NULL;
@@ -156,10 +156,10 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
             element->data = native_type;
             break;
         default:
-             hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
-             free(element);
-             pthread_mutex_unlock(&dstruct->lock);
-             return;
+            hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
+            free(element);
+            pthread_mutex_unlock(&dstruct->lock);
+            return;
     }
     dstruct->current_len++;
     pthread_mutex_unlock(&dstruct->lock);
