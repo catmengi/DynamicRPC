@@ -155,7 +155,11 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
             element->is_packed = 0;
             element->data = native_type;
             break;
-        default: break;
+        default:
+             hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
+             free(element);
+             pthread_mutex_unlock(&dstruct->lock);
+             return;
     }
     dstruct->current_len++;
     pthread_mutex_unlock(&dstruct->lock);
@@ -216,7 +220,6 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
     pthread_mutex_unlock(&dstruct->lock);
     return 0;
 }
-
 int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type){
     assert(dstruct); assert(key); assert(type > 0);
     struct d_struct_element* element = NULL;
