@@ -119,7 +119,11 @@ void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types typ
             element->is_packed = 0;
             element->data = native_type;
             break;
-        default: break;
+        default:
+            free(element);
+            pthread_mutex_unlock(&dqueue->lock);
+            return;
+
     }
     drpc_que_push(dqueue->que,element);
     pthread_mutex_unlock(&dqueue->lock);
