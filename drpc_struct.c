@@ -166,7 +166,7 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
 }
 
 int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drpc_types type,...){
-    assert(dstruct); assert(key); assert(native_type); assert(type > 0);
+    assert(dstruct); assert(key); assert(native_type);
     pthread_mutex_lock(&dstruct->lock);
 
     struct d_struct_element* element = NULL;
