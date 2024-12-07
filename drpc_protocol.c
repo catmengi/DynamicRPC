@@ -130,7 +130,7 @@ int drpc_send_message(struct drpc_message* msg, int fd) {
     size_t total_sent = 0;
     while (total_sent < message_len) {
         ssize_t bytes_sent = send(fd, send_buf + total_sent, message_len - total_sent, MSG_NOSIGNAL);
-        if (bytes_sent < 0) {
+        if (bytes_sent <= 0) {
             d_struct_free(message);
             free(send_buf);
             return 1;  // Error sending message
@@ -152,14 +152,13 @@ int drpc_recv_message(struct drpc_message* msg, int fd) {
     }
 
     // Allocate buffer for the incoming message
-    char* buf = malloc(len64);
-    if (!buf) return 1;  // Check for allocation failure
+    char* buf = malloc(len64);assert(buf);
 
     // Receive the message in chunks
     size_t total_received = 0;
     while (total_received < len64) {
         ssize_t bytes_received = recv(fd, buf + total_received, len64 - total_received, MSG_NOSIGNAL);
-        if (bytes_received < 0) {
+        if (bytes_received <= 0) {
             free(buf);
             return 1;  // Error receiving message
         }
