@@ -2,6 +2,8 @@
 #include "drpc_struct.h"
 #include "drpc_types.h"
 
+#include "aes.h"
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
@@ -103,11 +105,18 @@ struct drpc_return* message_to_drpc_return(struct d_struct* message){
     return drpc_return;
 }
 
+size_t nextby16 (size_t value) {
+    if (value % 16 == 0) {
+        return value; // Already divisible by 16
+    }
+    return (value / 16 + 1) * 16; // Calculate the next multiple of 16
+}
 
+uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 //Code below was EDITED by chatGPT
 
-int drpc_send_message(struct drpc_message* msg, int fd) {
+int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     struct d_struct* message = new_d_struct();
 
     uint8_t type = msg->message_type;
@@ -119,12 +128,22 @@ int drpc_send_message(struct drpc_message* msg, int fd) {
 
     size_t message_len = 0;
     char* send_buf = d_struct_buf(message, &message_len);
+    message_len = nextby16(message_len);
+
+    assert((send_buf = realloc(send_buf,message_len)) != NULL);
+
     uint64_t send_len = message_len;
+
+    if(aes128_key){
+        struct AES_ctx ctx;
+        AES_init_ctx_iv(&ctx,aes128_key,iv);
+        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,nextby16(message_len));
+    }
 
     d_struct_unlink(message, "msg", d_struct);
 
     // Send the length of the message
-    if (send(fd, &send_len, sizeof(uint64_t), MSG_NOSIGNAL) != sizeof(uint64_t)) {
+    if (send(fd, &send_len, sizeof(uint64_t), MSG_NOSIGNAL) != sizeof(uint64_t)){
         d_struct_free(message);
         free(send_buf);
         return 1;  // Error sending length
@@ -147,7 +166,7 @@ int drpc_send_message(struct drpc_message* msg, int fd) {
     return 0;  // Success
 }
 
-int drpc_recv_message(struct drpc_message* msg, int fd) {
+int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     uint64_t len64 = 0;
 
     // Receive the length of the incoming message
@@ -167,6 +186,12 @@ int drpc_recv_message(struct drpc_message* msg, int fd) {
             return 1;  // Error receiving message
         }
         total_received += bytes_received;
+    }
+
+    if(aes128_key){
+        struct AES_ctx ctx;
+        AES_init_ctx_iv(&ctx,aes128_key,iv);
+        AES_CBC_decrypt_buffer(&ctx,(uint8_t*)buf,(size_t)len64);
     }
 
     struct d_struct* container = new_d_struct();

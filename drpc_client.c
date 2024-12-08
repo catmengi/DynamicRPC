@@ -34,12 +34,12 @@ void* drpc_ping_server(void* clientP){
         recv.message = NULL;
         recv.message_type = drpc_bad;
 
-        if(drpc_send_message(&send,client->fd) != 0){
+        if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
         }
-        if(drpc_recv_message(&recv,client->fd) != 0 || recv.message_type != drpc_ping){
+        if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0 || recv.message_type != drpc_ping){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
@@ -81,7 +81,7 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
         .message = auth,
     };
 
-    if(drpc_send_message(&send,fd) != 0){
+    if(drpc_send_message(&send,NULL,fd) != 0){
         d_struct_free(auth);
         free(client);
         close(fd);
@@ -90,7 +90,7 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
     d_struct_free(auth);
 
     struct drpc_message recv = {0};
-    if(drpc_recv_message(&recv,fd) != 0){
+    if(drpc_recv_message(&recv,NULL,fd) != 0){
         free(client);
         close(fd);
         return NULL;
@@ -100,6 +100,26 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
         close(fd);
         return NULL;
     }
+
+    uint8_t* xor_base; size_t xor_len = 0;
+    if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0 || xor_len != sizeof(client->aes128_key)){
+        d_struct_free(recv.message);
+        free(client);
+        close(fd);
+        return NULL;
+    }
+
+    uint8_t aes128_passwd[16] = {0};
+
+    int cpylen = 0;
+    if(strlen(passwd) > sizeof(aes128_passwd)) cpylen = sizeof(aes128_passwd);
+    else cpylen = strlen(passwd);
+    memcpy(aes128_passwd,passwd,cpylen);
+
+    for(int i = 0; i < sizeof(client->aes128_key); i++){
+        client->aes128_key[i] = xor_base[i] ^ aes128_passwd[i];
+    }
+
     client->client_stop = 0;
     assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
     assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
@@ -116,7 +136,7 @@ void drpc_client_disconnect(struct drpc_client* client){
         .message_type = drpc_disconnect,
         .message = NULL,
     };
-    drpc_send_message(&send,client->fd);
+    drpc_send_message(&send,client->aes128_key,client->fd);
     close(client->fd);
     pthread_mutex_unlock(&client->connection_mutex);
     pthread_join(client->ping_thread,NULL);
@@ -243,7 +263,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     free(arguments);
 
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_message(&send,client->fd) != 0){
+    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
         d_struct_free(send.message);
 
         struct drpc_type_update* freeU = NULL;
@@ -254,7 +274,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         return ENETWORK;
     }
     d_struct_free(send.message);
-    if(drpc_recv_message(&recv,client->fd) != 0){
+    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0){
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
 
@@ -396,7 +416,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
         .message_type = drpc_send_delayed,
     };
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_message(&send,client->fd) != 0){
+    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
         d_struct_unlink(message,"payload",d_struct);
         d_struct_free(message);
         pthread_mutex_unlock(&client->connection_mutex);
@@ -405,7 +425,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
 
     d_struct_unlink(message,"payload",d_struct);
     d_struct_free(message);
-    if(drpc_recv_message(&recv,client->fd) != 0 || recv.message_type != drpc_ok){
+    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0 || recv.message_type != drpc_ok){
         pthread_mutex_unlock(&client->connection_mutex);
         return BADREPLY;
     }

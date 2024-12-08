@@ -56,6 +56,7 @@ struct drpc_connection{
     struct drpc_server* drpc_server;
 
     char* username;
+    uint8_t aes128_key[16];
 };
 
 struct drpc_type_update{
@@ -67,6 +68,8 @@ struct drpc_type_update{
 struct drpc_user{
     int perm;
     uint64_t hash;
+
+    uint8_t aes128_passwd[16];
 };
 
 

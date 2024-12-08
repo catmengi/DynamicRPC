@@ -47,8 +47,9 @@ struct drpc_call* message_to_drpc_call(struct d_struct* message);
 struct d_struct* drpc_return_to_message(struct drpc_return* drpc_return);
 struct drpc_return* message_to_drpc_return(struct d_struct* message);
 
-int drpc_send_message(struct drpc_message* msg, int fd);
-int drpc_recv_message(struct drpc_message* msg, int fd);
+int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd);
+int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd);
 
 void drpc_call_free(struct drpc_call* call);
 void drpc_return_free(struct drpc_return* ret);
+

@@ -10,6 +10,7 @@
 
 
 struct drpc_client{
+    uint8_t aes128_key[16];
     int client_stop;
     int fd;
     pthread_t ping_thread;
