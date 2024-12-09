@@ -14,8 +14,8 @@ Basicly there are 3 types of types:
    
    
    **Simple types**:
--     d_char       //same as C char and d_int8
--     d_int8       //same as C int8_t
+-    d_char       //same as C char and d_int8
+-    d_int8       //same as C int8_t
 -    d_uint8      //same as C uint8_t
 -    d_int16      //same as C int16_t
 -    d_uint16    //same as C uint16_t
