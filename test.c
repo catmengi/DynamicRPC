@@ -1,3 +1,4 @@
+#include "drpc_protocol.h"
 #include "drpc_server.h"
 #include "drpc_client.h"
 #include "drpc_queue.h"
@@ -40,10 +41,11 @@ int main(void){
         struct d_struct* massage = new_d_struct();
         d_struct_set(massage,"input",&c,d_char);
 
-        assert(drpc_client_send_delayed(client,"input_receiver",massage) == 0);
+        if(drpc_client_send_delayed(client,"input_receiver",massage) != 0) {d_struct_free(massage); break;}
         d_struct_free(massage);
     }
 
     /*restore the old settings*/
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+    drpc_client_disconnect(client);
 }

@@ -7,8 +7,10 @@
 struct d_struct{
     pthread_mutex_t lock;
 
-    hashtable_t hashtable;
+    hashtable* hashtable;
     size_t current_len;   //ammount of elements in d_struct currently
+
+    struct drpc_que* heap_keys;
 };
 
 struct d_struct_element{

@@ -69,7 +69,7 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
     client->client_stop = 1;
     client->fd = fd;
 
-    uint64_t passwd_hash = _hash_fnc(passwd,strlen(passwd));
+    uint64_t passwd_hash = murmur(passwd,strlen(passwd));
     struct d_struct* auth = new_d_struct();
 
 
@@ -121,6 +121,7 @@ struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, 
     }
 
     client->client_stop = 0;
+    d_struct_free(recv.message);
     assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
     assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
 

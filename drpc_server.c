@@ -27,8 +27,8 @@ void* drpc_server_dispatcher(void* drpc_server_P);
 struct drpc_server* new_drpc_server(uint16_t port){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
 
-    hashtable_create(&drpc_serv->functions,8,2);
-    hashtable_create(&drpc_serv->users,8,2);
+    drpc_serv->functions = hashtable_create();
+    drpc_serv->users = hashtable_create();
 
     drpc_serv->port = port;
 
@@ -45,7 +45,7 @@ void drpc_server_start(struct drpc_server* server){
     assert(server->server_fd > 0);
 
     int opt = 1;
-    assert(setsockopt(server->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,sizeof(opt)) == 0);
+    assert(setsockopt(server->server_fd, SOL_SOCKET, SO_REUSEADDR, &opt,sizeof(opt)) == 0);
     assert(bind(server->server_fd,(struct sockaddr*)&addr,sizeof(addr)) == 0);
     assert(listen(server->server_fd,MAX_LISTEN) == 0);
 
@@ -53,6 +53,7 @@ void drpc_server_start(struct drpc_server* server){
 }
 
 void drpc_fn_info_free_CB(void* fn_info_P){
+    if(fn_info_P == NULL) return;
     struct drpc_function* fn_info = fn_info_P;
 
     free(fn_info->cif);
@@ -74,11 +75,34 @@ void drpc_server_free(struct drpc_server* server){
     close(server->server_fd);
     pthread_join(server->dispatcher,NULL); // waiting for dispatcher
 
-    hashtable_iterate(server->functions,drpc_fn_info_free_CB);
-    hashtable_free(server->functions);
+    struct drpc_que* que = drpc_que_create();
+    for(size_t i = 0; i < server->functions->capacity; i++){
+        if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL)
+            drpc_que_push(que,server->functions->body[i].value);
+    }
 
-    hashtable_iterate(server->users, free);
-    hashtable_free(server->users);
+    size_t elements_len = drpc_que_get_len(que);
+    for(size_t i = 0 ; i <elements_len; i++){
+        drpc_fn_info_free_CB(drpc_que_pop(que));
+    }
+    drpc_que_free(que);
+
+
+    struct drpc_que* que2 = drpc_que_create();
+    for(size_t i = 0; i < server->users->capacity; i++){
+        if(server->users->body[i].value != NULL && server->users->body[i].key != NULL)
+            drpc_que_push(que2,server->users->body[i].value);
+    }
+
+    size_t elements_len2 = drpc_que_get_len(que2);
+    for(size_t i = 0 ; i <elements_len2; i++){
+        free(drpc_que_pop(que2));
+    }
+    drpc_que_free(que2);
+
+    hashtable_destroy(server->users);
+    hashtable_destroy(server->functions);
+
 
     free(server);
 }
@@ -102,7 +126,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
         memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
     }
     fn_info->pstorage.delayed_messages = new_d_queue();
-    assert(hashtable_add(server->functions,fn_name, strlen(fn_name) + 1,fn_info,0) == 0);
+    hashtable_set(server->functions,fn_name,fn_info);
 
 }
 
@@ -536,7 +560,7 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
         return 1;
     }
     struct drpc_function* call_fn = NULL;
-    if(hashtable_get(client->drpc_server->functions,call->fn_name,strlen(call->fn_name) + 1,(void**)&call_fn) != 0){
+    if((call_fn = hashtable_get(client->drpc_server->functions,call->fn_name)) == NULL){
         printf("%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
         drpc_call_free(call);
         free(call);
@@ -595,7 +619,7 @@ int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection
     }
 
     struct drpc_function* receiver = NULL;  // who gonna get this message
-    if(hashtable_get(client->drpc_server->functions,fn_name,strlen(fn_name) + 1,(void**)&receiver) != 0){
+    if((receiver = hashtable_get(client->drpc_server->functions,fn_name)) == NULL){
         printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
         send.message = NULL;
         send.message_type = drpc_nofn;
@@ -692,7 +716,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        uint64_t hash;
        struct drpc_user* user;
        if(d_struct_get(recv.message,"username",&username,d_str) != 0){
-           printf("\n%s: auth malformed\n",__PRETTY_FUNCTION__);
+           printf("\n%s: auth malformed1\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -700,7 +724,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(d_struct_get(recv.message,"passwd_hash",&hash,d_uint64) != 0){
-           printf("\n%s: auth malformed\n",__PRETTY_FUNCTION__);
+           printf("\n%s: auth malformed2\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -709,7 +733,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        }
        d_struct_unlink(recv.message,"username",d_str);
        d_struct_free(recv.message);
-       if(hashtable_get(client->drpc_server->users,username,strlen(username) + 1,(void**)&user) != 0){
+       if((user = hashtable_get(client->drpc_server->users,username)) == NULL){
            printf("\n%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -791,7 +815,7 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm){
     struct drpc_user* user = calloc(1,sizeof(*user)); assert(user);
 
-    user->hash = _hash_fnc(passwd,strlen(passwd));
+    user->hash = murmur(passwd,strlen(passwd));
     user->perm = perm;
 
     int cpylen = 0;
@@ -800,12 +824,12 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
 
     memcpy(user->aes128_passwd,passwd,cpylen);
 
-    hashtable_add(serv->users,username,strlen(username) + 1, user,0);
+    hashtable_set(serv->users,username,user);
 }
 
 struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name){
     struct drpc_function* fn = NULL;
-    if(hashtable_get(server->functions,fn_name,strlen(fn_name) + 1,(void**)&fn) != 0){
+    if((fn = hashtable_get(server->functions,fn_name)) == NULL){
         return NULL;
     }
     return fn->pstorage.delayed_messages;

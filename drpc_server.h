@@ -14,8 +14,8 @@
 struct drpc_server{
     void* interfunc;
 
-    hashtable_t users;
-    hashtable_t functions;
+    hashtable* users;
+    hashtable* functions;
 
     uint16_t port;
 
