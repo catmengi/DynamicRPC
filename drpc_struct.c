@@ -14,12 +14,10 @@ struct d_struct* new_d_struct(){
     struct d_struct* d_struct = malloc(sizeof(*d_struct)); assert(d_struct);
 
     assert(pthread_mutex_init(&d_struct->lock,NULL) == 0);
-    pthread_mutex_lock(&d_struct->lock);
 
     hashtable_create(&d_struct->hashtable,16,2);
     d_struct->current_len = 0;
 
-    pthread_mutex_unlock(&d_struct->lock);
     return d_struct;
 }
 
@@ -227,7 +225,11 @@ int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type){
     int ret = hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element);
     if(ret != 0) {pthread_mutex_unlock(&dstruct->lock);return ret;}
     if(element->type != type || element->is_packed == 1) {pthread_mutex_unlock(&dstruct->lock);return 1;}
-    element->data = NULL;
+    // free(element);
+
+    element->data = NULL;    //garbage hashtable fix, i'll change this garbage sometime
+
+    hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
 
     dstruct->current_len--;
     pthread_mutex_unlock(&dstruct->lock);
@@ -240,12 +242,13 @@ int d_struct_remove(struct d_struct* dstruct, char* key){
     int ret = hashtable_get(dstruct->hashtable,key,strlen(key) + 1,(void**)&element);
     if(ret != 0) {pthread_mutex_unlock(&dstruct->lock);return ret;}
 
+    hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
+
     dstruct->current_len--;
 
     if(element->is_packed == 1){
         drpc_type_free(element->data);
         free(element->data);
-        hashtable_remove_entry(dstruct->hashtable,key,strlen(key) + 1);
         free(element);
         pthread_mutex_unlock(&dstruct->lock);
         return 0;
