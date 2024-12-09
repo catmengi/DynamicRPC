@@ -50,7 +50,9 @@ This types will be always synced beetwen client and server, if server change arg
   
   
   `struct drpc_server* new_drpc_server(uint16_t port)`  allocate a new drpc_server at port
+  
   `void drpc_server_start(struct drpc_server* server)`    starts an allocated drpc_server
+  
   `void drpc_server_free(struct drpc_server* server)`     stops and frees drpc_server
   
 
