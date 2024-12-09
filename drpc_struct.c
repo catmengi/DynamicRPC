@@ -503,11 +503,13 @@ void d_struct_free_internal(struct d_struct* dstruct){
 
     hashtable_destroy(dstruct->hashtable);
 
+///////////
     char* heap_key = NULL;
     while((heap_key = drpc_que_pop(dstruct->heap_keys)) != NULL){
         free(heap_key);
     }
     drpc_que_free(dstruct->heap_keys);
+///////////
 
     pthread_mutex_unlock(&dstruct->lock);
 }
