@@ -5,7 +5,7 @@ DynamicRPC is a RPC framework that dont uses IDL and support argument-sync beetw
 
 **Type system**
 
-All types is declared in`enum drpc_types` from drpc_types.h
+All types is declared in `enum drpc_types` from drpc_types.h
 
 Basicly there are 3 types of types:
    1.Simple types
