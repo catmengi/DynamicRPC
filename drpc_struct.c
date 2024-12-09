@@ -29,10 +29,13 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
     if(native_type == NULL) return;
     struct d_struct_element* element = NULL;
 
+    char* heap_key = strdup(key); assert(heap_key);
+    drpc_que_push(dstruct->heap_keys,heap_key);
+
     pthread_mutex_lock(&dstruct->lock);
-    if((element = hashtable_get(dstruct->hashtable,key)) == NULL){
+    if((element = hashtable_get(dstruct->hashtable,heap_key)) == NULL){
         element = malloc(sizeof(*element)); assert(element);
-        hashtable_set(dstruct->hashtable,key,element);
+        hashtable_set(dstruct->hashtable,heap_key,element);
     }else{
         if(element->is_packed == 1){
             drpc_type_free(element->data);
@@ -156,7 +159,7 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
             element->data = native_type;
             break;
         default:
-            hashtable_remove(dstruct->hashtable,key);
+            hashtable_remove(dstruct->hashtable,heap_key);
             free(element);
             pthread_mutex_unlock(&dstruct->lock);
             return;
