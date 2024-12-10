@@ -80,7 +80,7 @@ void hashtable_set(hashtable* t, char* key, void* value)
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL) {
 		if(t->body[index].key == (char*)0xDEAD)
-			t->body[index].key = NULL;
+			t->body[index].key = key;
 		/* Entry exists; update it. */
 		t->body[index].value = value;
 	} else {
