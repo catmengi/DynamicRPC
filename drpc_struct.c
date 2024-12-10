@@ -224,57 +224,57 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
 }
 int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type){
     assert(dstruct); assert(key); assert(type > 0);
-    struct d_struct_element* element = NULL;
     pthread_mutex_lock(&dstruct->lock);
-    element = hashtable_get(dstruct->hashtable,key);
-    if(element == NULL) {pthread_mutex_unlock(&dstruct->lock);return 1;}
-    if(element->type != type || element->is_packed == 1) {pthread_mutex_unlock(&dstruct->lock);return 1;}
-    free(element);
-
-    hashtable_remove(dstruct->hashtable,key);
-
-    dstruct->current_len--;
+    int ret = 1;
+    struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
+    if(element != NULL){
+        if(element->type == type && element->is_packed == 0){
+            free(element);
+            hashtable_remove(dstruct->hashtable,key);
+            dstruct->current_len--;
+            ret = 0;
+        }
+    }
     pthread_mutex_unlock(&dstruct->lock);
-    return 0;
+    return ret;
 }
 
 int d_struct_remove(struct d_struct* dstruct, char* key){
-    struct d_struct_element* element = NULL;
     pthread_mutex_lock(&dstruct->lock);
-    element = hashtable_get(dstruct->hashtable,key);
-    if(element == NULL) {pthread_mutex_unlock(&dstruct->lock);return 1;}
+    struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
+    int ret = 1;
+    if(element != NULL){
+        ret = 0;
+        hashtable_remove(dstruct->hashtable,key);
 
-    hashtable_remove(dstruct->hashtable,key);
+        dstruct->current_len--;
 
-    dstruct->current_len--;
-
-    if(element->is_packed == 1){
-        drpc_type_free(element->data);
-        free(element->data);
+        if(element->is_packed == 1){
+            drpc_type_free(element->data);
+            free(element->data);
+        }else{
+            switch(element->type){
+                case d_sizedbuf:
+                    free(element->data);
+                    break;
+                case d_str:
+                    free(element->data);
+                    break;
+                case d_struct:
+                    d_struct_free(element->data);
+                    break;
+                case d_queue:
+                    d_queue_free(element->data);
+                    break;
+                case d_array:
+                    //d_array_free(element->data);
+                    break;
+            }
+        }
         free(element);
-        pthread_mutex_unlock(&dstruct->lock);
-        return 0;
     }
-    switch(element->type){
-        case d_sizedbuf:
-            free(element->data);
-            break;
-        case d_str:
-            free(element->data);
-            break;
-        case d_struct:
-            d_struct_free(element->data);
-            break;
-        case d_queue:
-            d_queue_free(element->data);
-            break;
-        case d_array:
-            //d_array_free(element->data);
-            break;
-    }
-    free(element);
     pthread_mutex_unlock(&dstruct->lock);
-    return 0;
+    return ret;
 }
 
 void d_struct_free_CB(void* element_ptr){
@@ -360,7 +360,7 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     struct drpc_que* que = drpc_que_create();
     struct drpc_que* queK = drpc_que_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
-        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL){
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
             drpc_que_push(que,dstruct->hashtable->body[i].value);
             drpc_que_push(queK,dstruct->hashtable->body[i].key);
         }
@@ -474,7 +474,7 @@ size_t d_struct_fields(struct d_struct* dstruct, char*** keys, enum drpc_types**
     struct drpc_que* que = drpc_que_create();
     struct drpc_que* queK = drpc_que_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
-        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL){
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
             drpc_que_push(que,dstruct->hashtable->body[i].value);
             drpc_que_push(queK,dstruct->hashtable->body[i].key);
         }
@@ -494,7 +494,7 @@ void d_struct_free_internal(struct d_struct* dstruct){
     pthread_mutex_lock(&dstruct->lock);
     struct drpc_que* que = drpc_que_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
-        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL)
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD)
             drpc_que_push(que,dstruct->hashtable->body[i].value);
     }
 

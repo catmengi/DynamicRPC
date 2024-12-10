@@ -77,7 +77,7 @@ void drpc_server_free(struct drpc_server* server){
 
     struct drpc_que* que = drpc_que_create();
     for(size_t i = 0; i < server->functions->capacity; i++){
-        if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL)
+        if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
             drpc_que_push(que,server->functions->body[i].value);
     }
 
@@ -90,7 +90,7 @@ void drpc_server_free(struct drpc_server* server){
 
     struct drpc_que* que2 = drpc_que_create();
     for(size_t i = 0; i < server->users->capacity; i++){
-        if(server->users->body[i].value != NULL && server->users->body[i].key != NULL)
+        if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
             drpc_que_push(que2,server->users->body[i].value);
     }
 

@@ -122,9 +122,8 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     uint8_t type = msg->message_type;
     d_struct_set(message, "msg_type", &type, d_uint8);
 
-    if (msg->message) {
+    if (msg->message != NULL)
         d_struct_set(message, "msg", msg->message, d_struct);
-    }
 
     size_t message_len = 0;
     char* send_buf = d_struct_buf(message, &message_len);
@@ -140,7 +139,8 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
         AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,nextby16(message_len));
     }
 
-    d_struct_unlink(message, "msg", d_struct);
+    if(msg->message != NULL)
+        d_struct_unlink(message, "msg", d_struct);
 
     // Send the length of the message
     if (send(fd, &send_len, sizeof(uint64_t), MSG_NOSIGNAL) != sizeof(uint64_t)){
@@ -204,7 +204,7 @@ int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     msg->message_type = utype;
 
     if (d_struct_get(container, "msg", &msg->message, d_struct) == 0) {
-        d_struct_unlink(container, "msg", d_struct);
+        assert(d_struct_unlink(container, "msg", d_struct) == 0);
     }
 
     d_struct_free(container);

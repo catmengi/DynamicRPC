@@ -44,10 +44,16 @@ unsigned long hashtable_hash(char* str)
 /**
  * Find an available slot for the given key, using linear probing.
  */
+
+int hashtable_strcmp_wrap(char* s1, char* s2){
+	if(s1 == (char*)0xDEAD|| s2 == (char*)0xDEAD) return 1;
+	return strcmp(s1,s2);
+}
+
 unsigned int hashtable_find_slot(hashtable* t, char* key)
 {
 	int index = hashtable_hash(key) % t->capacity;
-	while (t->body[index].key != NULL && strcmp(t->body[index].key, key) != 0) {
+	while (t->body[index].key != NULL && hashtable_strcmp_wrap(t->body[index].key,key) != 0) {
 		index = (index + 1) % t->capacity;
 	}
 	return index;
@@ -59,7 +65,7 @@ unsigned int hashtable_find_slot(hashtable* t, char* key)
 void* hashtable_get(hashtable* t, char* key)
 {
 	int index = hashtable_find_slot(t, key);
-	if (t->body[index].key != NULL) {
+	if (t->body[index].key != NULL && t->body[index].key != (char*)0xDEAD) {
 		return t->body[index].value;
 	} else {
 		return NULL;
@@ -73,6 +79,8 @@ void hashtable_set(hashtable* t, char* key, void* value)
 {
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL) {
+		if(t->body[index].key == (char*)0xDEAD)
+			t->body[index].key = NULL;
 		/* Entry exists; update it. */
 		t->body[index].value = value;
 	} else {
@@ -95,7 +103,7 @@ void hashtable_remove(hashtable* t, char* key)
 {
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL) {
-		t->body[index].key = NULL;
+		t->body[index].key = (char*)0xDEAD;
 		t->body[index].value = NULL;
 		t->size--;
 	}
@@ -135,7 +143,7 @@ void hashtable_resize(hashtable* t, unsigned int capacity)
 
 	// Copy all the old values into the newly allocated body
 	for (int i = 0; i < old_capacity; i++) {
-		if (old_body[i].key != NULL) {
+		if (old_body[i].key != NULL && old_body[i].key != (char*)0xDEAD) {
 			hashtable_set(t, old_body[i].key, old_body[i].value);
 		}
 	}
