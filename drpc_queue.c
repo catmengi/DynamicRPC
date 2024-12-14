@@ -213,25 +213,24 @@ void d_queue_free_internals(struct d_queue* dqueue){
         if(element->is_packed == 1){
             drpc_type_free(element->data);
             free(element->data);
-            free(element);
-            return;
-        }
-        switch(element->type){
-            case d_sizedbuf:
-                free(element->data);
-                break;
-            case d_str:
-                free(element->data);
-                break;
-            case d_struct:
-                d_struct_free(element->data);
-                break;
-            case d_queue:
-                d_queue_free(element->data);
-                break;
-            case d_array:
-                //d_array_free(element->data);
-                break;
+        }else{
+            switch(element->type){
+                case d_sizedbuf:
+                    free(element->data);
+                    break;
+                case d_str:
+                    free(element->data);
+                    break;
+                case d_struct:
+                    d_struct_free(element->data);
+                    break;
+                case d_queue:
+                    d_queue_free(element->data);
+                    break;
+                case d_array:
+                    //d_array_free(element->data);
+                    break;
+            }
         }
         free(element);
     }

@@ -37,7 +37,8 @@ void* drpc_que_pop(struct drpc_que* drpcq){
     void* freep = drpcq->cur;
 
     if(drpcq->cur == drpcq->ltop) drpcq->ltop = NULL;
-    if(drpcq->cur) drpcq->cur = drpcq->cur->next;
+
+    drpcq->cur = drpcq->cur->next;
 
     free(freep);
     drpcq->len--;
