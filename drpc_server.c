@@ -22,6 +22,57 @@
 
 #define MAX_LISTEN 512
 
+/*=== server only libffi stuff ===*/
+
+static ffi_type* drpc_ffi_convert_table[d_return_is] =
+{
+    &ffi_type_void,     &ffi_type_sint8,
+    &ffi_type_uint8,    &ffi_type_sint16,
+    &ffi_type_uint16,   &ffi_type_sint32,
+    &ffi_type_uint32,   &ffi_type_sint64,
+    &ffi_type_uint64,   &ffi_type_float,
+    &ffi_type_double,   &ffi_type_pointer,
+    &ffi_type_pointer,  &ffi_type_pointer,
+    &ffi_type_pointer,  &ffi_type_pointer,
+    &ffi_type_pointer,  &ffi_type_pointer,
+    &ffi_type_pointer
+
+};
+
+size_t drpc_proto_to_ffi_len_adjust(enum drpc_types* prototype, size_t prototype_len){
+    size_t adjusted_len = prototype_len;
+    for(size_t i = 0; i < prototype_len; i++){
+        if(prototype[i] == d_sizedbuf) adjusted_len++;
+    }
+    return adjusted_len;
+}
+
+ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len){
+    if(prototype == NULL) return NULL;
+
+    size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
+    ffi_type** ffi_proto = calloc(adjusted_len + 1,sizeof(ffi_type*)); assert(ffi_proto);
+    size_t j = 0;
+
+    for(size_t i = 0; i < prototype_len; i++,j++){
+        if(prototype[i] >= d_return_is) prototype[i] = d_void;
+
+        ffi_proto[j] = drpc_ffi_convert_table[prototype[i]];
+        if(prototype[i] == d_sizedbuf){
+            j++;
+            ffi_proto[j] = &ffi_type_ulong;
+        }
+    }
+
+    return ffi_proto;
+}
+
+
+/*=============================*/
+
+
+
+
 void* drpc_server_dispatcher(void* drpc_server_P);
 
 struct drpc_server* new_drpc_server(uint16_t port){

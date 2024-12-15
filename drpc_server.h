@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdatomic.h>
+#include <ffi.h>
 
 #include "drpc_queue.h"
 #include "drpc_types.h"

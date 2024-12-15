@@ -12,35 +12,6 @@
 #define drpc_convert(type,native) type->packed_data = malloc(sizeof(native)); assert(type->packed_data); type->len = sizeof(native); memcpy(type->packed_data,&native, sizeof(native));
 #define drpc_deconvert(type,native_type) native_type ret = 0; memcpy(&ret,type->packed_data,sizeof(ret)); return ret;
 
-size_t drpc_proto_to_ffi_len_adjust(enum drpc_types* prototype, size_t prototype_len){
-    size_t adjusted_len = prototype_len;
-    for(size_t i = 0; i < prototype_len; i++){
-        if(prototype[i] == d_sizedbuf) adjusted_len++;
-    }
-    return adjusted_len;
-}
-
-ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len){
-    if(prototype == NULL) return NULL;
-
-    size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
-    ffi_type** ffi_proto = calloc(adjusted_len + 1,sizeof(ffi_type*)); assert(ffi_proto);
-    size_t j = 0;
-
-    for(size_t i = 0; i < prototype_len; i++,j++){
-        if(prototype[i] >= d_return_is) prototype[i] = d_void;
-
-        ffi_proto[j] = drpc_ffi_convert_table[prototype[i]];
-        if(prototype[i] == d_sizedbuf){
-            j++;
-            ffi_proto[j] = &ffi_type_ulong;
-        }
-    }
-
-    return ffi_proto;
-}
-
-
 size_t drpc_type_buflen(struct drpc_type* type){
     return 1 + sizeof(uint64_t) + type->len;
 }

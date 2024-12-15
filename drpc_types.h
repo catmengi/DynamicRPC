@@ -3,7 +3,6 @@
 
 #include <sys/types.h>
 #include <stdint.h>
-#include <ffi.h>
 
 
 
@@ -40,20 +39,7 @@ enum drpc_types{
 
 };
 
-static ffi_type* drpc_ffi_convert_table[d_return_is] =
-{
-    &ffi_type_void,     &ffi_type_sint8,
-    &ffi_type_uint8,    &ffi_type_sint16,
-    &ffi_type_uint16,   &ffi_type_sint32,
-    &ffi_type_uint32,   &ffi_type_sint64,
-    &ffi_type_uint64,   &ffi_type_float,
-    &ffi_type_double,   &ffi_type_pointer,
-    &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer
 
-};
 
 struct drpc_type{
     char type;
@@ -62,11 +48,7 @@ struct drpc_type{
 };
 
 #include "drpc_struct.h"
-
-size_t drpc_proto_to_ffi_len_adjust(enum  drpc_types* prototype, size_t prototype_len);
-ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len);
-
-
+#include "drpc_queue.h"
 
 size_t drpc_type_buflen(struct drpc_type* type);
 
