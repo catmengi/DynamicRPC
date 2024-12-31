@@ -18,6 +18,7 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
 
         uint64_t check_int = 0;
         assert(d_struct_get(check,str,&check_int,d_uint64) == 0);
+        assert(d_struct_remove(check,str) == 0);
         assert(check_int == i);
     }
     return check;
@@ -81,6 +82,7 @@ int main(void){
     assert(check2 == check2_ret);
 
     assert(check2_len != d_queue_len(check2));
+
 
     d_struct_free(check1);
     d_queue_free(check2);
