@@ -29,21 +29,64 @@ void drpc_que_push(struct drpc_que* drpcq, void* el){
     pthread_mutex_unlock(&drpcq->lock);
 }
 
-void* drpc_que_pop(struct drpc_que* drpcq){
+void drpc_que_push_el(struct drpc_que* drpcq, struct drpc_que_el* new){
+    assert(drpcq != NULL || new != NULL);
+    pthread_mutex_lock(&drpcq->lock);
+
+    new->next = NULL;
+
+    if(drpcq->ltop) drpcq->ltop->next = new;
+
+    drpcq->ltop = new;
+
+    if(drpcq->cur == NULL) drpcq->cur = drpcq->ltop;
+
+    drpcq->len++;
+    pthread_mutex_unlock(&drpcq->lock);
+}
+
+struct drpc_que_el* drpc_que_push_rp(struct drpc_que* drpcq, void* el){
+    assert(drpcq != NULL || el != NULL);
+    pthread_mutex_lock(&drpcq->lock);
+    struct drpc_que_el* new = malloc(sizeof(*new));assert(new);
+
+    new->ptr = el;
+    new->next = NULL;
+
+    if(drpcq->ltop) drpcq->ltop->next = new;
+
+    drpcq->ltop = new;
+
+    if(drpcq->cur == NULL) drpcq->cur = drpcq->ltop;
+
+    drpcq->len++;
+    pthread_mutex_unlock(&drpcq->lock);
+    return drpcq->ltop;
+}
+
+struct drpc_que_el* drpc_que_pop_el(struct drpc_que* drpcq){
     assert(drpcq != NULL);
     pthread_mutex_lock(&drpcq->lock);
     if(drpcq->cur == NULL) {pthread_mutex_unlock(&drpcq->lock); return NULL;}
-    char* out = drpcq->cur->ptr;
-    void* freep = drpcq->cur;
+    struct drpc_que_el* out = drpcq->cur;
 
     if(drpcq->cur == drpcq->ltop) drpcq->ltop = NULL;
 
     drpcq->cur = drpcq->cur->next;
 
-    free(freep);
     drpcq->len--;
     pthread_mutex_unlock(&drpcq->lock);
     return out;
+}
+
+void* drpc_que_pop(struct drpc_que* drpcq){
+    struct drpc_que_el* pop = drpc_que_pop_el(drpcq);
+    if(pop == NULL) return NULL;
+
+    void* ret = pop->ptr;
+
+    free(pop);
+    return ret;
 }
 
 

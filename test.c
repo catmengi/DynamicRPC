@@ -1,9 +1,11 @@
 #include "drpc_protocol.h"
+#include "drpc_que.h"
 #include "drpc_server.h"
 #include "drpc_client.h"
 #include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
+#include "drpc_array.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -13,7 +15,7 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
     printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
 
     char str[64];
-    for(uint64_t i = 0; i <max_len; i++){
+    for(uint64_t i = 0; i < max_len; i++){
         sprintf(str,"%lu",i);
 
         uint64_t check_int = 0;
@@ -27,7 +29,7 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
 struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc_pstorage* pstorage){
     printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
 
-    for(uint64_t i = 0; i <maxpop; i++){
+    for(uint64_t i = 0; i < maxpop; i++){
 
         uint64_t check_int = 0;
         assert(d_queue_pop(check,&check_int,d_uint64) == 0);
@@ -37,6 +39,22 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc
 }
 
 int main(void){
+    puts("d_array test");
+
+    struct d_array* darray = new_d_array(32);
+
+    d_array_set_internal(darray,50,"hello!");
+    d_array_set_internal(darray,16,"test16");
+
+    printf("%p: 50 ;;; %p 16\n",darray->lookup_table[50],darray->lookup_table[16]);
+
+    printf("%p got 50 ;;; %p got 16\n",d_array_get_internal(darray,50),d_array_get_internal(darray,16));
+
+    printf("%s: 50del ;;; %s 16del\n",d_array_del_internal(darray,50),d_array_del_internal(darray,16));
+
+    d_array_free_internal(darray);
+
+    puts("main test");
     struct drpc_server* server = new_drpc_server(2077);
 
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};

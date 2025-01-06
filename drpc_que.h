@@ -23,4 +23,8 @@ void drpc_que_free(struct drpc_que* drpcq);
 uint64_t drpc_que_get_len(struct drpc_que* drpcq);
 
 
+//drpc_array specific functions!
+struct drpc_que_el* drpc_que_push_rp(struct drpc_que* drpcq, void* el);
+struct drpc_que_el* drpc_que_pop_el(struct drpc_que* drpcq);
+void drpc_que_push_el(struct drpc_que* drpcq, struct drpc_que_el* new);
 
