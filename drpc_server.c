@@ -4,6 +4,7 @@
 #include "drpc_server.h"
 #include "drpc_que.h"
 #include "drpc_queue.h"
+#include "drpc_array.h"
 #include "hashtable.c/hashtable.h"
 
 
@@ -514,7 +515,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 break;
             case d_array:
                 d_array_to_drpc(&returned->updated_arguments[i],repack->ptr);
-                //TODO: d_array_free(repack->ptr);
+                d_array_free(repack->ptr);
                 break;
             default: break;
         }
@@ -575,7 +576,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
             case d_array:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_array_to_drpc(&returned->returned,(void*)native_return);
-                //d_array_free((void*)native_return);
+                d_array_free((void*)native_return);
                 break;
             case d_struct:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);

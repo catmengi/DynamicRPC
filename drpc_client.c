@@ -5,6 +5,7 @@
 #include "drpc_server.h"
 #include "drpc_types.h"
 #include "drpc_struct.h"
+#include "drpc_array.h"
 #include "hashtable.c/hashtable.h"
 
 #include <arpa/inet.h>
@@ -337,6 +338,16 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 if(return_is == i) *(struct d_struct**)native_return = doriginal;
                 free(dstruct);
                 break;
+            case d_array:
+                struct d_array* darray = drpc_to_d_array(&ret->updated_arguments[i]);
+                struct d_array* doriginalA = to_update->ptr;
+                d_array_free_internal(doriginalA);
+
+                *doriginalA = *darray;
+
+                if(return_is == i) *(struct d_array**)native_return = doriginalA;
+                free(darray);
+                break;
             case d_queue:
                 struct d_queue* dqueue = drpc_to_d_queue(&ret->updated_arguments[i]);
                 struct d_queue* qoriginal = to_update->ptr;
@@ -391,6 +402,9 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 break;
             case d_struct:
                 *(struct d_struct**)native_return = drpc_to_d_struct(&ret->returned);
+                break;
+            case d_array:
+                *(struct d_array**)native_return = drpc_to_d_array(&ret->returned);
                 break;
             case d_queue:
                 *(struct d_queue**)native_return = drpc_to_d_queue(&ret->returned);

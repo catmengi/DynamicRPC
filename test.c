@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct drpc_pstorage* pstorage){
     printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
@@ -38,31 +39,25 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc
     return check;
 }
 
+struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
+    for(uint64_t i = 0; i <max_len; i++){
+        d_array_remove(check,i);
+    }
+    return check;
+}
+
 int main(void){
-    puts("d_array test");
-
-    struct d_array* darray = new_d_array(32);
-
-    d_array_set_internal(darray,50,"hello!");
-    d_array_set_internal(darray,16,"test16");
-
-    printf("%p: 50 ;;; %p 16\n",darray->lookup_table[50],darray->lookup_table[16]);
-
-    printf("%p got 50 ;;; %p got 16\n",d_array_get_internal(darray,50),d_array_get_internal(darray,16));
-
-    printf("%s: 50del ;;; %s 16del\n",d_array_del_internal(darray,50),d_array_del_internal(darray,16));
-
-    d_array_free_internal(darray);
-
-    puts("main test");
     struct drpc_server* server = new_drpc_server(2077);
 
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fn_pstorage};
+    enum drpc_types darray_check[] = {d_array,d_uint64};
 
     drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
 
     drpc_server_register_fn(server,"dqueue_check",d_queue_check,d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),(void*)0x12F,0);
+
+    drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),NULL,0);
 
     drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
@@ -76,6 +71,7 @@ int main(void){
 
 #define STRUCT_LEN 80000
 #define QUEUE_LEN 80000
+#define ARRAY_LEN 80000
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -101,7 +97,22 @@ int main(void){
 
     assert(check2_len != d_queue_len(check2));
 
+    struct d_array* darray = new_d_array(ARRAY_LEN+1);
+    for(uint64_t i = 0; i < ARRAY_LEN; i++){
+        d_array_set(darray,i,&i,d_uint64);
+    }
 
+
+    void* array_ret = NULL;
+    assert(drpc_client_call(client,"darray_check",darray_check,2,&array_ret,darray,ARRAY_LEN) == 0);
+    assert(array_ret == darray);
+
+    printf("darray: %lu\n",darray->lookup_size);
+    assert(darray->lookup_size != ARRAY_LEN);
+
+
+
+    d_array_free(darray);
     d_struct_free(check1);
     d_queue_free(check2);
 

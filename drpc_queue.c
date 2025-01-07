@@ -1,6 +1,7 @@
 #include "drpc_queue.h"
 #include "drpc_que.h"
 #include "drpc_struct.h"
+#include "drpc_array.h"
 #include "drpc_types.h"
 
 #include <assert.h>
@@ -228,7 +229,7 @@ void d_queue_free_internals(struct d_queue* dqueue){
                     d_queue_free(element->data);
                     break;
                 case d_array:
-                    //d_array_free(element->data);
+                    d_array_free(element->data);
                     break;
             }
         }

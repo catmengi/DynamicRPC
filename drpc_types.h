@@ -93,7 +93,7 @@ uint8_t drpc_to_return_is(struct drpc_type* type);
 char* drpc_to_sizedbuf(struct drpc_type* type, size_t* len);
 
 char* drpc_to_str(struct drpc_type* type);
-void* drpc_to_d_array(struct drpc_type* type);
+struct d_array* drpc_to_d_array(struct drpc_type* type);
 struct d_struct* drpc_to_d_struct(struct drpc_type* type);
 struct d_queue* drpc_to_d_queue(struct drpc_type* type);
 

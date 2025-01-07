@@ -1,6 +1,7 @@
 #include "drpc_types.h"
 #include "drpc_struct.h"
 #include "drpc_queue.h"
+#include "drpc_array.h"
 
 #include <string.h>
 #include <stdint.h>
@@ -83,6 +84,7 @@ void sizedbuf_to_drpc(struct drpc_type* type, char* buf, size_t buflen){
 }
 void d_array_to_drpc(struct drpc_type* type, void* d_arrayp){
     type->type = d_array;
+    type->packed_data = d_array_buf(d_arrayp,&type->len);
 }
 void d_struct_to_drpc(struct drpc_type* type, void* dstruct){
     type->type = d_struct;
@@ -145,10 +147,8 @@ char* drpc_to_str(struct drpc_type* type){
     memcpy(ret,type->packed_data, type->len);
     return ret;
 }
-void* drpc_to_d_array(struct drpc_type* type){
-
-
-    return NULL;
+struct d_array* drpc_to_d_array(struct drpc_type* type){
+    return buf_d_array(type->packed_data);
 }
 struct d_struct* drpc_to_d_struct(struct drpc_type* type){
     struct d_struct* ret = new_d_struct();

@@ -2,6 +2,7 @@
 #include "drpc_types.h"
 #include "drpc_struct.h"
 #include "drpc_queue.h"
+#include "drpc_array.h"
 #include "hashtable.c/hashtable.h"
 
 #include <assert.h>
@@ -52,7 +53,7 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
                     d_queue_free(element->data);
                     break;
                 case d_array:
-                    //d_array_free(element->data);
+                    d_array_free(element->data);
                     break;
                 case d_struct:
                     d_struct_free(element->data);
@@ -267,7 +268,7 @@ int d_struct_remove(struct d_struct* dstruct, char* key){
                     d_queue_free(element->data);
                     break;
                 case d_array:
-                    //d_array_free(element->data);
+                    d_array_free(element->data);
                     break;
             }
         }
@@ -300,7 +301,7 @@ void d_struct_free_CB(void* element_ptr){
             d_queue_free(element->data);
             break;
         case d_array:
-            //d_array_free(element->data);
+            d_array_free(element->data);
             break;
     }
     free(element);
