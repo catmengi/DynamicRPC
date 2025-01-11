@@ -278,6 +278,15 @@ int d_struct_remove(struct d_struct* dstruct, char* key){
     return ret;
 }
 
+enum drpc_types drpc_struct_get_type(struct d_struct* dstruct, char* key){
+    struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
+    enum drpc_types ret = d_void;
+    if(element != NULL){
+        ret = element->type;
+    }
+    return ret;
+}
+
 void d_struct_free_CB(void* element_ptr){
     if(element_ptr == NULL) return;
     struct d_struct_element* element = element_ptr;

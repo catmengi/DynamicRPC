@@ -278,6 +278,15 @@ void d_array_remove(struct d_array* darray, size_t index){
     free(element);
 }
 
+enum drpc_types drpc_array_get_type(struct d_array* darray, size_t index){
+    struct d_struct_element* element = d_array_get_internal(darray,index);
+    enum drpc_types ret = d_void;
+    if(element != NULL){
+        ret = element->type;
+    }
+    return ret;
+}
+
 int d_array_unlink(struct d_array* darray, size_t index, enum drpc_types type){
     struct d_struct_element* element = d_array_get_internal(darray,index);
 
@@ -327,11 +336,6 @@ char* d_array_buf(struct d_array* darray, size_t* buflen){
         pthread_mutex_unlock(&packed->lock);
 
     }
-
-    for(size_t i; i < packed->hashtable->capacity;i++){
-        printf("\n%s key ;; %p value\n",packed->hashtable->body[i].key,packed->hashtable->body[i].value);
-    }
-
     char* buf = d_struct_buf(packed,buflen);
 
     void* freep = NULL;
