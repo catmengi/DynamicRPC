@@ -49,6 +49,7 @@ struct drpc_type{
 
 #include "drpc_struct.h"
 #include "drpc_queue.h"
+#include "drpc_array.h"
 
 size_t drpc_type_buflen(struct drpc_type* type);
 
