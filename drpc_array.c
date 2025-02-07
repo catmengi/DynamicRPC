@@ -375,3 +375,7 @@ struct d_array* buf_d_array(char* buf){
 
     return new;
 }
+
+size_t d_array_len(struct d_array* darray){
+    return darray->lookup_size;
+}
