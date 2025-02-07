@@ -377,5 +377,6 @@ struct d_array* buf_d_array(char* buf){
 }
 
 size_t d_array_len(struct d_array* darray){
+    assert(darray);
     return darray->lookup_size;
 }
