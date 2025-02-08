@@ -1,3 +1,5 @@
+#pragma once
+
 #include "drpc_que.h"
 #include "drpc_types.h"
 

@@ -326,16 +326,13 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 memcpy(to_update->ptr,unpacked,to_update->len);
                 free(unpacked);
 
-                // if(return_is == i) *(char**)native_return = to_update->ptr;
                 break;
             case d_struct:
                 struct d_struct* dstruct = drpc_to_d_struct(&ret->updated_arguments[i]);
                 struct d_struct* doriginalS = to_update->ptr;
                 d_struct_free_internal(doriginalS);
 
-                doriginalS->current_len = dstruct->current_len;
-                doriginalS->hashtable = dstruct->hashtable;
-                doriginalS->heap_keys = dstruct->heap_keys;
+                *doriginalS = *dstruct;
 
                 if(return_is == i) *(struct d_struct**)native_return = doriginalS;
                 free(dstruct);
@@ -345,8 +342,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 struct d_array* doriginalA = to_update->ptr;
                 d_array_free_internal(doriginalA);
 
-                doriginalA->lookup_size = darray->lookup_size;
-                doriginalA->lookup_table = darray->lookup_table;
+                *doriginalA = *darray;
 
                 if(return_is == i) *(struct d_array**)native_return = doriginalA;
                 free(darray);
@@ -356,7 +352,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 struct d_queue* doriginalQ = to_update->ptr;
                 d_queue_free_internals(doriginalQ);
 
-                doriginalQ->que = dqueue->que;
+                *doriginalQ = *dqueue;
 
                 if(return_is == i) *(struct d_queue**)native_return = doriginalQ;
                 free(dqueue);

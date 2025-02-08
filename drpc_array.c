@@ -24,6 +24,7 @@ struct d_array* new_d_array(size_t start_cappacity){
     new->lookup_table = calloc(new->lookup_size,sizeof(*new->lookup_table));
     assert(new->lookup_table);
 
+    assert(pthread_mutex_init(&new->lock,NULL) == 0);
     return new;
 }
 
