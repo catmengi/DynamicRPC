@@ -330,12 +330,14 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 break;
             case d_struct:
                 struct d_struct* dstruct = drpc_to_d_struct(&ret->updated_arguments[i]);
-                struct d_struct* doriginal = to_update->ptr;
-                d_struct_free_internal(doriginal);
+                struct d_struct* doriginalS = to_update->ptr;
+                d_struct_free_internal(doriginalS);
 
-                *doriginal = *dstruct;
+                doriginalS->current_len = dstruct->current_len;
+                doriginalS->hashtable = dstruct->hashtable;
+                doriginalS->heap_keys = dstruct->heap_keys;
 
-                if(return_is == i) *(struct d_struct**)native_return = doriginal;
+                if(return_is == i) *(struct d_struct**)native_return = doriginalS;
                 free(dstruct);
                 break;
             case d_array:
@@ -343,19 +345,20 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 struct d_array* doriginalA = to_update->ptr;
                 d_array_free_internal(doriginalA);
 
-                *doriginalA = *darray;
+                doriginalA->lookup_size = darray->lookup_size;
+                doriginalA->lookup_table = darray->lookup_table;
 
                 if(return_is == i) *(struct d_array**)native_return = doriginalA;
                 free(darray);
                 break;
             case d_queue:
                 struct d_queue* dqueue = drpc_to_d_queue(&ret->updated_arguments[i]);
-                struct d_queue* qoriginal = to_update->ptr;
-                d_queue_free_internals(qoriginal);
+                struct d_queue* doriginalQ = to_update->ptr;
+                d_queue_free_internals(doriginalQ);
 
-                *qoriginal = *dqueue;
+                doriginalQ->que = dqueue->que;
 
-                if(return_is == i) *(struct d_queue**)native_return = qoriginal;
+                if(return_is == i) *(struct d_queue**)native_return = doriginalQ;
                 free(dqueue);
                 break;
             default: break;

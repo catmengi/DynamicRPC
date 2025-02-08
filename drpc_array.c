@@ -198,8 +198,8 @@ int d_array_get(struct d_array* darray,size_t index, void* native_type, enum drp
     pthread_mutex_lock(&darray->lock);
 
     struct d_struct_element* element = d_array_get_internal(darray,index);
-    if(element == NULL) {pthread_mutex_unlock(&darray->lock); ;return 1;}
-    if(element->type != type) {pthread_mutex_unlock(&darray->lock); ;return 1;}
+    if(element == NULL) {pthread_mutex_unlock(&darray->lock); return 1;}
+    if(element->type != type) {pthread_mutex_unlock(&darray->lock); return 1;}
 
     switch(type){
         default:
