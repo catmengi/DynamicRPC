@@ -155,7 +155,7 @@ void drpc_server_free(struct drpc_server* server){
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
 
-
+    free(server->name);
     free(server);
 }
 
@@ -727,6 +727,9 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     struct drpc_message recv;
     struct drpc_message send;
 
+    if(client->drpc_server->connection_event_cb != NULL)
+        client->drpc_server->connection_event_cb(client,drpc_connected);
+
     while(client->drpc_server->should_stop == 0){
         if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0) {
             printf("\n%s: no message provided,exiting\n",__PRETTY_FUNCTION__); return;
@@ -745,6 +748,23 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 break;
             case drpc_call:
                 if(drpc_handle_call(recv,client,client_perm) != 0) return;
+                break;
+            case drpc_servername:
+                send.message_type = drpc_servername;
+                send.message = new_d_struct();
+                char* name = NULL;
+                int SNerr = 0; // server name error
+
+                if(client->drpc_server->name == NULL) name = "UNKNOWN_DRPC";
+                else name = client->drpc_server->name;
+
+                d_struct_set(send.message,"drpc_servername",name,d_str);
+                if(drpc_send_message(&send,client->aes128_key,client->fd) != 0) SNerr = 1;
+
+                d_struct_unlink(send.message,"drpc_servername",d_str);
+                d_struct_free(send.message);
+
+                if(SNerr == 1) return;
                 break;
 
             default:
@@ -834,6 +854,8 @@ void* drpc_server_client_auth(void* drpc_connection_P){
    }
    client->drpc_server->client_ammount++;
    drpc_handle_client(client,perm);
+   if(client->drpc_server->connection_event_cb != NULL)
+       client->drpc_server->connection_event_cb(client,drpc_disconnected);
    client->drpc_server->client_ammount--;
 exit:
    shutdown(client->fd,SHUT_RD);
@@ -895,4 +917,25 @@ struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name){
     }
     return fn->pstorage.delayed_messages;
 
+}
+
+void drpc_server_set_servername(struct drpc_server* server, char* name){
+    if(server->name != NULL) free(server->name);
+
+    if(name == NULL){
+        server->name = NULL;
+        return;
+    }
+    server->name = malloc(strlen(name) + 1);
+    assert(server->name);
+
+    memcpy(server->name,name,strlen(name) + 1);
+}
+
+char* drpc_server_get_servername(struct drpc_server* server){
+    return server->name;
+}
+
+void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb){
+    server->connection_event_cb = drpc_connection_event_cb;
 }

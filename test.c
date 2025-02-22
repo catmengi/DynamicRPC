@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
+    if(event == drpc_connected) printf("%s: connected\n",connection->username);
+    else printf("%s: disconnected\n",connection->username);
+}
+
 struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct drpc_pstorage* pstorage){
     printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
 
@@ -64,6 +69,8 @@ int main(void){
 
     drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
+    drpc_server_set_connection_event_cb(server,condiscon_cb);
+
     drpc_server_start(server);
 
 
@@ -90,6 +97,22 @@ int main(void){
     uint64_t check2_len = d_queue_len(check2);
 
     void* check1_ret = 0;
+
+    char* servername1 = drpc_client_get_servername(client);
+    printf("BEFORE: %s\n",servername1);
+    free(servername1);
+
+    drpc_server_set_servername(server,"test server name");
+
+    char* servername2 = drpc_client_get_servername(client);
+    printf("AFTER: %s\n",servername2);
+    free(servername2);
+
+    drpc_server_set_servername(server,"memory leak check");
+
+    char* servername3 = drpc_client_get_servername(client);
+    printf("AFTER AGAIN: %s\n",servername3);
+    free(servername3);
 
     drpc_client_call(client,"dstruct_check",dstruct_check,2,&check1_ret,check1,STRUCT_LEN);
     assert(check1 == check1_ret);

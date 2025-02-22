@@ -30,3 +30,4 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                                                             */
 
 int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message);   //send delayed message to function "fn_name", return 0 on success
+char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success

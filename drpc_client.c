@@ -446,3 +446,35 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
     pthread_mutex_unlock(&client->connection_mutex);
     return 0;
 }
+
+char* drpc_client_get_servername(struct drpc_client* client){
+    if(client->client_stop != 0) return NULL;
+
+    struct drpc_message send;
+    struct drpc_message recv;
+
+    send.message = NULL;
+    recv.message = NULL;
+    recv.message_type = 0;
+
+    send.message_type = drpc_servername;
+    pthread_mutex_lock(&client->connection_mutex);
+
+    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
+        pthread_mutex_unlock(&client->connection_mutex);
+        return NULL;
+    }
+
+    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0){
+        pthread_mutex_unlock(&client->connection_mutex);
+        return NULL;
+    }
+    pthread_mutex_unlock(&client->connection_mutex);
+
+    assert(recv.message_type == drpc_servername);
+    char* ret = NULL;
+    d_struct_get(recv.message,"drpc_servername",&ret,d_str);
+    d_struct_unlink(recv.message,"drpc_servername",d_str);
+    d_struct_free(recv.message);
+    return ret;
+}

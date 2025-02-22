@@ -6,6 +6,7 @@
 enum drpc_protocol{
     drpc_call,           //this used for function call request
     drpc_return,         //this is answer for drpc_call that carries function return
+    drpc_servername,     //gets server's name string, if it is NULL it would set to "UNKNOWN_DRPC"
 
     drpc_nofn,           //function doesnt exist
     drpc_bad,            //arguments missmatch or other errors

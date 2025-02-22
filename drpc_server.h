@@ -12,21 +12,26 @@
 #include "drpc_que.h"
 #include "hashtable.c/hashtable.h"
 
-struct drpc_server{
-    void* interfunc;
+enum drpc_connection_event{
+    drpc_connected,
+    drpc_disconnected,
+};
 
+struct drpc_connection;
+typedef void (*drpc_connection_event_cb)(struct drpc_connection* client,enum drpc_connection_event);
+
+struct drpc_server{
+    char* name; //if not set, drpc_servername would give "UNKNOWN_DRPC"
+    void* interfunc;
     hashtable* users;
     hashtable* functions;
-
     uint16_t port;
-
     pthread_t dispatcher;
-
     int server_fd;
-
     int should_stop;
-
     atomic_ullong client_ammount;
+
+    drpc_connection_event_cb connection_event_cb;
 };
 
 struct drpc_pstorage{
@@ -35,7 +40,6 @@ struct drpc_pstorage{
 };
 
 struct drpc_function{
-
     char* fn_name;
 
     size_t prototype_len;
@@ -52,10 +56,8 @@ struct drpc_function{
 
 struct drpc_connection{
     int fd;
-    struct sockaddr_in client_addr;
-
     struct drpc_server* drpc_server;
-
+    struct sockaddr_in client_addr;
     char* username;
     uint8_t aes128_key[16];
 };
@@ -87,3 +89,8 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
 
 struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name); //gets pstorage.delayed_messages of fn_name for local use
+
+void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
+char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
+
+void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
