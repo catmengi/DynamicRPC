@@ -15,6 +15,7 @@
 enum drpc_connection_event{
     drpc_connected,
     drpc_disconnected,
+    drpc_force_disconnected,
 };
 
 struct drpc_connection;
@@ -60,6 +61,8 @@ struct drpc_connection{
     struct sockaddr_in client_addr;
     char* username;
     uint8_t aes128_key[16];
+
+    int force_disconnect;
 };
 
 struct drpc_type_update{
@@ -94,3 +97,4 @@ void drpc_server_set_servername(struct drpc_server* server, char* name); //copie
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
 
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
+void drpc_server_force_disconnect_client(struct drpc_connection* client); //disconnect client from server side

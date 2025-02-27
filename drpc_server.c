@@ -731,6 +731,14 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
         client->drpc_server->connection_event_cb(client,drpc_connected);
 
     while(client->drpc_server->should_stop == 0){
+        if(client->force_disconnect == 1){
+            send.message_type = drpc_disconnect;
+            send.message = NULL;
+            drpc_send_message(&send,client->aes128_key,client->fd);
+            if(client->drpc_server->connection_event_cb != NULL)
+                client->drpc_server->connection_event_cb(client,drpc_force_disconnected);
+            return;
+        }
         if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0) {
             printf("\n%s: no message provided,exiting\n",__PRETTY_FUNCTION__); return;
         }
@@ -761,7 +769,6 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 d_struct_set(send.message,"drpc_servername",name,d_str);
                 if(drpc_send_message(&send,client->aes128_key,client->fd) != 0) SNerr = 1;
 
-                d_struct_unlink(send.message,"drpc_servername",d_str);
                 d_struct_free(send.message);
 
                 if(SNerr == 1) return;
@@ -938,4 +945,7 @@ char* drpc_server_get_servername(struct drpc_server* server){
 
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb){
     server->connection_event_cb = drpc_connection_event_cb;
+}
+void drpc_server_force_disconnect_client(struct drpc_connection* client){
+    client->force_disconnect = 1;
 }
