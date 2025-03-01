@@ -158,12 +158,7 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
         host_list = host_list->ai_next;
     }
     host_list = host_list_org;
-    while(host_list != NULL){
-        void* next = host_list->ai_next;
-
-        free(host_list);
-        host_list = next;
-    }
+    freeaddrinfo(host_list);
     return ret;
 }
 
