@@ -17,7 +17,7 @@ struct drpc_client{
     pthread_mutex_t connection_mutex;
 };
 
-struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, char* passwd);  //connect client to the server. Return NULL on connection error
+struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd);  //connect client to the server. char* host is a string in format "HOST:PORT" Return NULL on connection error
 void drpc_client_disconnect(struct drpc_client* client);  //disconnects and frees client struct
 
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...);

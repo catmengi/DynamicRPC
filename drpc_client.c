@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <netdb.h>
 
 
 #include <stdio.h>
@@ -54,79 +55,116 @@ void* drpc_ping_server(void* clientP){
     return NULL;
 }
 
-struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, char* passwd){
-    assert(ip != NULL); assert(username != NULL); assert(passwd != NULL);
-    struct sockaddr_in connect_to = {
-        .sin_family = AF_INET,
-        .sin_port = htons(port),
+struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd){
+    assert(host != NULL); assert(username != NULL); assert(passwd != NULL);
+    struct addrinfo hints = {
+        .ai_flags = AI_NUMERICSERV,
+        .ai_socktype = SOCK_STREAM,
+        .ai_flags = AI_PASSIVE,
+        .ai_protocol = 0,
+        .ai_addr = NULL,
+        .ai_next = NULL,
     };
-    assert(inet_aton(ip,&connect_to.sin_addr) != 0);
-    int fd = socket(AF_INET,SOCK_STREAM,0);
-    if(connect(fd,(struct sockaddr*)&connect_to,sizeof(connect_to)) != 0){
-        close(fd);
+    struct addrinfo* host_list = NULL;
+    struct addrinfo* host_list_org = NULL;
+    char* host_ip = strdup(host); assert(host_ip);
+    char* host_port = strchr(host_ip,':');
+    if(host_port == NULL) return NULL;
+    *host_port = '\0'; host_port++;
+
+    if(getaddrinfo(host_ip,host_port,&hints,&host_list_org) != 0){
+        free(host_ip);
         return NULL;
     }
-    struct drpc_client* client = malloc(sizeof(*client)); assert(client);
-    client->client_stop = 1;
-    client->fd = fd;
+    host_list = host_list_org;
+    free(host_ip);
 
-    uint64_t passwd_hash = murmur(passwd,strlen(passwd));
-    struct d_struct* auth = new_d_struct();
+    int success = 0;
+    struct drpc_client* ret = NULL;
+    while(host_list != NULL){
+        int fd = socket(host_list->ai_family,SOCK_STREAM,0); //we are also trying IPv6, because somewhere in future drpc_server will also support IPv6
+        if(connect(fd,host_list->ai_addr,host_list->ai_addrlen) == 0){
+            struct drpc_client* client = malloc(sizeof(*client)); assert(client);
+            client->client_stop = 1;
+            client->fd = fd;
+
+            uint64_t passwd_hash = murmur(passwd,strlen(passwd));
+            struct d_struct* auth = new_d_struct();
 
 
-    d_struct_set(auth,"username",username,d_str);
-    d_struct_set(auth,"passwd_hash",&passwd_hash,d_uint64);
+            d_struct_set(auth,"username",username,d_str);
+            d_struct_set(auth,"passwd_hash",&passwd_hash,d_uint64);
 
-    struct drpc_message send = {
-        .message_type = drpc_auth,
-        .message = auth,
-    };
+            struct drpc_message send = {
+                .message_type = drpc_auth,
+                .message = auth,
+            };
 
-    if(drpc_send_message(&send,NULL,fd) != 0){
-        d_struct_free(auth);
-        free(client);
-        close(fd);
-        return NULL;
+            if(drpc_send_message(&send,NULL,fd) != 0){
+                d_struct_free(auth);
+                free(client);
+                close(fd);
+
+                host_list = host_list->ai_next;
+                continue;
+            }
+            d_struct_free(auth);
+
+            struct drpc_message recv = {0};
+            if(drpc_recv_message(&recv,NULL,fd) != 0){
+                free(client);
+                close(fd);
+
+                host_list = host_list->ai_next;
+                continue;
+            }
+            if(recv.message_type != drpc_ok){
+                free(client);
+                close(fd);
+
+                host_list = host_list->ai_next;
+                continue;
+            }
+
+            uint8_t* xor_base; size_t xor_len = 0;
+            if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0 || xor_len != sizeof(client->aes128_key)){
+                d_struct_free(recv.message);
+                free(client);
+                close(fd);
+
+                host_list = host_list->ai_next;
+                continue;
+            }
+
+            uint8_t aes128_passwd[16] = {0};
+
+            int cpylen = 0;
+            if(strlen(passwd) > sizeof(aes128_passwd)) cpylen = sizeof(aes128_passwd);
+            else cpylen = strlen(passwd);
+            memcpy(aes128_passwd,passwd,cpylen);
+
+            for(int i = 0; i < sizeof(client->aes128_key); i++){
+                client->aes128_key[i] = xor_base[i] ^ aes128_passwd[i];
+            }
+
+            client->client_stop = 0;
+            d_struct_free(recv.message);
+            assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
+            assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
+
+            ret = client;
+            break;
+        }
+        host_list = host_list->ai_next;
     }
-    d_struct_free(auth);
+    host_list = host_list_org;
+    while(host_list != NULL){
+        void* next = host_list->ai_next;
 
-    struct drpc_message recv = {0};
-    if(drpc_recv_message(&recv,NULL,fd) != 0){
-        free(client);
-        close(fd);
-        return NULL;
+        free(host_list);
+        host_list = next;
     }
-    if(recv.message_type != drpc_ok){
-        free(client);
-        close(fd);
-        return NULL;
-    }
-
-    uint8_t* xor_base; size_t xor_len = 0;
-    if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0 || xor_len != sizeof(client->aes128_key)){
-        d_struct_free(recv.message);
-        free(client);
-        close(fd);
-        return NULL;
-    }
-
-    uint8_t aes128_passwd[16] = {0};
-
-    int cpylen = 0;
-    if(strlen(passwd) > sizeof(aes128_passwd)) cpylen = sizeof(aes128_passwd);
-    else cpylen = strlen(passwd);
-    memcpy(aes128_passwd,passwd,cpylen);
-
-    for(int i = 0; i < sizeof(client->aes128_key); i++){
-        client->aes128_key[i] = xor_base[i] ^ aes128_passwd[i];
-    }
-
-    client->client_stop = 0;
-    d_struct_free(recv.message);
-    assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
-    assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
-
-    return client;
+    return ret;
 }
 
 void drpc_client_disconnect(struct drpc_client* client){
@@ -147,6 +185,7 @@ void drpc_client_disconnect(struct drpc_client* client){
 
 
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...){
+    assert(client);
     if(client->client_stop != 0) return 1;
 
     va_list varargs;
@@ -417,6 +456,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 }
 
 int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message){
+    assert(client);
     if(client->client_stop != 0) return 1;
 
     struct d_struct* message = new_d_struct();
@@ -448,6 +488,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
 }
 
 char* drpc_client_get_servername(struct drpc_client* client){
+    assert(client);
     if(client->client_stop != 0) return NULL;
 
     struct drpc_message send;

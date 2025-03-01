@@ -75,7 +75,8 @@ int main(void){
     drpc_server_start(server);
 
 
-    struct drpc_client* client = drpc_client_connect("127.0.0.1",2077,"check_user","i have absurdly long password to check that this will surly work as expected!");
+    struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
+    if(client == NULL){drpc_server_free(server); return 0;}
 
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
