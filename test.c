@@ -26,7 +26,7 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
         sprintf(str,"%lu",i);
 
         uint64_t check_int = 0;
-        assert(drpc_struct_get_type(check,str) == d_uint64);
+        assert(d_struct_get_type(check,str) == d_uint64);
         assert(d_struct_get(check,str,&check_int,d_uint64) == 0);
         assert(d_struct_remove(check,str) == 0);
         assert(check_int == i);
@@ -49,7 +49,7 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc
 
 struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
     for(uint64_t i = 0; i <max_len; i++){
-        assert(drpc_array_get_type(check,i) == d_uint64);
+        assert(d_array_get_type(check,i) == d_uint64);
         d_array_remove(check,i);
     }
     return check;

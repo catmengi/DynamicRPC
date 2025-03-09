@@ -18,7 +18,7 @@ void d_array_set(struct d_array* darray,size_t index, void* native_type, enum dr
 int d_array_get(struct d_array* darray,size_t index, void* native_type, enum drpc_types type,...);
 void d_array_remove(struct d_array* darray, size_t index);
 int d_array_unlink(struct d_array* darray, size_t index, enum drpc_types type);
-enum drpc_types drpc_array_get_type(struct d_array* darray, size_t index);
+enum drpc_types d_array_get_type(struct d_array* darray, size_t index);
 size_t d_array_len(struct d_array* darray);
 
 void d_array_free(struct d_array* darray);

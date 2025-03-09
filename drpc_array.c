@@ -279,7 +279,7 @@ void d_array_remove(struct d_array* darray, size_t index){
     free(element);
 }
 
-enum drpc_types drpc_array_get_type(struct d_array* darray, size_t index){
+enum drpc_types d_array_get_type(struct d_array* darray, size_t index){
     struct d_struct_element* element = d_array_get_internal(darray,index);
     enum drpc_types ret = d_void;
     if(element != NULL){
@@ -354,15 +354,14 @@ struct d_array* buf_d_array(char* buf){
     buf_d_struct(buf,packed);
 
 
-    char** keys; enum drpc_types* unused;
-    size_t keys_ammount = d_struct_fields(packed,&keys,&unused);
+    char** keys;
+    size_t keys_ammount = d_struct_get_fields(packed,&keys);
     struct d_array* new = new_d_array(keys_ammount);
 
     for(size_t i = 0; i < keys_ammount; i++){
         size_t set_at = atol(keys[i]);
         d_array_set_internal(new,set_at,hashtable_get(packed->hashtable,keys[i]));
     }
-    free(unused);
 
     void* freep = NULL;
     while((freep = drpc_que_pop(packed->heap_keys)) != NULL){

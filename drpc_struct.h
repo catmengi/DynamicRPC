@@ -50,9 +50,9 @@ int d_struct_remove(struct d_struct* dstruct, char* key); //remove entry and fre
 
 void d_struct_free_internal(struct d_struct* dstruct);
 
-size_t d_struct_fields(struct d_struct* dstruct, char*** keys, enum drpc_types** types);
+size_t d_struct_get_fields(struct d_struct* dstruct, char*** keys);
 
-enum drpc_types drpc_struct_get_type(struct d_struct* dstruct, char* key);
+enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key);
 
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen);
 void buf_d_struct(char* buf, struct d_struct* dstruct);

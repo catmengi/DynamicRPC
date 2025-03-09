@@ -8,6 +8,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+enum drpc_client_errors{
+    DRPC_OK,
+    DRPC_ENETWORK,
+    DRPC_CLIENTSTOPPED,
+    DRPC_BADREPLY,
+};
 
 struct drpc_client{
     uint8_t aes128_key[16];

@@ -19,10 +19,6 @@
 
 
 #include <stdio.h>
-
-#define ENETWORK 10
-#define BADREPLY 20
-
 void* drpc_ping_server(void* clientP){
     struct drpc_client* client = clientP;
 
@@ -181,7 +177,7 @@ void drpc_client_disconnect(struct drpc_client* client){
 
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...){
     assert(client);
-    if(client->client_stop != 0) return 1;
+    if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
 
     va_list varargs;
     va_start(varargs,native_return);
@@ -307,7 +303,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 
         drpc_que_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
-        return ENETWORK;
+        return DRPC_ENETWORK;
     }
     d_struct_free(send.message);
     if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0){
@@ -316,7 +312,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 
         drpc_que_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
-        return ENETWORK;
+        return DRPC_ENETWORK;
     }
     if(recv.message_type != drpc_return){
         struct drpc_type_update* freeU = NULL;
@@ -324,7 +320,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 
         drpc_que_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
-        return BADREPLY;
+        return DRPC_BADREPLY;
     }
     pthread_mutex_unlock(&client->connection_mutex);
 
@@ -447,12 +443,12 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         }
     }
     drpc_return_free(ret); free(ret);
-    return 0;
+    return DRPC_OK;
 }
 
 int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message){
     assert(client);
-    if(client->client_stop != 0) return 1;
+    if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
 
     struct d_struct* message = new_d_struct();
 
@@ -469,17 +465,17 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
         d_struct_unlink(message,"payload",d_struct);
         d_struct_free(message);
         pthread_mutex_unlock(&client->connection_mutex);
-        return ENETWORK;
+        return DRPC_ENETWORK;
     }
 
     d_struct_unlink(message,"payload",d_struct);
     d_struct_free(message);
     if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0 || recv.message_type != drpc_ok){
         pthread_mutex_unlock(&client->connection_mutex);
-        return BADREPLY;
+        return DRPC_BADREPLY;
     }
     pthread_mutex_unlock(&client->connection_mutex);
-    return 0;
+    return DRPC_OK;
 }
 
 char* drpc_client_get_servername(struct drpc_client* client){

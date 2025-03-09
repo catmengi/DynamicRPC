@@ -278,7 +278,7 @@ int d_struct_remove(struct d_struct* dstruct, char* key){
     return ret;
 }
 
-enum drpc_types drpc_struct_get_type(struct d_struct* dstruct, char* key){
+enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){
     struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
     enum drpc_types ret = d_void;
     if(element != NULL){
@@ -464,22 +464,14 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
 void d_struct_fields_CB(char* key,void* elementP, void* userP, size_t index){
     if(key == NULL || elementP == NULL) return;
     struct d_struct_element* element = elementP;
-
-    void** cb_container = userP;
-
-    char** keys = cb_container[0];
-    enum drpc_types* types = cb_container[1];
-
+    char** keys = userP;
     keys[index] = key;
-    types[index] = element->type;
 }
-size_t d_struct_fields(struct d_struct* dstruct, char*** keys, enum drpc_types** types){
+size_t d_struct_get_fields(struct d_struct* dstruct, char*** keys){
     size_t len = dstruct->current_len;
 
-    *keys = calloc(len,sizeof(char**));             assert(*keys != NULL);
-    *types = calloc(len,sizeof(enum drpc_types*)); assert(*types != NULL);
-
-    void* cb_container[] = {*keys,*types};
+    *keys = calloc(len,sizeof(char**));
+    assert(*keys != NULL);
 
     struct drpc_que* que = drpc_que_create();
     struct drpc_que* queK = drpc_que_create();
@@ -492,7 +484,7 @@ size_t d_struct_fields(struct d_struct* dstruct, char*** keys, enum drpc_types**
 
     size_t elements_len = drpc_que_get_len(que);
     for(size_t i = 0 ; i <elements_len; i++){
-        d_struct_fields_CB(drpc_que_pop(queK),drpc_que_pop(que),cb_container,i);
+        d_struct_fields_CB(drpc_que_pop(queK),drpc_que_pop(que),*keys,i);
     }
     drpc_que_free(que);
     drpc_que_free(queK);
