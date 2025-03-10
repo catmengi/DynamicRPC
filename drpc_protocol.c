@@ -10,6 +10,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define DRPC_SIGNATURE "DRPCv2+"
+
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
 
@@ -125,25 +128,27 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     if (msg->message != NULL)
         d_struct_set(message, "msg", msg->message, d_struct);
 
-    size_t message_len = 0;
-    char* send_buf = d_struct_buf(message, &message_len);
-    message_len = nextby16(message_len);
+    size_t structbuf_len = 0;
+    char* send_buf = d_struct_buf(message, &structbuf_len); assert(send_buf);
 
-    assert((send_buf = realloc(send_buf,message_len)) != NULL);
-
-    uint64_t send_len = message_len;
+    uint64_t send_len = nextby16(structbuf_len + sizeof(DRPC_SIGNATURE));
+    assert((send_buf = realloc(send_buf,send_len)) != NULL);
 
     if(aes128_key){
         struct AES_ctx ctx;
         AES_init_ctx_iv(&ctx,aes128_key,iv);
-        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,nextby16(message_len));
+        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,send_len);
     }
 
     if(msg->message != NULL)
         d_struct_unlink(message, "msg", d_struct);
 
     // Send the length of the message
-    if (send(fd, &send_len, sizeof(uint64_t), MSG_NOSIGNAL) != sizeof(uint64_t)){
+    char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
+    memcpy(drpc_message_header,DRPC_SIGNATURE,sizeof(DRPC_SIGNATURE));
+    memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_len,sizeof(uint64_t));
+
+    if (send(fd, drpc_message_header, sizeof(drpc_message_header), MSG_NOSIGNAL) != sizeof(drpc_message_header)){
         d_struct_free(message);
         free(send_buf);
         return 1;  // Error sending length
@@ -151,8 +156,8 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
 
     // Send the message in chunks
     size_t total_sent = 0;
-    while (total_sent < message_len) {
-        ssize_t bytes_sent = send(fd, send_buf + total_sent, message_len - total_sent, MSG_NOSIGNAL);
+    while (total_sent < send_len) {
+        ssize_t bytes_sent = send(fd, send_buf + total_sent, send_len - total_sent, MSG_NOSIGNAL);
         if (bytes_sent <= 0) {
             d_struct_free(message);
             free(send_buf);
@@ -167,20 +172,22 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
 }
 
 int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
-    uint64_t len64 = 0;
-
+    uint64_t drpc_message_len = 0;
+    char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
     // Receive the length of the incoming message
-    if (recv(fd, &len64, sizeof(uint64_t), MSG_NOSIGNAL) != sizeof(uint64_t)) {
+    if (recv(fd, drpc_message_header, sizeof(drpc_message_header), MSG_NOSIGNAL) != sizeof(drpc_message_header)) {
         return 1;  // Error receiving length
     }
+    if(strcmp(drpc_message_header,DRPC_SIGNATURE) != 0) return 1; // NOT A DRPC MESSAGE;
+    memcpy(&drpc_message_len,drpc_message_header + sizeof(DRPC_SIGNATURE),sizeof(uint64_t));
 
     // Allocate buffer for the incoming message
-    char* buf = malloc(len64);assert(buf);
+    char* buf = malloc(drpc_message_len);assert(buf);
 
     // Receive the message in chunks
     size_t total_received = 0;
-    while (total_received < len64) {
-        ssize_t bytes_received = recv(fd, buf + total_received, len64 - total_received, MSG_NOSIGNAL);
+    while (total_received < drpc_message_len) {
+        ssize_t bytes_received = recv(fd, buf + total_received, drpc_message_len - total_received, MSG_NOSIGNAL);
         if (bytes_received <= 0) {
             free(buf);
             return 1;  // Error receiving message
@@ -191,7 +198,7 @@ int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     if(aes128_key){
         struct AES_ctx ctx;
         AES_init_ctx_iv(&ctx,aes128_key,iv);
-        AES_CBC_decrypt_buffer(&ctx,(uint8_t*)buf,(size_t)len64);
+        AES_CBC_decrypt_buffer(&ctx,(uint8_t*)buf,(size_t)drpc_message_len);
     }
 
     struct d_struct* container = new_d_struct();
