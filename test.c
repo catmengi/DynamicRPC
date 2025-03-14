@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
     if(event == drpc_connected) printf("%s: connected\n",connection->username);
@@ -81,9 +82,9 @@ int main(void){
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
 
-#define STRUCT_LEN 80000
-#define QUEUE_LEN 80000
-#define ARRAY_LEN 80000
+#define STRUCT_LEN 100000
+#define QUEUE_LEN 100000
+#define ARRAY_LEN 100000
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -115,13 +116,18 @@ int main(void){
     char* servername3 = drpc_client_get_servername(client);
     printf("AFTER AGAIN: %s\n",servername3);
     free(servername3);
-
+    clock_t struct_check_timeS = clock();
     drpc_client_call(client,"dstruct_check",dstruct_check,2,&check1_ret,check1,STRUCT_LEN);
     assert(check1 == check1_ret);
+    clock_t struct_check_timeF = clock();
+    printf("struct check time in ms %f\n", ((float)(struct_check_timeF - struct_check_timeS) / CLOCKS_PER_SEC) * 1000);
 
+    clock_t que_check_timeS = clock();
     void* check2_ret = 0;
     drpc_client_call(client,"dqueue_check",dqueue_check,2,&check2_ret,check2,QUEUE_LEN);
     assert(check2 == check2_ret);
+    clock_t que_check_timeF = clock();
+    printf("que check time in ms %f\n", ((float)(que_check_timeF - que_check_timeS) / CLOCKS_PER_SEC) * 1000);
 
     assert(check2_len != d_queue_len(check2));
 
@@ -130,13 +136,14 @@ int main(void){
         d_array_set(darray,i,&i,d_uint64);
     }
 
-
+    clock_t arr_check_timeS = clock();
     void* array_ret = NULL;
     assert(drpc_client_call(client,"darray_check",darray_check,2,&array_ret,darray,ARRAY_LEN) == 0);
     assert(array_ret == darray);
 
-    printf("darray: %lu\n",darray->lookup_size);
     assert(darray->lookup_size != ARRAY_LEN);
+    clock_t arr_check_timeF = clock();
+    printf("arr check time in ms %f\n", ((float)(arr_check_timeF - arr_check_timeS) / CLOCKS_PER_SEC) * 1000);
 
 
 
