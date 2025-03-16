@@ -307,7 +307,7 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
         void* type_packed = packed_types[i].packed_data;
         struct drpc_type* type = NULL;
 
-        struct d_struct_element* element = calloc(1,sizeof(*element));
+        struct d_struct_element* element = calloc(1,sizeof(*element)); assert(element);
         switch(packed_types[i].type){
             case d_str:
                 type = malloc(sizeof(*type)); assert(type);

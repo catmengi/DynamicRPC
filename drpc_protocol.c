@@ -11,7 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DRPC_SIGNATURE "DRPCv2+"
+#define DRPC_SIGNATURE "DRPCv210+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v: FIRST DIGIT -- code version.
+                                   // SECOND DIGIT -- full network compat version(changes on massive updates),
+                                   // THIRD DIGIT -- partial network compat version
+                                   // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
 
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
@@ -134,7 +137,7 @@ int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
     uint64_t send_len = nextby16(structbuf_len + sizeof(DRPC_SIGNATURE));
     assert((send_buf = realloc(send_buf,send_len)) != NULL);
 
-    if(aes128_key){
+    if(aes128_key && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
         struct AES_ctx ctx;
         AES_init_ctx_iv(&ctx,aes128_key,iv);
         AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,send_len);
@@ -195,7 +198,7 @@ int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
         total_received += bytes_received;
     }
 
-    if(aes128_key){
+    if(aes128_key && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
         struct AES_ctx ctx;
         AES_init_ctx_iv(&ctx,aes128_key,iv);
         AES_CBC_decrypt_buffer(&ctx,(uint8_t*)buf,(size_t)drpc_message_len);

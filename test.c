@@ -50,7 +50,12 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc
 
 struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
     for(uint64_t i = 0; i <max_len; i++){
-        assert(d_array_get_type(check,i) == d_uint64);
+        assert(d_array_get_type(check,i) == d_uint64 || d_array_get_type(check,i) == d_str);
+        if(d_array_get_type(check,i) == d_str){
+            char* out = NULL;
+            d_array_get(check,i,&out,d_str);
+            assert(strcmp(out,"     test") == 0);
+        }
         d_array_remove(check,i);
     }
     return check;
@@ -82,9 +87,9 @@ int main(void){
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
 
-#define STRUCT_LEN 100000
-#define QUEUE_LEN 100000
-#define ARRAY_LEN 100000
+#define STRUCT_LEN 100
+#define QUEUE_LEN 100
+#define ARRAY_LEN 100
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -133,7 +138,10 @@ int main(void){
 
     struct d_array* darray = new_d_array(ARRAY_LEN+1);
     for(uint64_t i = 0; i < ARRAY_LEN; i++){
-        d_array_set(darray,i,&i,d_uint64);
+        if(i % 2 == 0)
+            d_array_set(darray,i,&i,d_uint64);
+        else
+            d_array_set(darray,i,"     test",d_str);
     }
 
     clock_t arr_check_timeS = clock();

@@ -165,24 +165,18 @@ struct d_queue* drpc_to_d_queue(struct drpc_type* type){
 
 
 size_t drpc_buflen(struct drpc_type* type){
-    size_t len = 1;
-    if(type->type == d_void) return len;
-
-    len += sizeof(uint64_t);
-    len += type->len;
+    size_t len = 1 + sizeof(uint64_t) + type->len;
 
     return len;
 }
 
 size_t drpc_buf(struct drpc_type* type, char* buf){
     *buf = type->type; buf++;
-    if(type->type == d_void) goto exit;
 
     uint64_t len64 = type->len;
     memcpy(buf,&len64,sizeof(uint64_t)); buf += sizeof(uint64_t);
-    memcpy(buf,type->packed_data,type->len);
+    if(type->type != d_void) memcpy(buf,type->packed_data,type->len);
 
-exit:
     return drpc_type_buflen(type);
 }
 
@@ -233,6 +227,7 @@ struct drpc_type* buf_drpc_types(char* buf, size_t *len){
 }
 
 void drpc_type_free(struct drpc_type* type){
+    if(type == NULL) return;
     free(type->packed_data);
 }
 

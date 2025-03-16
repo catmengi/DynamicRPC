@@ -2,6 +2,7 @@
 #include "drpc_que.h"
 #include "drpc_queue.h"
 #include "drpc_struct.h"
+#include "drpc_types.h"
 #include "hashtable.c/hashtable.h"
 
 #include <asm-generic/errno.h>
@@ -318,61 +319,124 @@ void d_array_free(struct d_array* darray){
 }
 
 char* d_array_buf(struct d_array* darray, size_t* buflen){
-    struct d_struct* packed = new_d_struct();
-
+    struct drpc_type* packed_types = calloc(darray->lookup_size,sizeof(*packed_types)); assert(packed_types);
     for(size_t i = 0; i < darray->lookup_size; i++){
-        if(darray->lookup_table[i] == NULL) continue;
+        struct d_struct_element* element = darray->lookup_table[i];
+        if(element == NULL){
+            packed_types[i].type = d_void;
+            packed_types[i].len = 0;
+            packed_types[i].packed_data = NULL;
+        } else {
+            if(element->is_packed == 0){
+                struct drpc_type* packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
+                switch(element->type){
+                    case d_sizedbuf:
+                        sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
+                        break;
+                    case d_struct:
+                        d_struct_to_drpc(packed_type,element->data);
+                        break;
+                    case d_queue:
+                        d_queue_to_drpc(packed_type,element->data);
+                        break;
+                    case d_array:
+                        d_array_to_drpc(packed_type,element->data);
+                        break;
+                    case d_str:
+                        str_to_drpc(packed_type,element->data);
+                        break;
+                    default: break;
+                }
+                size_t packed_len = drpc_type_buflen(packed_type);
+                char* buf = malloc(packed_len); assert(buf);
+                drpc_buf(packed_type,buf);
 
-        char key[64];
-        char* keyp;
-        sprintf(key,"%lu",i);
-        keyp = strdup(key);
+                packed_types[i].type = element->type;
+                packed_types[i].len = packed_len;
+                packed_types[i].packed_data = buf;
 
-        pthread_mutex_lock(&packed->lock);
-
-        hashtable_set(packed->hashtable,keyp,darray->lookup_table[i]);   //low level hashtable manipulations to set to already existing elements, because they are in the same format
-        packed->current_len++;
-        drpc_que_push(packed->heap_keys,keyp);
-
-        pthread_mutex_unlock(&packed->lock);
-
+                drpc_type_free(packed_type);
+                free(packed_type);
+            } else {
+                packed_types[i].type = element->type;
+                packed_types[i].len = drpc_type_buflen(element->data);
+                packed_types[i].packed_data = malloc(packed_types[i].len); assert(packed_types[i].packed_data);
+                drpc_buf(element->data,packed_types[i].packed_data);
+            }
+        }
     }
-    char* buf = d_struct_buf(packed,buflen);
+    *buflen = drpc_types_buflen(packed_types,darray->lookup_size);
+    char* outbuf = malloc(*buflen); assert(outbuf);
 
-    void* freep = NULL;
-    while((freep = drpc_que_pop(packed->heap_keys)) != NULL){
-        free(freep);
-    }
-    drpc_que_free(packed->heap_keys);
-    hashtable_destroy(packed->hashtable);
-    free(packed);
-    return buf;
+    drpc_types_buf(packed_types,darray->lookup_size,outbuf);
+
+    drpc_types_free(packed_types,darray->lookup_size);
+    return outbuf;
 }
 
 struct d_array* buf_d_array(char* buf){
-    struct d_struct* packed = new_d_struct();
-    buf_d_struct(buf,packed);
+    size_t packed_types_len = 0;
+    struct drpc_type* packed_types = buf_drpc_types(buf,&packed_types_len);
+    struct d_array* new = new_d_array(packed_types_len);
 
+    for(size_t i = 0; i < packed_types_len; i++){
+        if(packed_types[i].type == d_void) continue;
 
-    char** keys;
-    size_t keys_ammount = d_struct_get_fields(packed,&keys);
-    struct d_array* new = new_d_array(keys_ammount);
+        void* type_packed = packed_types[i].packed_data;
+        struct drpc_type* type = NULL;
 
-    for(size_t i = 0; i < keys_ammount; i++){
-        size_t set_at = atol(keys[i]);
-        d_array_set_internal(new,set_at,hashtable_get(packed->hashtable,keys[i]));
+        struct d_struct_element* element = calloc(1,sizeof(*element)); assert(element);
+        switch(packed_types[i].type){
+            case d_str:
+                type = malloc(sizeof(*type)); assert(type);
+                buf_drpc(type,type_packed);
+                element->is_packed = 0;
+                element->type = packed_types[i].type;
+                element->data = drpc_to_str(type);
+                drpc_type_free(type);free(type);
+                break;
+            case d_sizedbuf:
+                type = malloc(sizeof(*type)); assert(type);
+                buf_drpc(type,type_packed);
+                element->is_packed = 0;
+                element->type = packed_types[i].type;
+                element->data = drpc_to_sizedbuf(type,&element->sizedbuf_len);
+                drpc_type_free(type);free(type);
+                break;
+            case d_array:
+                type = malloc(sizeof(*type)); assert(type);
+                buf_drpc(type,type_packed);
+                element->is_packed = 0;
+                element->type = packed_types[i].type;
+                element->data = drpc_to_d_array(type);
+                drpc_type_free(type);free(type);
+                break;
+            case d_struct:
+                type = malloc(sizeof(*type)); assert(type);
+                buf_drpc(type,type_packed);
+                element->is_packed = 0;
+                element->type = packed_types[i].type;
+                element->data = drpc_to_d_struct(type);
+                drpc_type_free(type);free(type);
+                break;
+            case d_queue:
+                type = malloc(sizeof(*type)); assert(type);
+                buf_drpc(type,type_packed);
+                element->is_packed = 0;
+                element->type = packed_types[i].type;
+                element->data =  drpc_to_d_queue(type);
+                drpc_type_free(type);free(type);
+                break;
+            default:
+                element->is_packed = 1;
+                element->type = packed_types[i].type;
+                element->data = malloc(sizeof(struct drpc_type)); assert(element->data);
+                buf_drpc(element->data,packed_types[i].packed_data);
+                break;
+        }
+        new->lookup_table[i] = element;
     }
-
-    void* freep = NULL;
-    while((freep = drpc_que_pop(packed->heap_keys)) != NULL){
-        free(freep);
-    }
-    free(keys);
-
-    drpc_que_free(packed->heap_keys);
-    hashtable_destroy(packed->hashtable);
-    free(packed);
-
+    drpc_types_free(packed_types,packed_types_len);
     return new;
 }
 
