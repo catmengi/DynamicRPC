@@ -87,9 +87,9 @@ int main(void){
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
 
-#define STRUCT_LEN 100
-#define QUEUE_LEN 100
-#define ARRAY_LEN 100
+#define STRUCT_LEN 100000
+#define QUEUE_LEN 100000
+#define ARRAY_LEN 100000
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){

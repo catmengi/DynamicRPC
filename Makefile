@@ -1,6 +1,6 @@
 default:
 	mkdir build
-	gcc -c -g drpc_*.c aes.c hashtable.c/*.c
+	gcc -c -g drpc_*.c aes.c hashtable.c/*.c -O3
 	mv *.o build/
 	ar rcs drpc_full.a build/*.o
 	rm -rf build

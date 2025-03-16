@@ -243,67 +243,72 @@ void d_queue_free(struct d_queue* dqueue){
     free(dqueue);
 }
 char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
-    size_t packed_types_len = drpc_que_get_len(dqueue->que);
-    struct drpc_type* packed = calloc(packed_types_len,sizeof(*packed)); assert(packed);
-
-    for(size_t index = 0; index < packed_types_len; index++){
+    pthread_mutex_lock(&dqueue->lock);
+    size_t dqueue_len = d_queue_len(dqueue);
+    struct drpc_type* packed_types = calloc(dqueue_len,sizeof(*packed_types)); assert(packed_types);
+    for(size_t i = 0; i < dqueue_len; i++){
         struct d_struct_element* element = drpc_que_pop(dqueue->que);
+        if(element == NULL){
+            packed_types[i].type = d_void;
+            packed_types[i].len = 0;
+            packed_types[i].packed_data = NULL;
+        } else {
+            if(element->is_packed == 0){
+                struct drpc_type* packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
+                switch(element->type){
+                    case d_sizedbuf:
+                        sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
+                        break;
+                    case d_struct:
+                        d_struct_to_drpc(packed_type,element->data);
+                        break;
+                    case d_queue:
+                        d_queue_to_drpc(packed_type,element->data);
+                        break;
+                    case d_array:
+                        d_array_to_drpc(packed_type,element->data);
+                        break;
+                    case d_str:
+                        str_to_drpc(packed_type,element->data);
+                        break;
+                    default: break;
+                }
+                size_t packed_len = drpc_type_buflen(packed_type);
+                char* buf = malloc(packed_len); assert(buf);
+                drpc_buf(packed_type,buf);
 
-        enum drpc_types type = element->type;
-        struct drpc_type* packed_type = NULL;
-        if(element->is_packed == 1){
-            packed_type = element->data;
-        }else{
-            packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
-            switch(type){
-                case d_sizedbuf:
-                    sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
-                    break;
-                case d_struct:
-                    d_struct_to_drpc(packed_type,element->data);
-                    break;
-                case d_queue:
-                    d_queue_to_drpc(packed_type,element->data);
-                    break;
-                case d_array:
-                    d_array_to_drpc(packed_type,element->data);
-                    break;
-                case d_str:
-                    str_to_drpc(packed_type,element->data);
-                    break;
-                default: break;
+                packed_types[i].type = element->type;
+                packed_types[i].len = packed_len;
+                packed_types[i].packed_data = buf;
+
+                drpc_type_free(packed_type);
+                free(packed_type);
+            } else {
+                packed_types[i].type = element->type;
+                packed_types[i].len = drpc_type_buflen(element->data);
+                packed_types[i].packed_data = malloc(packed_types[i].len); assert(packed_types[i].packed_data);
+                drpc_buf(element->data,packed_types[i].packed_data);
             }
-        }
-        char* buf = malloc(drpc_type_buflen(packed_type)); assert(buf);
-
-        drpc_buf(packed_type,buf);
-
-        packed[index].packed_data = buf;
-        packed[index].type = type;
-        packed[index].len = drpc_type_buflen(packed_type);
-
-        if(element->is_packed == 0) {
-            drpc_type_free(packed_type);
-            free(packed_type);
         }
         drpc_que_push(dqueue->que,element);
     }
+    *buflen = drpc_types_buflen(packed_types,dqueue_len);
+    char* outbuf = malloc(*buflen); assert(outbuf);
 
+    drpc_types_buf(packed_types,dqueue_len,outbuf);
 
-    *buflen = drpc_types_buflen(packed,packed_types_len);
-    char* buf = malloc(*buflen); assert(buf);
-
-    drpc_types_buf(packed,packed_types_len,buf);
-
-    drpc_types_free(packed,packed_types_len);
-
-    return buf;
+    drpc_types_free(packed_types,dqueue_len);
+    pthread_mutex_unlock(&dqueue->lock);
+    return outbuf;
 }
 void buf_d_queue(char* buf, struct d_queue* dqueue){
+    pthread_mutex_lock(&dqueue->lock);
     size_t packed_types_len = 0;
     struct drpc_type* packed_types = buf_drpc_types(buf,&packed_types_len);
 
     for(size_t i = 0; i < packed_types_len; i++){
+        if(packed_types[i].type == d_void) continue;
+
         void* type_packed = packed_types[i].packed_data;
         struct drpc_type* type = NULL;
 
@@ -353,13 +358,13 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
                 element->is_packed = 1;
                 element->type = packed_types[i].type;
                 element->data = malloc(sizeof(struct drpc_type)); assert(element->data);
-
-                buf_drpc(element->data,type_packed);
+                buf_drpc(element->data,packed_types[i].packed_data);
                 break;
         }
         drpc_que_push(dqueue->que,element);
     }
     drpc_types_free(packed_types,packed_types_len);
+    pthread_mutex_unlock(&dqueue->lock);
 }
 
 size_t d_queue_len(struct d_queue* dqueue){
