@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DRPC_SIGNATURE "DRPCv210+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v: FIRST DIGIT -- code version.
-                                   // SECOND DIGIT -- full network compat version(changes on massive updates),
-                                   // THIRD DIGIT -- partial network compat version
-                                   // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
+#define DRPC_SIGNATURE "DRPCv210+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
+                                    // FIRST DIGIT -- code version.
+                                    // SECOND DIGIT -- full network compat version(changes on massive updates),
+                                    // THIRD DIGIT -- partial network compat version
+                                    // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
 
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
