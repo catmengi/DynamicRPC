@@ -7,19 +7,20 @@
 #include <stdatomic.h>
 #include <ffi.h>
 
+#include "drpc_protocol.h"
 #include "drpc_queue.h"
 #include "drpc_types.h"
 #include "drpc_que.h"
 #include "hashtable.c/hashtable.h"
 
-enum drpc_connection_event{
+enum drpc_client_connection_event{
     drpc_connected,
     drpc_disconnected,
     drpc_force_disconnected,
 };
 
-struct drpc_connection;
-typedef void (*drpc_connection_event_cb)(struct drpc_connection* client,enum drpc_connection_event);
+struct drpc_client_connection;
+typedef void (*drpc_client_connection_event_cb)(struct drpc_client_connection* client,enum drpc_client_connection_event);
 
 struct drpc_server{
     char* name; //if not set, drpc_servername would give "UNKNOWN_DRPC"
@@ -32,7 +33,7 @@ struct drpc_server{
     int should_stop;
     atomic_ullong client_ammount;
 
-    drpc_connection_event_cb connection_event_cb;
+    drpc_client_connection_event_cb connection_event_cb;
 };
 
 struct drpc_pstorage{
@@ -55,12 +56,10 @@ struct drpc_function{
     ffi_type** ffi_prototype;
 };
 
-struct drpc_connection{
-    int fd;
+struct drpc_client_connection{
+    struct drpc_connection* io;
     struct drpc_server* drpc_server;
-    struct sockaddr_in client_addr;
     char* username;
-    uint8_t aes128_key[16];
 
     int force_disconnect;
 };
@@ -96,5 +95,6 @@ struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name);
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
 
-void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
-void drpc_server_force_disconnect_client(struct drpc_connection* client); //disconnect client from server side
+void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_client_connection_event_cb drpc_client_connection_event_cb); //set drpc_client_connection_event_cb
+void drpc_server_force_disconnect_client(struct drpc_client_connection* client); //disconnect client from server side
+struct drpc_dqueue_io* drpc_server_start_dqueue(struct drpc_server* server,char* username, int client_perm);

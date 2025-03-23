@@ -5,8 +5,6 @@
 
 
 struct d_struct{
-    pthread_mutex_t lock;
-
     hashtable* hashtable;
     size_t current_len;   //ammount of elements in d_struct currently
 
@@ -50,7 +48,7 @@ int d_struct_remove(struct d_struct* dstruct, char* key); //remove entry and fre
 
 void d_struct_free_internal(struct d_struct* dstruct);
 
-size_t d_struct_get_fields(struct d_struct* dstruct, char*** keys);
+char** d_struct_get_fields(struct d_struct* dstruct, size_t* len);
 
 enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key);
 

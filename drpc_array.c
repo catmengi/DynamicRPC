@@ -330,14 +330,9 @@ char* d_array_buf(struct d_array* darray, size_t* buflen){
         sprintf(key,"%lu",i);
         keyp = strdup(key);
 
-        pthread_mutex_lock(&packed->lock);
-
         hashtable_set(packed->hashtable,keyp,darray->lookup_table[i]);   //low level hashtable manipulations to set to already existing elements, because they are in the same format!
         packed->current_len++;
         drpc_que_push(packed->heap_keys,keyp);
-
-        pthread_mutex_unlock(&packed->lock);
-
     }
     char* buf = d_struct_buf(packed,buflen);
 
@@ -356,11 +351,11 @@ struct d_array* buf_d_array(char* buf){
     struct d_struct* packed = new_d_struct();
     buf_d_struct(buf,packed);
 
-    char** keys;
-    size_t keys_ammount = d_struct_get_fields(packed,&keys);
-    struct d_array* new = new_d_array(keys_ammount);
+    size_t keys_len = 0;
+    char** keys =d_struct_get_fields(packed,&keys_len);
+    struct d_array* new = new_d_array(keys_len);
 
-    for(size_t i = 0; i < keys_ammount; i++){
+    for(size_t i = 0; i < keys_len; i++){
         size_t set_at = atol(keys[i]);
         d_array_set_internal(new,set_at,hashtable_get(packed->hashtable,keys[i]));
     }

@@ -13,7 +13,7 @@
 #include <string.h>
 #include <wchar.h>
 
-void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
+void condiscon_cb(struct drpc_client_connection* connection,enum drpc_client_connection_event event){
     if(event == drpc_connected) printf("%s: connected\n",connection->username);
     else if(event == drpc_disconnected) printf("%s: disconnected\n",connection->username);
     else printf("%s: FORCE disconnected\n",connection->username);
@@ -61,35 +61,17 @@ struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
     return check;
 }
 
-int main(void){
-    struct drpc_server* server = new_drpc_server(2077);
-
+void check_client(struct drpc_server* server, struct drpc_client* client){
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fn_pstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
-
-    drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
-
-    drpc_server_register_fn(server,"dqueue_check",d_queue_check,d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),(void*)0x12F,0);
-
-    drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),NULL,0);
-
-    drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
-
-    drpc_server_set_connection_event_cb(server,condiscon_cb);
-
-    drpc_server_start(server);
-
-
-    struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
-    if(client == NULL){drpc_server_free(server); return 0;}
-
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
+    struct d_queue* delayed_check = new_d_queue();
 
-#define STRUCT_LEN 100000
-#define QUEUE_LEN 100000
-#define ARRAY_LEN 100000
+    #define STRUCT_LEN 1000000
+    #define QUEUE_LEN 1000000
+    #define ARRAY_LEN 1000000
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -100,9 +82,15 @@ int main(void){
 
     for(uint64_t i = 0; i < QUEUE_LEN; i++){
         d_queue_push(check2,&i,d_uint64);
+        d_queue_push(delayed_check,&i,d_uint64);
     }
 
+    printf("%lu: before send\n",d_queue_len(delayed_check));
     uint64_t check2_len = d_queue_len(check2);
+    drpc_client_send_delayed(client,"dqueue_check",delayed_check);
+
+    struct d_queue* delayed_check2 = drpc_get_delayed_for(server,"dqueue_check");
+    printf("%lu: received\n",d_queue_len(delayed_check2));
 
     void* check1_ret = 0;
 
@@ -160,8 +148,36 @@ int main(void){
     d_queue_free(check2);
 
     drpc_client_disconnect(client);
+}
+
+
+int main(void){
+    struct drpc_server* server = new_drpc_server(2077);
+
+    enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};
+    enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fn_pstorage};
+    enum drpc_types darray_check[] = {d_array,d_uint64};
+
+    drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
+
+    drpc_server_register_fn(server,"dqueue_check",d_queue_check,d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),(void*)0x12F,0);
+
+    drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),NULL,0);
+
+    drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
+
+    drpc_server_set_connection_event_cb(server,condiscon_cb);
+
+    drpc_server_start(server);
+    struct drpc_dqueue_io* que_conn = drpc_server_start_dqueue(server,"test dqueue",-1);
+    struct drpc_client* client_dque = drpc_client_connect_dqueue(que_conn);
+
+    struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
+    if(client == NULL){drpc_server_free(server); return 0;}
+
+    check_client(server,client);
+    sleep(3);
+    check_client(server,client_dque);
     drpc_server_free(server);
-
     sleep(1);
-
 }

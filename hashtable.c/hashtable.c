@@ -5,6 +5,7 @@
  * Uses dynamic addressing with linear probing.
  */
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
@@ -13,18 +14,6 @@
 /*
  * Interface section used for `makeheaders`.
  */
-#if INTERFACE
-struct hashtable_entry {
-	char* key;
-	void* value;
-};
-
-struct hashtable {
-	unsigned int size;
-	unsigned int capacity;
-	hashtable_entry* body;
-};
-#endif
 
 #define HASHTABLE_INITIAL_CAPACITY 4
 
@@ -64,10 +53,13 @@ unsigned int hashtable_find_slot(hashtable* t, char* key)
  */
 void* hashtable_get(hashtable* t, char* key)
 {
+	pthread_mutex_lock(&t->lock);
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL && t->body[index].key != (char*)0xDEAD) {
+		pthread_mutex_unlock(&t->lock);
 		return t->body[index].value;
 	} else {
+		pthread_mutex_unlock(&t->lock);
 		return NULL;
 	}
 }
@@ -76,6 +68,26 @@ void* hashtable_get(hashtable* t, char* key)
  * Assign a value to the given key in the table.
  */
 void hashtable_set(hashtable* t, char* key, void* value)
+{
+	pthread_mutex_lock(&t->lock);
+	int index = hashtable_find_slot(t, key);
+	if (t->body[index].key != NULL && t->body[index].key != (char*)0xDEAD) {
+		/* Entry exists; update it. */
+		t->body[index].value = value;
+	} else {
+		t->size++;
+		/* Create a new  entry */
+		if ((float)t->size / t->capacity > 0.8) {
+			/* Resize the hash table */
+			hashtable_resize(t, t->capacity * 2);
+			index = hashtable_find_slot(t, key);
+		}
+		t->body[index].key = key;
+		t->body[index].value = value;
+	}
+	pthread_mutex_unlock(&t->lock);
+}
+void hashtable_set_NL(hashtable* t, char* key, void* value)
 {
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL && t->body[index].key != (char*)0xDEAD) {
@@ -99,12 +111,14 @@ void hashtable_set(hashtable* t, char* key, void* value)
  */
 void hashtable_remove(hashtable* t, char* key)
 {
+	pthread_mutex_lock(&t->lock);
 	int index = hashtable_find_slot(t, key);
 	if (t->body[index].key != NULL) {
 		t->body[index].key = (char*)0xDEAD;
 		t->body[index].value = NULL;
 		t->size--;
 	}
+	pthread_mutex_unlock(&t->lock);
 }
 
 /**
@@ -116,6 +130,7 @@ hashtable* hashtable_create()
 	new_ht->size = 0;
 	new_ht->capacity = HASHTABLE_INITIAL_CAPACITY;
 	new_ht->body = hashtable_body_allocate(new_ht->capacity);
+	pthread_mutex_init(&new_ht->lock,NULL);
 	return new_ht;
 }
 
@@ -142,7 +157,7 @@ void hashtable_resize(hashtable* t, unsigned int capacity)
 	// Copy all the old values into the newly allocated body
 	for (int i = 0; i < old_capacity; i++) {
 		if (old_body[i].key != NULL && old_body[i].key != (char*)0xDEAD) {
-			hashtable_set(t, old_body[i].key, old_body[i].value);
+			hashtable_set_NL(t, old_body[i].key, old_body[i].value);
 		}
 	}
 	free(old_body);

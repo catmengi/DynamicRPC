@@ -31,7 +31,6 @@ void drpc_que_push(struct drpc_que* drpcq, void* el){
 
 void drpc_que_push_el(struct drpc_que* drpcq, struct drpc_que_el* new){
     assert(drpcq != NULL || new != NULL);
-    pthread_mutex_lock(&drpcq->lock);
 
     new->next = NULL;
 
@@ -42,12 +41,10 @@ void drpc_que_push_el(struct drpc_que* drpcq, struct drpc_que_el* new){
     if(drpcq->cur == NULL) drpcq->cur = drpcq->ltop;
 
     drpcq->len++;
-    pthread_mutex_unlock(&drpcq->lock);
 }
 
 struct drpc_que_el* drpc_que_push_rp(struct drpc_que* drpcq, void* el){
     assert(drpcq != NULL || el != NULL);
-    pthread_mutex_lock(&drpcq->lock);
     struct drpc_que_el* new = malloc(sizeof(*new));assert(new);
 
     new->ptr = el;
@@ -60,13 +57,11 @@ struct drpc_que_el* drpc_que_push_rp(struct drpc_que* drpcq, void* el){
     if(drpcq->cur == NULL) drpcq->cur = drpcq->ltop;
 
     drpcq->len++;
-    pthread_mutex_unlock(&drpcq->lock);
     return drpcq->ltop;
 }
 
 struct drpc_que_el* drpc_que_pop_el(struct drpc_que* drpcq){
     assert(drpcq != NULL);
-    pthread_mutex_lock(&drpcq->lock);
     if(drpcq->cur == NULL) {pthread_mutex_unlock(&drpcq->lock); return NULL;}
     struct drpc_que_el* out = drpcq->cur;
 
@@ -75,24 +70,27 @@ struct drpc_que_el* drpc_que_pop_el(struct drpc_que* drpcq){
     drpcq->cur = drpcq->cur->next;
 
     drpcq->len--;
-    pthread_mutex_unlock(&drpcq->lock);
     return out;
 }
 
 void* drpc_que_pop(struct drpc_que* drpcq){
+    pthread_mutex_lock(&drpcq->lock);
     struct drpc_que_el* pop = drpc_que_pop_el(drpcq);
     if(pop == NULL) return NULL;
 
     void* ret = pop->ptr;
 
     free(pop);
+    pthread_mutex_unlock(&drpcq->lock);
     return ret;
 }
 
 
 uint64_t drpc_que_get_len(struct drpc_que* drpcq){
-    uint64_t len = 0;
-    return drpcq->len;
+    pthread_mutex_lock(&drpcq->lock);
+    uint64_t ret = drpcq->len;
+    pthread_mutex_unlock(&drpcq->lock);
+    return ret;
 }
 void drpc_que_free_internals(struct drpc_que* drpcq){
     if(drpcq == NULL)

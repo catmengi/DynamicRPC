@@ -1,5 +1,6 @@
 /* This file was automatically generated.  Do not edit! */
 #pragma once
+#include <pthread.h>
 #include <stdint.h>
 
 
@@ -18,6 +19,8 @@ struct hashtable {
 	unsigned int size;
 	unsigned int capacity;
 	hashtable_entry* body;
+
+	pthread_mutex_t lock;
 };
 struct hashtable_entry {
 	char* key;

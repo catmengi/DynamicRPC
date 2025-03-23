@@ -1,11 +1,15 @@
 #include "drpc_protocol.h"
+#include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
 
 #include "aes.h"
 
+#include <bits/pthreadtypes.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -120,104 +124,150 @@ size_t nextby16 (size_t value) {
 
 uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-//Code below was EDITED by chatGPT
-
-int drpc_send_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
+int drpc_send_message(struct drpc_connection* io,struct drpc_message* msg){
     struct d_struct* message = new_d_struct();
 
-    uint8_t type = msg->message_type;
-    d_struct_set(message, "msg_type", &type, d_uint8);
-
-    if (msg->message != NULL)
-        d_struct_set(message, "msg", msg->message, d_struct);
-
-    size_t structbuf_len = 0;
-    char* send_buf = d_struct_buf(message, &structbuf_len); assert(send_buf);
-
-    uint64_t send_len = nextby16(structbuf_len + sizeof(DRPC_SIGNATURE));
-    assert((send_buf = realloc(send_buf,send_len)) != NULL);
-
-    if(aes128_key && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
-        struct AES_ctx ctx;
-        AES_init_ctx_iv(&ctx,aes128_key,iv);
-        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,send_len);
+    d_struct_set(message,"message_type",&msg->message_type,d_uint8);
+    if(msg->message != NULL){
+        d_struct_set(message,"message",msg->message,d_struct);
     }
-
-    if(msg->message != NULL)
-        d_struct_unlink(message, "msg", d_struct);
-
-    // Send the length of the message
-    char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
-    memcpy(drpc_message_header,DRPC_SIGNATURE,sizeof(DRPC_SIGNATURE));
-    memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_len,sizeof(uint64_t));
-
-    if (send(fd, drpc_message_header, sizeof(drpc_message_header), MSG_NOSIGNAL) != sizeof(drpc_message_header)){
-        d_struct_free(message);
-        free(send_buf);
-        return 1;  // Error sending length
-    }
-
-    // Send the message in chunks
-    size_t total_sent = 0;
-    while (total_sent < send_len) {
-        ssize_t bytes_sent = send(fd, send_buf + total_sent, send_len - total_sent, MSG_NOSIGNAL);
-        if (bytes_sent <= 0) {
-            d_struct_free(message);
-            free(send_buf);
-            return 1;  // Error sending message
-        }
-        total_sent += bytes_sent;
-    }
-
-    d_struct_free(message);
-    free(send_buf);
-    return 0;  // Success
+    return io->send(io,message);
 }
 
-int drpc_recv_message(struct drpc_message* msg,uint8_t* aes128_key,int fd){
-    uint64_t drpc_message_len = 0;
-    char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
-    // Receive the length of the incoming message
-    if (recv(fd, drpc_message_header, sizeof(drpc_message_header), MSG_NOSIGNAL) != sizeof(drpc_message_header)) {
-        return 1;  // Error receiving length
+int drpc_recv_message(struct drpc_connection* io,struct drpc_message* msg){
+    struct d_struct* container = NULL;
+    int ret = io->recv(io,&container);
+    if(ret != 0){
+        d_struct_free(container);
+        return 1;
     }
-    if(strcmp(drpc_message_header,DRPC_SIGNATURE) != 0) return 1; // NOT A DRPC MESSAGE;
-    memcpy(&drpc_message_len,drpc_message_header + sizeof(DRPC_SIGNATURE),sizeof(uint64_t));
-
-    // Allocate buffer for the incoming message
-    char* buf = malloc(drpc_message_len);assert(buf);
-
-    // Receive the message in chunks
-    size_t total_received = 0;
-    while (total_received < drpc_message_len) {
-        ssize_t bytes_received = recv(fd, buf + total_received, drpc_message_len - total_received, MSG_NOSIGNAL);
-        if (bytes_received <= 0) {
-            free(buf);
-            return 1;  // Error receiving message
-        }
-        total_received += bytes_received;
+    assert(d_struct_get(container,"message_type",&msg->message_type,d_uint8) == 0);
+    if(d_struct_get(container,"message",&msg->message,d_struct) == 0){
+        d_struct_unlink(container,"message",d_struct);
     }
-
-    if(aes128_key && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
-        struct AES_ctx ctx;
-        AES_init_ctx_iv(&ctx,aes128_key,iv);
-        AES_CBC_decrypt_buffer(&ctx,(uint8_t*)buf,(size_t)drpc_message_len);
-    }
-
-    struct d_struct* container = new_d_struct();
-    buf_d_struct(buf, container);
-    free(buf);
-
-    uint8_t utype = 0;
-
-    d_struct_get(container, "msg_type", &utype, d_uint8);
-    msg->message_type = utype;
-
-    if (d_struct_get(container, "msg", &msg->message, d_struct) == 0) {
-        assert(d_struct_unlink(container, "msg", d_struct) == 0);
-    }
-
     d_struct_free(container);
-    return 0;  // Success
+    return 0;
+}
+
+void drpc_tcp_close(struct drpc_connection* io){
+    close(*(int*)io->io_data);
+}
+void drpc_tcp_free(struct drpc_connection* io){
+    free(io->aes128_key);
+    free(io->io_data);
+    free(io);
+}
+
+int tcp_send_loop(int fd, void* buf, size_t buflen){
+    size_t sent = 0;
+    while(sent < buflen){
+        size_t cur_sent = send(fd,buf + sent, buflen - sent,MSG_NOSIGNAL);
+        if(cur_sent <= 0) break;
+        sent += cur_sent;
+    }
+    if(sent == buflen) return 0;
+    else return 1;
+}
+
+int tcp_recv_loop(int fd, void* buf, size_t buflen){
+    size_t received = 0;
+    while(received < buflen){
+        size_t cur_sent = recv(fd,buf + received, buflen - received,MSG_NOSIGNAL);
+        if(cur_sent <= 0) break;
+        received += cur_sent;
+    }
+    if(received == buflen) return 0;
+    else return 1;
+}
+
+int drpc_tcp_send_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+     size_t message_buflen = 0;
+     char* send_buf = d_struct_buf(prepacked_message,&message_buflen);
+
+     uint64_t send_buflen = nextby16(message_buflen);
+     assert((send_buf = realloc(send_buf,send_buflen)) != NULL);
+
+     char drpc_message_header[nextby16(sizeof(uint64_t) + sizeof(DRPC_SIGNATURE))];
+     memcpy(drpc_message_header,DRPC_SIGNATURE,sizeof(DRPC_SIGNATURE));
+     memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_buflen,sizeof(uint64_t));
+
+     if(tcp_send_loop(*(int*)io->io_data,drpc_message_header,sizeof(drpc_message_header)) != 0){
+         d_struct_free(prepacked_message);
+         free(send_buf);
+         return 1;
+    }
+    if(io->aes128_key != NULL && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
+        struct AES_ctx ctx;
+        AES_init_ctx_iv(&ctx,io->aes128_key,iv);
+        AES_CBC_encrypt_buffer(&ctx,(uint8_t*)send_buf,(size_t)send_buflen);
+    }
+
+    int ret = tcp_send_loop(*(int*)io->io_data,send_buf,send_buflen);
+    d_struct_free(prepacked_message);
+    free(send_buf);
+    return ret;
+}
+
+int drpc_tcp_recv_message(struct drpc_connection* io, struct d_struct** container){
+    uint64_t recv_buflen = 0;
+    char drpc_message_header[nextby16(sizeof(uint64_t) + sizeof(DRPC_SIGNATURE))];
+
+    if(tcp_recv_loop(*(int*)io->io_data,&drpc_message_header,sizeof(drpc_message_header)) != 0) return 1;
+    if(strcmp(drpc_message_header,DRPC_SIGNATURE) != 0) return 1; // NOT A DRPC MESSAGE;
+    memcpy(&recv_buflen,drpc_message_header + sizeof(DRPC_SIGNATURE),sizeof(uint64_t));
+
+    char* recv_buf = malloc(recv_buflen); assert(recv_buf);
+    int ret = tcp_recv_loop(*(int*)io->io_data,recv_buf,recv_buflen);
+
+    if(io->aes128_key != NULL && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
+        struct AES_ctx ctx;
+        AES_init_ctx_iv(&ctx,io->aes128_key,iv);
+        AES_CBC_decrypt_buffer(&ctx,(uint8_t*)recv_buf,(size_t)recv_buflen);
+    }
+
+    *container = new_d_struct();
+    buf_d_struct(recv_buf,*container);
+    free(recv_buf);
+    return 0;
+}
+int drpc_dqueue_recv_client_message(struct drpc_connection* io, struct d_struct** container){
+    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->client_recv == NULL) return 1;
+    while(d_queue_pop(((struct drpc_dqueue_io*)io->io_data)->client_recv,container,d_struct) != 0);
+    return 0;
+}
+int drpc_dqueue_send_client_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->server_recv == NULL) return 1;
+    d_queue_push(((struct drpc_dqueue_io*)io->io_data)->server_recv,prepacked_message,d_struct);
+    return 0;
+}
+int drpc_dqueue_recv_server_message(struct drpc_connection* io, struct d_struct** container){
+    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->server_recv == NULL) return 1;
+    while(d_queue_pop(((struct drpc_dqueue_io*)io->io_data)->server_recv,container,d_struct) != 0);
+    return 0;
+}
+int drpc_dqueue_send_server_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->client_recv == NULL) return 1;
+    d_queue_push(((struct drpc_dqueue_io*)io->io_data)->client_recv,prepacked_message,d_struct);
+    return 0;
+}
+void drpc_dqueue_client_close(struct drpc_connection* io){
+    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->client_recv);
+    ((struct drpc_dqueue_io*)io->io_data)->client_recv = NULL;
+}
+void drpc_dqueue_client_free(struct drpc_connection* io){
+    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->client_recv);
+    ((struct drpc_dqueue_io*)io->io_data)->client_recv = NULL;
+    free(io->io_data);
+    free(io);
+}
+void drpc_dqueue_server_close(struct drpc_connection* io){
+    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->server_recv);
+    ((struct drpc_dqueue_io*)io->io_data)->server_recv = NULL;
+}
+void drpc_dqueue_server_free(struct drpc_connection* io){
+    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->server_recv);
+    ((struct drpc_dqueue_io*)io->io_data)->server_recv = NULL;
+    free(io->io_data);
+    free(io);
 }
 

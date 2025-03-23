@@ -8,7 +8,6 @@
 struct d_array{
     size_t lookup_size;
     struct d_struct_element** lookup_table;
-
     pthread_mutex_t lock;
 };
 

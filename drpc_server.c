@@ -429,7 +429,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
     return ffi_arguments;
 }
 
-int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_connection* client_info, struct drpc_return* returned){
+int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_client_connection* client_info, struct drpc_return* returned){
     enum drpc_types* extracted_prototype = drpc_types_extract_prototype(arguments,arguments_len);
     if(is_arguments_equal_prototype(fn_info->prototype,fn_info->prototype_len,extracted_prototype,arguments_len)){
         free(extracted_prototype);
@@ -596,29 +596,28 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_que_free(to_fill);
     return 0;
 }
-int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, int client_perm){
+int drpc_handle_call(struct drpc_message recv, struct drpc_client_connection* client, int client_perm){
     printf("\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
-    struct drpc_message send;
+    struct drpc_message send = {
+        .message = NULL,
+        .message_type = drpc_bad,
+    };
+    int handle_ret = 0;
 
     struct drpc_call* call = message_to_drpc_call(recv.message);
-    d_struct_free(recv.message);
 
     if(call == NULL){
         printf("%s: malformed call message\n",__PRETTY_FUNCTION__);
-        send.message = NULL;
         send.message_type = drpc_bad;
-        drpc_send_message(&send,client->aes128_key,client->fd);
-        return 1;
+        handle_ret = 1; goto exit;
     }
     struct drpc_function* call_fn = NULL;
     if((call_fn = hashtable_get(client->drpc_server->functions,call->fn_name)) == NULL){
         printf("%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
         drpc_call_free(call);
         free(call);
-        send.message = NULL;
         send.message_type = drpc_nofn;
-        drpc_send_message(&send,client->aes128_key,client->fd);
-        return 1;
+        handle_ret = 1; goto exit;
     }
 
     struct drpc_return ret;
@@ -627,10 +626,8 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
             printf("%s: bad arguments for function '%s'! \n",__PRETTY_FUNCTION__,call_fn->fn_name);
             drpc_call_free(call);
             free(call);
-            send.message = NULL;
             send.message_type = drpc_bad;
-            drpc_send_message(&send,client->aes128_key,client->fd);
-            return 1;
+            handle_ret = 1; goto exit;
         }
         printf("%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
         free(call->fn_name);
@@ -640,90 +637,63 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
         send.message_type = drpc_return;
         send.message = drpc_return_to_message(&ret);
         drpc_return_free(&ret);
-        if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
-            printf("%s: unable to send return!\n",__PRETTY_FUNCTION__);
-            d_struct_free(send.message);
-            return 1;
-        }
-        d_struct_free(send.message);
-        return 0;
+        handle_ret = 0; goto exit;
     }
 
     printf("%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name, client_perm,call_fn->minimal_permission_level);
 
     drpc_call_free(call);
     free(call);
-
-    send.message = NULL;
     send.message_type = drpc_eperm;
-    drpc_send_message(&send,client->aes128_key,client->fd);
-    return 1;
-}
-
-int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection* client, int client_perm){
-    struct drpc_message send;
-    struct d_struct* message = NULL;
-    char* fn_name = NULL;
-
-    printf("\n%s: delayed message received\n",__PRETTY_FUNCTION__);
-
-    if(d_struct_get(recv.message,"fn_name",&fn_name,d_str) != 0){
-        printf("%s: malformed delayed message, no 'fn_name\n",__PRETTY_FUNCTION__);
-        send.message = NULL;
-        send.message_type = drpc_bad;
-        d_struct_free(recv.message);
-        drpc_send_message(&send,client->aes128_key,client->fd);
-        return 1;
-    }
-
-    struct drpc_function* receiver = NULL;  // who gonna get this message
-    if((receiver = hashtable_get(client->drpc_server->functions,fn_name)) == NULL){
-        printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,fn_name);
-        send.message = NULL;
-        send.message_type = drpc_nofn;
-        d_struct_free(recv.message);
-        drpc_send_message(&send,client->aes128_key,client->fd);
-        return 1;
-    }
-    printf("%s: receiver is '%s'\n",__PRETTY_FUNCTION__,receiver->fn_name);
-
-    if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
-
-        if(d_struct_get(recv.message,"payload",&message,d_struct) != 0){
-            printf("%s: malformed delayed message, no 'payload'\n",__PRETTY_FUNCTION__);
-            send.message = NULL;
-            send.message_type = drpc_bad;
-            d_struct_free(recv.message);
-            drpc_send_message(&send,client->aes128_key,client->fd);
-            return 1;
-        }
-
-        d_struct_unlink(recv.message,"payload",d_struct);
-        d_struct_free(recv.message);
-
-
-        d_struct_set(message,"sender",client->username,d_str);   //setting or overwriting sender of this message
-
-
-
-        d_queue_push(receiver->pstorage.delayed_messages,message,d_struct);
-
-        send.message = NULL;
-        send.message_type = drpc_ok;
-        drpc_send_message(&send,client->aes128_key,client->fd);
-        return 0;
-    }
-
-    printf("%s: too low permissions to drpc_send_delayed for this function, require %d (have: %d)\n",__PRETTY_FUNCTION__,receiver->minimal_permission_level,client_perm);
+exit:
     d_struct_free(recv.message);
-
-    send.message = NULL;
-    send.message_type = drpc_eperm;
-    drpc_send_message(&send,client->aes128_key,client->fd);
-    return 1;
+    drpc_send_message(client->io, &send);
+    return handle_ret;
 }
 
-void drpc_handle_client(struct drpc_connection* client, int client_perm){
+int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_client_connection* client, int client_perm){
+    struct drpc_message send = {
+        .message = NULL,
+        .message_type = drpc_bad,
+    };
+    char* recv_fn_name = NULL;
+    int ret = 0;
+
+    if(d_struct_get(recv.message,"fn_name",&recv_fn_name,d_str) != 0){
+        ret = 1; goto exit;
+    }
+
+     struct drpc_function* receiver = NULL;  // who gonna get this message
+     if((receiver = hashtable_get(client->drpc_server->functions,recv_fn_name)) == NULL){
+         printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,recv_fn_name);
+         send.message_type = drpc_nofn;
+         ret = 1; goto exit;
+     }
+      printf("%s: receiver is '%s'\n",__PRETTY_FUNCTION__,receiver->fn_name);
+
+     if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
+         struct d_queue* message_que = NULL;
+         if(d_struct_get(recv.message,"payload",&message_que,d_queue) != 0){
+             printf("%s: malformed delayed message, no 'payload'\n",__PRETTY_FUNCTION__);
+             send.message_type = drpc_bad;
+             ret = 1; goto exit;
+         }
+
+         size_t message_que_len = d_queue_len(message_que);
+         for(size_t i = 0; i <message_que_len; i++){
+             drpc_que_push(receiver->pstorage.delayed_messages->que,drpc_que_pop(message_que->que));
+         }
+         send.message_type = drpc_ok;
+         ret = 0; goto exit;
+    }
+
+exit:
+    d_struct_free(recv.message);
+    drpc_send_message(client->io, &send);
+    return ret;
+}
+
+void drpc_handle_client(struct drpc_client_connection* client, int client_perm){
     struct drpc_message recv;
     struct drpc_message send;
 
@@ -734,19 +704,19 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
         if(client->force_disconnect == 1){
             send.message_type = drpc_disconnect;
             send.message = NULL;
-            drpc_send_message(&send,client->aes128_key,client->fd);
+            drpc_send_message(client->io,&send);
             if(client->drpc_server->connection_event_cb != NULL)
                 client->drpc_server->connection_event_cb(client,drpc_force_disconnected);
             return;
         }
-        if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0) {
+        if(drpc_recv_message(client->io,&recv) != 0) {
             printf("\n%s: no message provided,exiting\n",__PRETTY_FUNCTION__); return;
         }
 
         switch(recv.message_type){
             case drpc_ping:
                 send.message = NULL; send.message_type = drpc_ping;
-                if(drpc_send_message(&send,client->aes128_key,client->fd) != 0) return;
+                if(drpc_send_message(client->io,&send) != 0) return;
                 break;
             case drpc_disconnect:
                 printf("\n%s: client disconnected\n",__PRETTY_FUNCTION__);
@@ -767,10 +737,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 else name = client->drpc_server->name;
 
                 d_struct_set(send.message,"drpc_servername",name,d_str);
-                if(drpc_send_message(&send,client->aes128_key,client->fd) != 0) SNerr = 1;
-
-                d_struct_free(send.message);
-
+                if(drpc_send_message(client->io,&send) != 0) SNerr = 1;
                 if(SNerr == 1) return;
                 break;
 
@@ -782,21 +749,21 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     }
 }
 
-void* drpc_server_client_auth(void* drpc_connection_P){
-   struct drpc_connection* client = drpc_connection_P;
+void* drpc_server_client_auth(void* drpc_client_connection_P){
+   struct drpc_client_connection* client = drpc_client_connection_P;
    pthread_detach(pthread_self());
 
    struct drpc_message recv;
    struct drpc_message send;
    int perm = 0;
-   if(drpc_recv_message(&recv,NULL,client->fd) != 0){
+   if(drpc_recv_message(client->io,&recv) != 0){
        printf("\n%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
    if(recv.message_type != drpc_auth || recv.message == NULL){
        send.message_type = drpc_bad;
        send.message = NULL;
-       drpc_send_message(&send,NULL,client->fd);
+       drpc_send_message(client->io,&send);
        printf("\n%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
@@ -808,7 +775,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
-           drpc_send_message(&send,NULL,client->fd);
+           drpc_send_message(client->io,&send);
            goto exit;
        }
        if(d_struct_get(recv.message,"passwd_hash",&hash,d_uint64) != 0){
@@ -816,7 +783,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
-           drpc_send_message(&send,NULL,client->fd);
+           drpc_send_message(client->io,&send);
            goto exit;
        }
        d_struct_unlink(recv.message,"username",d_str);
@@ -826,7 +793,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
-           drpc_send_message(&send,NULL,client->fd);
+           drpc_send_message(client->io,&send);
            goto exit;
        }
        if(user->hash != hash){
@@ -834,7 +801,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
-           drpc_send_message(&send,NULL,client->fd);
+           drpc_send_message(client->io,&send);
            goto exit;
        }
        perm = user->perm;
@@ -848,15 +815,13 @@ void* drpc_server_client_auth(void* drpc_connection_P){
 
        d_struct_set(send.message,"encrypt_xor",xor_base,d_sizedbuf,sizeof(xor_base));
 
-       for(int i = 0; i < sizeof(client->aes128_key); i++){
-           client->aes128_key[i] = xor_base[i] ^ user->aes128_passwd[i];
+       if(drpc_send_message(client->io,&send) != 0) goto exit;
+
+       client->io->aes128_key = calloc(sizeof(xor_base),1); assert(client->io->aes128_key);
+       for(int i = 0; i < sizeof(xor_base); i++){
+           client->io->aes128_key[i] = xor_base[i] ^ user->aes128_passwd[i];
        }
 
-       if(drpc_send_message(&send,NULL,client->fd) != 0){
-           d_struct_free(send.message);
-           goto exit;
-       }
-       d_struct_free(send.message);
        printf("\n%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
    client->drpc_server->client_ammount++;
@@ -865,8 +830,8 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        client->drpc_server->connection_event_cb(client,drpc_disconnected);
    client->drpc_server->client_ammount--;
 exit:
-   shutdown(client->fd,SHUT_RD);
-   close(client->fd);
+   client->io->close(client->io);
+   client->io->free(client->io);
    free(client->username);
    free(client);
    return NULL;
@@ -885,10 +850,18 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 
             printf("%s: picked up client: %s\n",__PRETTY_FUNCTION__,inet_ntoa(client_addr.sin_addr));
 
-            struct drpc_connection* client = calloc(1,sizeof(*client)); assert(client);
-            client->client_addr = client_addr;
+            struct drpc_client_connection* client = calloc(1,sizeof(*client)); assert(client);
+            client->io = calloc(1,sizeof(*client->io)); assert(client->io);
+
+            client->io->io_data = calloc(1,sizeof(int)); assert(client->io->io_data);
+            *(int*)client->io->io_data = client_fd;
+
+            client->io->close = drpc_tcp_close;
+            client->io->free = drpc_tcp_free;
+            client->io->send = drpc_tcp_send_message;
+            client->io->recv = drpc_tcp_recv_message;
+
             client->drpc_server = server;
-            client->fd = client_fd;
 
             struct timeval time;
             time.tv_sec = 5;
@@ -923,7 +896,6 @@ struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name){
         return NULL;
     }
     return fn->pstorage.delayed_messages;
-
 }
 
 void drpc_server_set_servername(struct drpc_server* server, char* name){
@@ -943,9 +915,53 @@ char* drpc_server_get_servername(struct drpc_server* server){
     return server->name;
 }
 
-void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb){
-    server->connection_event_cb = drpc_connection_event_cb;
+void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_client_connection_event_cb drpc_client_connection_event_cb){
+    server->connection_event_cb = drpc_client_connection_event_cb;
 }
-void drpc_server_force_disconnect_client(struct drpc_connection* client){
+void drpc_server_force_disconnect_client(struct drpc_client_connection* client){
     client->force_disconnect = 1;
+}
+
+struct drpc_handle_client_thread_wrapper_param{
+    struct drpc_client_connection* client;
+    int client_perm;
+};
+void* drpc_server_dqueue_client_thread_wrapper(void* arg){
+    pthread_detach(pthread_self());
+    struct drpc_handle_client_thread_wrapper_param* param = arg;
+    param->client->drpc_server->client_ammount++;
+    drpc_handle_client(param->client,param->client_perm);
+    param->client->drpc_server->client_ammount--;
+    param->client->io->close(param->client->io);
+    param->client->io->free(param->client->io);
+    free(param->client->username);
+    free(param->client);
+    free(param);
+    return NULL;
+}
+
+struct drpc_dqueue_io* drpc_server_start_dqueue(struct drpc_server* server,char* username, int client_perm){
+    struct drpc_connection* io = calloc(1,sizeof(*io));
+    io->io_data = calloc(1,sizeof(struct drpc_dqueue_io));
+    ((struct drpc_dqueue_io*)io->io_data)->client_recv = new_d_queue();
+    ((struct drpc_dqueue_io*)io->io_data)->server_recv = new_d_queue();
+
+    io->aes128_key = NULL;
+    io->close = drpc_dqueue_server_close;
+    io->free = drpc_dqueue_server_free;
+    io->recv = drpc_dqueue_recv_server_message;
+    io->send = drpc_dqueue_send_server_message;
+
+    struct drpc_client_connection *client = calloc(1,sizeof(*client));
+    client->drpc_server = server;
+    client->force_disconnect = 0;
+    client->username = strdup(username);
+    client->io = io;
+
+    struct drpc_handle_client_thread_wrapper_param* param = calloc(1,sizeof(*param)); assert(param);
+    param->client_perm = client_perm;
+    param->client = client;
+    pthread_t thread;
+    assert(pthread_create(&thread,NULL,drpc_server_dqueue_client_thread_wrapper,param) == 0);
+    return io->io_data;
 }

@@ -32,12 +32,12 @@ void* drpc_ping_server(void* clientP){
         recv.message = NULL;
         recv.message_type = drpc_bad;
 
-        if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
+        if(drpc_send_message(client->io,&send) != 0){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
         }
-        if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0 || recv.message_type != drpc_ping){
+        if(drpc_recv_message(client->io,&recv) != 0 || recv.message_type != drpc_ping){
             client->client_stop = 1;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
@@ -82,7 +82,15 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
         if(connect(fd,host_list->ai_addr,host_list->ai_addrlen) == 0){
             struct drpc_client* client = malloc(sizeof(*client)); assert(client);
             client->client_stop = 1;
-            client->fd = fd;
+
+            client->io = calloc(1,sizeof(*client->io)); assert(client->io);
+            client->io->io_data = calloc(1,sizeof(int)); assert(client->io->io_data);
+            *(int*)client->io->io_data = fd;
+
+            client->io->close = drpc_tcp_close;
+            client->io->free = drpc_tcp_free;
+            client->io->send = drpc_tcp_send_message;
+            client->io->recv = drpc_tcp_recv_message;
 
             uint64_t passwd_hash = murmur(passwd,strlen(passwd));
             struct d_struct* auth = new_d_struct();
@@ -96,18 +104,18 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
                 .message = auth,
             };
 
-            if(drpc_send_message(&send,NULL,fd) != 0){
-                d_struct_free(auth);
+            if(drpc_send_message(client->io,&send) != 0){
+                client->io->free(client->io);
                 free(client);
                 close(fd);
 
                 host_list = host_list->ai_next;
                 continue;
             }
-            d_struct_free(auth);
 
             struct drpc_message recv = {0};
-            if(drpc_recv_message(&recv,NULL,fd) != 0){
+            if(drpc_recv_message(client->io,&recv) != 0){
+                client->io->free(client->io);
                 free(client);
                 close(fd);
 
@@ -115,6 +123,7 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
                 continue;
             }
             if(recv.message_type != drpc_ok){
+                client->io->free(client->io);
                 free(client);
                 close(fd);
 
@@ -123,8 +132,9 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
             }
 
             uint8_t* xor_base; size_t xor_len = 0;
-            if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0 || xor_len != sizeof(client->aes128_key)){
+            if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0){
                 d_struct_free(recv.message);
+                client->io->free(client->io);
                 free(client);
                 close(fd);
 
@@ -139,8 +149,9 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
             else cpylen = strlen(passwd);
             memcpy(aes128_passwd,passwd,cpylen);
 
-            for(int i = 0; i < sizeof(client->aes128_key); i++){
-                client->aes128_key[i] = xor_base[i] ^ aes128_passwd[i];
+            client->io->aes128_key = calloc(1,sizeof(aes128_passwd)); assert(client->io->aes128_key);
+            for(int i = 0; i < sizeof(aes128_passwd); i++){
+                client->io->aes128_key[i] = xor_base[i] ^ aes128_passwd[i];
             }
 
             client->client_stop = 0;
@@ -158,6 +169,25 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
     return ret;
 }
 
+struct drpc_client* drpc_client_connect_dqueue(struct drpc_dqueue_io* channel){
+    assert(channel);
+    struct drpc_client* client = calloc(1,sizeof(*client)); assert(client);
+    assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
+    client->io = calloc(1,sizeof(*client->io)); assert(client->io);
+    client->io->io_data = calloc(1,sizeof(*client->io->io_data)); assert(client->io->io_data);
+    ((struct drpc_dqueue_io*)client->io->io_data)->client_recv = channel->client_recv;
+    ((struct drpc_dqueue_io*)client->io->io_data)->server_recv = channel->server_recv;
+    client->io->aes128_key = NULL;
+    client->io->close = drpc_dqueue_client_close;
+    client->io->free = drpc_dqueue_client_free;
+    client->io->recv = drpc_dqueue_recv_client_message;
+    client->io->send = drpc_dqueue_send_client_message;
+
+    client->client_stop = 0;
+    assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
+    return client;
+}
+
 void drpc_client_disconnect(struct drpc_client* client){
     if(client == NULL) return;
     client->client_stop = 1;
@@ -167,10 +197,13 @@ void drpc_client_disconnect(struct drpc_client* client){
         .message_type = drpc_disconnect,
         .message = NULL,
     };
-    drpc_send_message(&send,client->aes128_key,client->fd);
-    close(client->fd);
+    drpc_send_message(client->io,&send);
+    client->io->close(client->io);
+
     pthread_mutex_unlock(&client->connection_mutex);
     pthread_join(client->ping_thread,NULL);
+
+    client->io->free(client->io);
     free(client);
 }
 
@@ -295,9 +328,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     free(arguments);
 
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
-        d_struct_free(send.message);
-
+    if(drpc_send_message(client->io,&send) != 0){
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
 
@@ -305,8 +336,8 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
-    d_struct_free(send.message);
-    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0){
+
+    if(drpc_recv_message(client->io,&recv) != 0){
         struct drpc_type_update* freeU = NULL;
         while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
 
@@ -446,14 +477,14 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     return DRPC_OK;
 }
 
-int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message){
+int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_queue* messages){
     assert(client);
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
 
     struct d_struct* message = new_d_struct();
 
     d_struct_set(message,"fn_name",fn_name,d_str);
-    d_struct_set(message,"payload",delayed_message,d_struct);
+    d_struct_set(message,"payload",messages,d_queue);
 
     struct drpc_message recv = {0};
     struct drpc_message send = {
@@ -461,16 +492,12 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
         .message_type = drpc_send_delayed,
     };
     pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
-        d_struct_unlink(message,"payload",d_struct);
-        d_struct_free(message);
+    if(drpc_send_message(client->io,&send) != 0){
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
 
-    d_struct_unlink(message,"payload",d_struct);
-    d_struct_free(message);
-    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0 || recv.message_type != drpc_ok){
+    if(drpc_recv_message(client->io,&recv) != 0 || recv.message_type != drpc_ok){
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_BADREPLY;
     }
@@ -492,12 +519,12 @@ char* drpc_client_get_servername(struct drpc_client* client){
     send.message_type = drpc_servername;
     pthread_mutex_lock(&client->connection_mutex);
 
-    if(drpc_send_message(&send,client->aes128_key,client->fd) != 0){
+    if(drpc_send_message(client->io,&send) != 0){
         pthread_mutex_unlock(&client->connection_mutex);
         return NULL;
     }
 
-    if(drpc_recv_message(&recv,client->aes128_key,client->fd) != 0){
+    if(drpc_recv_message(client->io,&recv) != 0){
         pthread_mutex_unlock(&client->connection_mutex);
         return NULL;
     }

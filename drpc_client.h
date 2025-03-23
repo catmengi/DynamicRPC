@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drpc_protocol.h"
 #include "drpc_types.h"
 
 #include <pthread.h>
@@ -16,14 +17,15 @@ enum drpc_client_errors{
 };
 
 struct drpc_client{
-    uint8_t aes128_key[16];
+    struct drpc_connection* io;
     int client_stop;
-    int fd;
     pthread_t ping_thread;
     pthread_mutex_t connection_mutex;
 };
 
 struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd);  //connect client to the server. char* host is a string in format "HOST:PORT" Return NULL on connection error
+struct drpc_client* drpc_client_connect_dqueue(struct drpc_dqueue_io* channel);
+
 void drpc_client_disconnect(struct drpc_client* client);  //disconnects and frees client struct
 
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...);
@@ -35,5 +37,5 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                                                             * ...    - callee function arguments, d_sizedbuf type should be passed as char*,size_t
                                                             */
 
-int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message);   //send delayed message to function "fn_name", return 0 on success
+int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_queue* messages);   //send delayed message to function "fn_name", return 0 on success
 char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success

@@ -12,7 +12,6 @@
 
 struct d_queue* new_d_queue(){
     struct d_queue* dque = malloc(sizeof(*dque)); assert(dque);
-    assert(pthread_mutex_init(&dque->lock,NULL) == 0);
 
     dque->que = drpc_que_create();
 
@@ -21,7 +20,6 @@ struct d_queue* new_d_queue(){
 
 void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
     assert(dqueue); assert(native_type);
-    pthread_mutex_lock(&dqueue->lock);
     struct d_struct_element* element = calloc(1,sizeof(*element)); assert(element);
 
     switch(type){
@@ -122,24 +120,22 @@ void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types typ
             break;
         default:
             free(element);
-            pthread_mutex_unlock(&dqueue->lock);
             return;
 
     }
     drpc_que_push(dqueue->que,element);
-    pthread_mutex_unlock(&dqueue->lock);
 }
 
 int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
-    assert(dqueue); assert(native_type);
-    pthread_mutex_lock(&dqueue->lock);
-    if(dqueue->que->cur == NULL) {pthread_mutex_unlock(&dqueue->lock);return 1;}
+    assert(native_type);
+    if(dqueue == NULL) return 1;
+    if(dqueue->que->cur == NULL) return 1;
 
     struct d_struct_element* check = dqueue->que->cur->ptr;
-    if(check->type != type) {pthread_mutex_unlock(&dqueue->lock);return 1;}
+    if(check->type != type) return 1;
 
     struct d_struct_element* element = drpc_que_pop(dqueue->que);
-    assert(element != NULL);
+    if(element == NULL) return 1;
 
     switch(type){
         default:
@@ -203,10 +199,11 @@ int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,
             break;
     }
     free(element);
-    pthread_mutex_unlock(&dqueue->lock);
     return 0;
 }
 void d_queue_free_internals(struct d_queue* dqueue){
+    if(dqueue == NULL) return;
+    if(dqueue->que == NULL) return;
     size_t que_len = drpc_que_get_len(dqueue->que);
 
     for(size_t i = 0; i < que_len; i++){
@@ -239,11 +236,11 @@ void d_queue_free_internals(struct d_queue* dqueue){
     drpc_que_free(dqueue->que);
 }
 void d_queue_free(struct d_queue* dqueue){
+    if(dqueue == NULL) return;
     d_queue_free_internals(dqueue);
     free(dqueue);
 }
 char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
-    pthread_mutex_lock(&dqueue->lock);
     size_t dqueue_len = d_queue_len(dqueue);
     struct drpc_type* packed_types = calloc(dqueue_len,sizeof(*packed_types)); assert(packed_types);
     for(size_t i = 0; i < dqueue_len; i++){
@@ -298,11 +295,9 @@ char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
     drpc_types_buf(packed_types,dqueue_len,outbuf);
 
     drpc_types_free(packed_types,dqueue_len);
-    pthread_mutex_unlock(&dqueue->lock);
     return outbuf;
 }
 void buf_d_queue(char* buf, struct d_queue* dqueue){
-    pthread_mutex_lock(&dqueue->lock);
     size_t packed_types_len = 0;
     struct drpc_type* packed_types = buf_drpc_types(buf,&packed_types_len);
 
@@ -364,7 +359,6 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
         drpc_que_push(dqueue->que,element);
     }
     drpc_types_free(packed_types,packed_types_len);
-    pthread_mutex_unlock(&dqueue->lock);
 }
 
 size_t d_queue_len(struct d_queue* dqueue){
@@ -373,11 +367,9 @@ size_t d_queue_len(struct d_queue* dqueue){
 }
 enum drpc_types d_queue_top_type(struct d_queue* dqueue){
     if(dqueue == NULL) return d_void;
-    pthread_mutex_lock(&dqueue->lock);
-    if(dqueue->que->cur == NULL) {pthread_mutex_unlock(&dqueue->lock);return d_void;}
+    if(dqueue->que->cur == NULL) return d_void;
 
 
     enum drpc_types ret = ((struct d_struct_element*)dqueue->que->cur->ptr)->type;
-    pthread_mutex_unlock(&dqueue->lock);
     return ret;
 }
