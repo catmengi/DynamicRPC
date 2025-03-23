@@ -1,5 +1,4 @@
 #include "drpc_protocol.h"
-#include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
 
@@ -8,6 +7,7 @@
 #include <bits/pthreadtypes.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <assert.h>
@@ -229,45 +229,5 @@ int drpc_tcp_recv_message(struct drpc_connection* io, struct d_struct** containe
     buf_d_struct(recv_buf,*container);
     free(recv_buf);
     return 0;
-}
-int drpc_dqueue_recv_client_message(struct drpc_connection* io, struct d_struct** container){
-    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->client_recv == NULL) return 1;
-    while(d_queue_pop(((struct drpc_dqueue_io*)io->io_data)->client_recv,container,d_struct) != 0);
-    return 0;
-}
-int drpc_dqueue_send_client_message(struct drpc_connection* io, struct d_struct* prepacked_message){
-    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->server_recv == NULL) return 1;
-    d_queue_push(((struct drpc_dqueue_io*)io->io_data)->server_recv,prepacked_message,d_struct);
-    return 0;
-}
-int drpc_dqueue_recv_server_message(struct drpc_connection* io, struct d_struct** container){
-    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->server_recv == NULL) return 1;
-    while(d_queue_pop(((struct drpc_dqueue_io*)io->io_data)->server_recv,container,d_struct) != 0);
-    return 0;
-}
-int drpc_dqueue_send_server_message(struct drpc_connection* io, struct d_struct* prepacked_message){
-    if(io->io_data == NULL || ((struct drpc_dqueue_io*)io->io_data)->client_recv == NULL) return 1;
-    d_queue_push(((struct drpc_dqueue_io*)io->io_data)->client_recv,prepacked_message,d_struct);
-    return 0;
-}
-void drpc_dqueue_client_close(struct drpc_connection* io){
-    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->client_recv);
-    ((struct drpc_dqueue_io*)io->io_data)->client_recv = NULL;
-}
-void drpc_dqueue_client_free(struct drpc_connection* io){
-    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->client_recv);
-    ((struct drpc_dqueue_io*)io->io_data)->client_recv = NULL;
-    free(io->io_data);
-    free(io);
-}
-void drpc_dqueue_server_close(struct drpc_connection* io){
-    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->server_recv);
-    ((struct drpc_dqueue_io*)io->io_data)->server_recv = NULL;
-}
-void drpc_dqueue_server_free(struct drpc_connection* io){
-    d_queue_free(((struct drpc_dqueue_io*)io->io_data)->server_recv);
-    ((struct drpc_dqueue_io*)io->io_data)->server_recv = NULL;
-    free(io->io_data);
-    free(io);
 }
 

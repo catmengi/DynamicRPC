@@ -169,25 +169,6 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
     return ret;
 }
 
-struct drpc_client* drpc_client_connect_dqueue(struct drpc_dqueue_io* channel){
-    assert(channel);
-    struct drpc_client* client = calloc(1,sizeof(*client)); assert(client);
-    assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
-    client->io = calloc(1,sizeof(*client->io)); assert(client->io);
-    client->io->io_data = calloc(1,sizeof(*client->io->io_data)); assert(client->io->io_data);
-    ((struct drpc_dqueue_io*)client->io->io_data)->client_recv = channel->client_recv;
-    ((struct drpc_dqueue_io*)client->io->io_data)->server_recv = channel->server_recv;
-    client->io->aes128_key = NULL;
-    client->io->close = drpc_dqueue_client_close;
-    client->io->free = drpc_dqueue_client_free;
-    client->io->recv = drpc_dqueue_recv_client_message;
-    client->io->send = drpc_dqueue_send_client_message;
-
-    client->client_stop = 0;
-    assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
-    return client;
-}
-
 void drpc_client_disconnect(struct drpc_client* client){
     if(client == NULL) return;
     client->client_stop = 1;

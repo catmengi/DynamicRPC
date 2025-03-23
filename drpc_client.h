@@ -24,7 +24,6 @@ struct drpc_client{
 };
 
 struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd);  //connect client to the server. char* host is a string in format "HOST:PORT" Return NULL on connection error
-struct drpc_client* drpc_client_connect_dqueue(struct drpc_dqueue_io* channel);
 
 void drpc_client_disconnect(struct drpc_client* client);  //disconnects and frees client struct
 

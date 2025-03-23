@@ -63,11 +63,6 @@ struct drpc_message{
     struct d_struct* message;
 };
 
-struct drpc_dqueue_io{
-    struct d_queue* server_recv;
-    struct d_queue* client_recv;
-};
-
 struct d_struct* drpc_call_to_message(struct drpc_call* call);
 struct drpc_call* message_to_drpc_call(struct d_struct* message);
 struct d_struct* drpc_return_to_message(struct drpc_return* drpc_return);
@@ -80,16 +75,6 @@ void drpc_tcp_close(struct drpc_connection* io);
 void drpc_tcp_free(struct drpc_connection* io);
 int drpc_tcp_send_message(struct drpc_connection* io, struct d_struct* prepacked_message);
 int drpc_tcp_recv_message(struct drpc_connection* io, struct d_struct** container);
-
-
-void drpc_dqueue_client_close(struct drpc_connection* io);
-void drpc_dqueue_client_free(struct drpc_connection* io);
-void drpc_dqueue_server_close(struct drpc_connection* io);
-void drpc_dqueue_server_free(struct drpc_connection* io);
-int drpc_dqueue_recv_client_message(struct drpc_connection* io, struct d_struct** container);
-int drpc_dqueue_send_client_message(struct drpc_connection* io, struct d_struct* prepacked_message);
-int drpc_dqueue_recv_server_message(struct drpc_connection* io, struct d_struct** container);
-int drpc_dqueue_send_server_message(struct drpc_connection* io, struct d_struct* prepacked_message);
 
 void drpc_call_free(struct drpc_call* call);
 void drpc_return_free(struct drpc_return* ret);

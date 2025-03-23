@@ -11,7 +11,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
+
+#define STRUCT_LEN 100000
+#define QUEUE_LEN 100000
+#define ARRAY_LEN 100000
+#define TEST_ITERATIONS 5
+
 
 void condiscon_cb(struct drpc_client_connection* connection,enum drpc_client_connection_event event){
     if(event == drpc_connected) printf("%s: connected\n",connection->username);
@@ -68,10 +73,6 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
     struct d_queue* delayed_check = new_d_queue();
-
-    #define STRUCT_LEN 1000000
-    #define QUEUE_LEN 1000000
-    #define ARRAY_LEN 1000000
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -146,8 +147,6 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     d_array_free(darray);
     d_struct_free(check1);
     d_queue_free(check2);
-
-    drpc_client_disconnect(client);
 }
 
 
@@ -169,15 +168,15 @@ int main(void){
     drpc_server_set_connection_event_cb(server,condiscon_cb);
 
     drpc_server_start(server);
-    struct drpc_dqueue_io* que_conn = drpc_server_start_dqueue(server,"test dqueue",-1);
-    struct drpc_client* client_dque = drpc_client_connect_dqueue(que_conn);
 
     struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
     if(client == NULL){drpc_server_free(server); return 0;}
 
-    check_client(server,client);
-    sleep(3);
-    check_client(server,client_dque);
+    for(int i = 0; i < TEST_ITERATIONS;i++){
+        printf("%d : iteration of test\n",i);
+        check_client(server,client);
+    }
+
+    drpc_client_disconnect(client);
     drpc_server_free(server);
-    sleep(1);
 }
