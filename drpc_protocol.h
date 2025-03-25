@@ -44,10 +44,8 @@ struct drpc_connection{
 
     drpc_message_io_recv recv;
     drpc_message_io_send send;
-
     drpc_close_io close;
     drpc_free_io free;
-
 };
 
 struct drpc_call{
