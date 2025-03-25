@@ -236,7 +236,7 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
      uint64_t send_buflen = nextby16(message_buflen);
      assert((send_buf = realloc(send_buf,send_buflen)) != NULL);
 
-     char drpc_message_header[nextby16(sizeof(uint64_t) + sizeof(DRPC_SIGNATURE))];
+     char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
      memcpy(drpc_message_header,DRPC_SIGNATURE,sizeof(DRPC_SIGNATURE));
      memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_buflen,sizeof(uint64_t));
 
@@ -259,7 +259,7 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
 
 int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container){
     uint64_t recv_buflen = 0;
-    char drpc_message_header[nextby16(sizeof(uint64_t) + sizeof(DRPC_SIGNATURE))];
+    char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
 
     if(tcp_recv_loop(*(int*)io->io_data,&drpc_message_header,sizeof(drpc_message_header)) != 0) return 1;
     if(strcmp(drpc_message_header,DRPC_SIGNATURE) != 0) return 1; // NOT A DRPC MESSAGE;
