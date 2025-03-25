@@ -119,7 +119,7 @@ size_t nextby16 (size_t value) {
 
 uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-int drpc_send_message(struct drpc_connection* io,struct drpc_message* msg){
+int drpc_send_message(struct drpc_io* io,struct drpc_message* msg){
     if(io == NULL) return 1;
     struct d_struct* message = new_d_struct();
 
@@ -130,7 +130,7 @@ int drpc_send_message(struct drpc_connection* io,struct drpc_message* msg){
     return io->send(io,message);
 }
 
-int drpc_recv_message(struct drpc_connection* io,struct drpc_message* msg){
+int drpc_recv_message(struct drpc_io* io,struct drpc_message* msg){
     if(io == NULL) return 1;
     struct d_struct* container = NULL;
     int ret = io->recv(io,&container);
@@ -147,7 +147,7 @@ int drpc_recv_message(struct drpc_connection* io,struct drpc_message* msg){
 }
 
 #ifdef DRPC_DQUEUE_IO
-void drpc_dqueue_close(struct drpc_connection* io){
+void drpc_dqueue_close(struct drpc_io* io){
     if(io->io_data == NULL) return;
     struct drpc_dqueue_io* io_data = io->io_data;
     struct drpc_dqueue_io* receiver_io_data = io_data->send;
@@ -164,12 +164,12 @@ void drpc_dqueue_close(struct drpc_connection* io){
     pthread_mutex_unlock(&io_data->lock);
 }
 #include <stdio.h>
-void drpc_dqueue_free(struct drpc_connection* io){
+void drpc_dqueue_free(struct drpc_io* io){
     struct drpc_dqueue_io* io_data = io->io_data;
     free(io->io_data);
     free(io);
 }
-int drpc_dqueue_send_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message){
     if(io->io_data == NULL) return 1;
     struct drpc_dqueue_io* io_data = io->io_data;
     if(io_data->send == NULL) return 1;
@@ -180,7 +180,7 @@ int drpc_dqueue_send_message(struct drpc_connection* io, struct d_struct* prepac
     pthread_mutex_unlock(&io_data->lock);
     return 0;
 }
-int drpc_dqueue_recv_message(struct drpc_connection* io, struct d_struct** output_pointer){
+int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointer){
     if(io->io_data == NULL) return 1;
     struct drpc_dqueue_io* io_data = io->io_data;
     struct timespec start,end;
@@ -198,10 +198,10 @@ int drpc_dqueue_recv_message(struct drpc_connection* io, struct d_struct** outpu
 }
 #endif
 
-void drpc_tcp_close(struct drpc_connection* io){
+void drpc_tcp_close(struct drpc_io* io){
     close(*(int*)io->io_data);
 }
-void drpc_tcp_free(struct drpc_connection* io){
+void drpc_tcp_free(struct drpc_io* io){
     free(io->aes128_key);
     free(io->io_data);
     free(io);
@@ -229,7 +229,7 @@ int tcp_recv_loop(int fd, void* buf, size_t buflen){
     else return 1;
 }
 
-int drpc_tcp_send_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message){
      size_t message_buflen = 0;
      char* send_buf = d_struct_buf(prepacked_message,&message_buflen);
 
@@ -257,7 +257,7 @@ int drpc_tcp_send_message(struct drpc_connection* io, struct d_struct* prepacked
     return ret;
 }
 
-int drpc_tcp_recv_message(struct drpc_connection* io, struct d_struct** container){
+int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container){
     uint64_t recv_buflen = 0;
     char drpc_message_header[nextby16(sizeof(uint64_t) + sizeof(DRPC_SIGNATURE))];
 

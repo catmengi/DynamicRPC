@@ -17,7 +17,7 @@ enum drpc_client_errors{
 };
 
 struct drpc_client{
-    struct drpc_connection* io;
+    struct drpc_io* io;
     int client_stop;
     pthread_t ping_thread;
     pthread_mutex_t connection_mutex;

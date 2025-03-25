@@ -429,7 +429,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
     return ffi_arguments;
 }
 
-int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_client_connection* client_info, struct drpc_return* returned){
+int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_connection* client_info, struct drpc_return* returned){
     enum drpc_types* extracted_prototype = drpc_types_extract_prototype(arguments,arguments_len);
     if(is_arguments_equal_prototype(fn_info->prototype,fn_info->prototype_len,extracted_prototype,arguments_len)){
         free(extracted_prototype);
@@ -596,7 +596,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_que_free(to_fill);
     return 0;
 }
-int drpc_handle_call(struct drpc_message recv, struct drpc_client_connection* client, int client_perm){
+int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, int client_perm){
     printf("\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
     struct drpc_message send = {
         .message = NULL,
@@ -651,7 +651,7 @@ exit:
     return handle_ret;
 }
 
-int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_client_connection* client, int client_perm){
+int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection* client, int client_perm){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_bad,
@@ -693,7 +693,7 @@ exit:
     return ret;
 }
 
-void drpc_handle_client(struct drpc_client_connection* client, int client_perm){
+void drpc_handle_client(struct drpc_connection* client, int client_perm){
     struct drpc_message recv;
     struct drpc_message send;
 
@@ -749,8 +749,8 @@ void drpc_handle_client(struct drpc_client_connection* client, int client_perm){
     }
 }
 
-void* drpc_server_client_auth(void* drpc_client_connection_P){
-   struct drpc_client_connection* client = drpc_client_connection_P;
+void* drpc_server_client_auth(void* drpc_connection_P){
+   struct drpc_connection* client = drpc_connection_P;
    pthread_detach(pthread_self());
 
    struct drpc_message recv;
@@ -850,7 +850,7 @@ void* drpc_server_dispatcher(void* drpc_server_P){
 
             printf("%s: picked up client: %s\n",__PRETTY_FUNCTION__,inet_ntoa(client_addr.sin_addr));
 
-            struct drpc_client_connection* client = calloc(1,sizeof(*client)); assert(client);
+            struct drpc_connection* client = calloc(1,sizeof(*client)); assert(client);
             client->io = calloc(1,sizeof(*client->io)); assert(client->io);
 
             client->io->io_data = calloc(1,sizeof(int)); assert(client->io->io_data);
@@ -915,17 +915,17 @@ char* drpc_server_get_servername(struct drpc_server* server){
     return server->name;
 }
 
-void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_client_connection_event_cb drpc_client_connection_event_cb){
-    server->connection_event_cb = drpc_client_connection_event_cb;
+void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb){
+    server->connection_event_cb = drpc_connection_event_cb;
 }
-void drpc_server_force_disconnect_client(struct drpc_client_connection* client){
+void drpc_server_force_disconnect_client(struct drpc_connection* client){
     client->force_disconnect = 1;
 }
 #ifdef DRPC_DQUEUE_IO
 #include "drpc_client.h"
 
 struct drpc_handle_client_thread_wrapper{
-    struct drpc_client_connection* client;
+    struct drpc_connection* client;
     int client_perm;
 };
 
@@ -953,7 +953,7 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
     client->io->send = drpc_dqueue_send_message;
     client->io->recv = drpc_dqueue_recv_message;
 
-    struct drpc_client_connection* server_client = calloc(1,sizeof(*server_client));
+    struct drpc_connection* server_client = calloc(1,sizeof(*server_client));
     server_client->drpc_server = server;
     server_client->force_disconnect = 0;
     server_client->username = NULL; //generate random username

@@ -18,7 +18,7 @@
 #define TEST_ITERATIONS 10
 
 
-void condiscon_cb(struct drpc_client_connection* connection,enum drpc_client_connection_event event){
+void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
     if(event == drpc_connected) printf("%s: connected\n",connection->username);
     else if(event == drpc_disconnected) printf("%s: disconnected\n",connection->username);
     else printf("%s: FORCE disconnected\n",connection->username);

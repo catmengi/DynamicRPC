@@ -31,14 +31,14 @@ enum drpc_protocol{
     drpc_ping,
 };
 
-struct drpc_connection;
+struct drpc_io;
 
-typedef int (*drpc_io_send)(struct drpc_connection* io, struct d_struct* prepacked_message);
-typedef int (*drpc_io_recv)(struct drpc_connection* io, struct d_struct** output_pointer);
-typedef void (*drpc_io_free)(struct drpc_connection* io);
-typedef void (*drpc_io_close)(struct drpc_connection* io);
+typedef int (*drpc_io_send)(struct drpc_io* io, struct d_struct* prepacked_message);
+typedef int (*drpc_io_recv)(struct drpc_io* io, struct d_struct** output_pointer);
+typedef void (*drpc_io_free)(struct drpc_io* io);
+typedef void (*drpc_io_close)(struct drpc_io* io);
 
-struct drpc_connection{
+struct drpc_io{
     void* io_data;
     uint8_t* aes128_key;
 
@@ -81,19 +81,19 @@ struct drpc_call* message_to_drpc_call(struct d_struct* message);
 struct d_struct* drpc_return_to_message(struct drpc_return* drpc_return);
 struct drpc_return* message_to_drpc_return(struct d_struct* message);
 
-int drpc_send_message(struct drpc_connection* io, struct drpc_message* msg);
-int drpc_recv_message(struct drpc_connection* io, struct drpc_message* msg);
+int drpc_send_message(struct drpc_io* io, struct drpc_message* msg);
+int drpc_recv_message(struct drpc_io* io, struct drpc_message* msg);
 
-void drpc_tcp_close(struct drpc_connection* io);
-void drpc_tcp_free(struct drpc_connection* io);
-int drpc_tcp_send_message(struct drpc_connection* io, struct d_struct* prepacked_message);
-int drpc_tcp_recv_message(struct drpc_connection* io, struct d_struct** container);
+void drpc_tcp_close(struct drpc_io* io);
+void drpc_tcp_free(struct drpc_io* io);
+int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message);
+int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container);
 
 #ifdef DRPC_DQUEUE_IO
-void drpc_dqueue_close(struct drpc_connection* io);
-void drpc_dqueue_free(struct drpc_connection* io);
-int drpc_dqueue_send_message(struct drpc_connection* io, struct d_struct* prepacked_message);
-int drpc_dqueue_recv_message(struct drpc_connection* io, struct d_struct** output_pointer);
+void drpc_dqueue_close(struct drpc_io* io);
+void drpc_dqueue_free(struct drpc_io* io);
+int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message);
+int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointer);
 #endif
 
 void drpc_call_free(struct drpc_call* call);
