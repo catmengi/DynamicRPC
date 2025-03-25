@@ -97,3 +97,7 @@ char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server
 
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_client_connection_event_cb drpc_client_connection_event_cb); //set drpc_client_connection_event_cb
 void drpc_server_force_disconnect_client(struct drpc_client_connection* client); //disconnect client from server side
+
+#ifdef DRPC_DQUEUE_IO
+struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm);
+#endif

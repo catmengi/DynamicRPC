@@ -864,7 +864,7 @@ void* drpc_server_dispatcher(void* drpc_server_P){
             client->drpc_server = server;
 
             struct timeval time;
-            time.tv_sec = 5;
+            time.tv_sec = DRPC_IO_TIMEOUT;
             time.tv_usec = 0;
             assert(setsockopt(client_fd,SOL_SOCKET,SO_RCVTIMEO,&time,sizeof(time)) == 0);
             assert(setsockopt(client_fd,SOL_SOCKET,SO_SNDTIMEO,&time,sizeof(time)) == 0);
@@ -921,3 +921,67 @@ void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_client
 void drpc_server_force_disconnect_client(struct drpc_client_connection* client){
     client->force_disconnect = 1;
 }
+#ifdef DRPC_DQUEUE_IO
+#include "drpc_client.h"
+
+struct drpc_handle_client_thread_wrapper{
+    struct drpc_client_connection* client;
+    int client_perm;
+};
+
+void* drpc_new_dqueue_handle_client_wrapper(void* params_P){
+    struct drpc_handle_client_thread_wrapper* params = params_P;
+    params->client->drpc_server->client_ammount++;
+    drpc_handle_client(params->client,params->client_perm);
+    params->client->drpc_server->client_ammount--;
+    params->client->io->close(params->client->io);
+    params->client->io->free(params->client->io);
+    free(params->client);
+    free(params);
+    return NULL;
+}
+
+struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm){
+    struct drpc_client* client = calloc(1,sizeof(*client)); assert(client);
+    client->client_stop = 0;
+    assert(pthread_mutex_init(&client->connection_mutex,NULL) == 0);
+    client->io = calloc(1,sizeof(*client->io)); assert(client->io);
+    client->io->io_data = calloc(1,sizeof(struct drpc_dqueue_io)); assert(client->io->io_data);
+    client->io->aes128_key = NULL;
+    client->io->close = drpc_dqueue_close;
+    client->io->free = drpc_dqueue_free;
+    client->io->send = drpc_dqueue_send_message;
+    client->io->recv = drpc_dqueue_recv_message;
+
+    struct drpc_client_connection* server_client = calloc(1,sizeof(*server_client));
+    server_client->drpc_server = server;
+    server_client->force_disconnect = 0;
+    server_client->username = NULL; //generate random username
+    server_client->io = calloc(1,sizeof(*server_client->io));
+    server_client->io->aes128_key = NULL;
+    server_client->io->io_data = calloc(1,sizeof(struct drpc_dqueue_io)); assert(client->io->io_data);
+    server_client->io->close = drpc_dqueue_close;
+    server_client->io->free = drpc_dqueue_free;
+    server_client->io->send = drpc_dqueue_send_message;
+    server_client->io->recv = drpc_dqueue_recv_message;
+
+    struct drpc_dqueue_io* client_io_data = client->io->io_data;
+    struct drpc_dqueue_io* server_io_data = server_client->io->io_data;
+    assert(pthread_mutex_init(&client_io_data->lock,NULL) == 0);
+    client_io_data->recv = new_d_queue();
+    server_io_data->recv = new_d_queue();
+
+    client_io_data->send = server_io_data;
+    server_io_data->send = client_io_data;
+
+    struct drpc_handle_client_thread_wrapper* params = calloc(1,sizeof(*params)); assert(params);
+    params->client = server_client;
+    params->client_perm = client_perm;
+
+    pthread_t client_thread;
+    assert(pthread_create(&client->ping_thread,NULL,drpc_ping_server,client) == 0);
+    assert(pthread_create(&client_thread,NULL,drpc_new_dqueue_handle_client_wrapper,params) == 0);
+    return client;
+
+}
+#endif

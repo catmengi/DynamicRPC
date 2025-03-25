@@ -15,7 +15,7 @@
 #define STRUCT_LEN 100000
 #define QUEUE_LEN 100000
 #define ARRAY_LEN 100000
-#define TEST_ITERATIONS 5
+#define TEST_ITERATIONS 10
 
 
 void condiscon_cb(struct drpc_client_connection* connection,enum drpc_client_connection_event event){
@@ -170,13 +170,16 @@ int main(void){
     drpc_server_start(server);
 
     struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
+    struct drpc_client* dqueue_client = drpc_new_dqueue_client(server,-1);
     if(client == NULL){drpc_server_free(server); return 0;}
 
     for(int i = 0; i < TEST_ITERATIONS;i++){
         printf("%d : iteration of test\n",i);
         check_client(server,client);
+        check_client(server,dqueue_client);
     }
 
+    drpc_client_disconnect(dqueue_client);
     drpc_client_disconnect(client);
     drpc_server_free(server);
 }

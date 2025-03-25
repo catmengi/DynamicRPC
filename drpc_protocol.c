@@ -15,11 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DRPC_SIGNATURE "DRPCv220+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
-                                    // FIRST DIGIT -- code version (changes ????).
-                                    // SECOND DIGIT AND THIRD -- network compat version(changes on massive updates),
-                                    // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
-
 void drpc_call_free(struct drpc_call* call){
     free(call->fn_name);
 
@@ -125,6 +120,7 @@ size_t nextby16 (size_t value) {
 uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 int drpc_send_message(struct drpc_connection* io,struct drpc_message* msg){
+    if(io == NULL) return 1;
     struct d_struct* message = new_d_struct();
 
     d_struct_set(message,"message_type",&msg->message_type,d_uint8);
@@ -135,6 +131,7 @@ int drpc_send_message(struct drpc_connection* io,struct drpc_message* msg){
 }
 
 int drpc_recv_message(struct drpc_connection* io,struct drpc_message* msg){
+    if(io == NULL) return 1;
     struct d_struct* container = NULL;
     int ret = io->recv(io,&container);
     if(ret != 0){
@@ -148,6 +145,58 @@ int drpc_recv_message(struct drpc_connection* io,struct drpc_message* msg){
     d_struct_free(container);
     return 0;
 }
+
+#ifdef DRPC_DQUEUE_IO
+void drpc_dqueue_close(struct drpc_connection* io){
+    if(io->io_data == NULL) return;
+    struct drpc_dqueue_io* io_data = io->io_data;
+    struct drpc_dqueue_io* receiver_io_data = io_data->send;
+    pthread_mutex_lock(&io_data->lock);
+    if(receiver_io_data != NULL){
+        io_data->send = NULL;
+        pthread_mutex_lock(&receiver_io_data->lock);
+        receiver_io_data->send = NULL;
+        pthread_mutex_unlock(&receiver_io_data->lock);
+    }
+    d_queue_free(io_data->recv);
+    io_data->recv = NULL;
+
+    pthread_mutex_unlock(&io_data->lock);
+}
+#include <stdio.h>
+void drpc_dqueue_free(struct drpc_connection* io){
+    struct drpc_dqueue_io* io_data = io->io_data;
+    free(io->io_data);
+    free(io);
+}
+int drpc_dqueue_send_message(struct drpc_connection* io, struct d_struct* prepacked_message){
+    if(io->io_data == NULL) return 1;
+    struct drpc_dqueue_io* io_data = io->io_data;
+    if(io_data->send == NULL) return 1;
+    pthread_mutex_lock(&io_data->lock);
+    pthread_mutex_lock(&io_data->send->lock);
+    d_queue_push(io_data->send->recv,prepacked_message,d_struct);
+    pthread_mutex_unlock(&io_data->send->lock);
+    pthread_mutex_unlock(&io_data->lock);
+    return 0;
+}
+int drpc_dqueue_recv_message(struct drpc_connection* io, struct d_struct** output_pointer){
+    if(io->io_data == NULL) return 1;
+    struct drpc_dqueue_io* io_data = io->io_data;
+    struct timespec start,end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    while(io_data->recv != NULL && d_queue_pop(io_data->recv,output_pointer,d_struct) != 0){
+        pthread_mutex_lock(&io_data->lock);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        if((end.tv_sec - start.tv_sec) > DRPC_IO_TIMEOUT) {
+            pthread_mutex_unlock(&io_data->lock);
+            return 1;
+        } // client or server frooze somehow ))))
+        pthread_mutex_unlock(&io_data->lock);
+    }
+    return 0;
+}
+#endif
 
 void drpc_tcp_close(struct drpc_connection* io){
     close(*(int*)io->io_data);

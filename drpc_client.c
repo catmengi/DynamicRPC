@@ -21,11 +21,9 @@
 #include <stdio.h>
 void* drpc_ping_server(void* clientP){
     struct drpc_client* client = clientP;
-
+    struct drpc_message send,recv;
     while(client->client_stop == 0){
         pthread_mutex_lock(&client->connection_mutex);
-        struct drpc_message send,recv;
-
         send.message_type = drpc_ping;
         send.message = NULL;
 
@@ -34,11 +32,17 @@ void* drpc_ping_server(void* clientP){
 
         if(drpc_send_message(client->io,&send) != 0){
             client->client_stop = 1;
+            client->io->close(client->io);
+            client->io->free(client->io);
+            client->io = NULL;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
         }
         if(drpc_recv_message(client->io,&recv) != 0 || recv.message_type != drpc_ping){
             client->client_stop = 1;
+            client->io->close(client->io);
+            client->io->free(client->io);
+            client->io = NULL;
             pthread_mutex_unlock(&client->connection_mutex);
             return NULL;
         }
@@ -46,8 +50,15 @@ void* drpc_ping_server(void* clientP){
         sleep(4);
         continue;
     }
+    pthread_mutex_lock(&client->connection_mutex);
+    send.message = NULL;
+    send.message_type = drpc_disconnect;
+    drpc_send_message(client->io,&send);
     pthread_mutex_unlock(&client->connection_mutex);
 
+    client->io->close(client->io);
+    client->io->free(client->io);
+    client->io = NULL;
     return NULL;
 }
 
@@ -105,9 +116,9 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
             };
 
             if(drpc_send_message(client->io,&send) != 0){
+                client->io->close(client->io);
                 client->io->free(client->io);
                 free(client);
-                close(fd);
 
                 host_list = host_list->ai_next;
                 continue;
@@ -115,17 +126,17 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
 
             struct drpc_message recv = {0};
             if(drpc_recv_message(client->io,&recv) != 0){
+                client->io->close(client->io);
                 client->io->free(client->io);
                 free(client);
-                close(fd);
 
                 host_list = host_list->ai_next;
                 continue;
             }
             if(recv.message_type != drpc_ok){
+                client->io->close(client->io);
                 client->io->free(client->io);
                 free(client);
-                close(fd);
 
                 host_list = host_list->ai_next;
                 continue;
@@ -134,9 +145,9 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
             uint8_t* xor_base; size_t xor_len = 0;
             if(d_struct_get(recv.message,"encrypt_xor",&xor_base,d_sizedbuf,&xor_len) != 0){
                 d_struct_free(recv.message);
+                client->io->close(client->io);
                 client->io->free(client->io);
                 free(client);
-                close(fd);
 
                 host_list = host_list->ai_next;
                 continue;
@@ -171,20 +182,9 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
 
 void drpc_client_disconnect(struct drpc_client* client){
     if(client == NULL) return;
+    if(client->client_stop != 0) return;
     client->client_stop = 1;
-    pthread_mutex_lock(&client->connection_mutex);
-
-    struct drpc_message send = {
-        .message_type = drpc_disconnect,
-        .message = NULL,
-    };
-    drpc_send_message(client->io,&send);
-    client->io->close(client->io);
-
-    pthread_mutex_unlock(&client->connection_mutex);
     pthread_join(client->ping_thread,NULL);
-
-    client->io->free(client->io);
     free(client);
 }
 
