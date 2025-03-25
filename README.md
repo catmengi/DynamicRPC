@@ -1,3 +1,6 @@
+**This documentation IS OUTDATED. Please refer to header and source files**
+
+
 DynamicRPC is a RPC framework that dont uses IDL and support argument-sync beetwen client a server
 
 
@@ -92,12 +95,11 @@ All elements in queue are in d_struct type
 **Client API**:
 all of this API's are in "drpc_client.h"
 
-`struct drpc_client* drpc_client_connect(char* ip,uint16_t port, char* username, char* passwd)`
+`struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd)`
 
 connect to the drpc_server
 
-**ip** -- server's IP
-**port** -- server's port
+**host** -- server's hostname + port in "host:port" format
 **username** -- auth username
 **passwd** -- auth password
 
@@ -124,12 +126,12 @@ RETURN: 0 - success, otherwise error
 
 ------------
 
-`int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_struct* delayed_message)`
+`int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_queue* messages)`
 
 send delayed_message to the function on drpc_server
 
 **fn_name** -- function who receive this message
-**delayed_message** -- message to send
+**messages** -- dqueue of messages to send
 
 RETURN: 0 - success, otherwise error
 
