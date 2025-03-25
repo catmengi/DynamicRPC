@@ -33,19 +33,19 @@ enum drpc_protocol{
 
 struct drpc_connection;
 
-typedef int (*drpc_message_io_send)(struct drpc_connection* io, struct d_struct* prepacked_message);
-typedef int (*drpc_message_io_recv)(struct drpc_connection* io, struct d_struct** output_pointer);
-typedef void (*drpc_free_io)(struct drpc_connection* io);
-typedef void (*drpc_close_io)(struct drpc_connection* io);
+typedef int (*drpc_io_send)(struct drpc_connection* io, struct d_struct* prepacked_message);
+typedef int (*drpc_io_recv)(struct drpc_connection* io, struct d_struct** output_pointer);
+typedef void (*drpc_io_free)(struct drpc_connection* io);
+typedef void (*drpc_io_close)(struct drpc_connection* io);
 
 struct drpc_connection{
     void* io_data;
     uint8_t* aes128_key;
 
-    drpc_message_io_recv recv;
-    drpc_message_io_send send;
-    drpc_close_io close;
-    drpc_free_io free;
+    drpc_io_recv recv;
+    drpc_io_send send;
+    drpc_io_close close;
+    drpc_io_free free;
 };
 
 struct drpc_call{
