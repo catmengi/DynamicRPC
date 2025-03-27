@@ -25,7 +25,7 @@ void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event 
 }
 
 struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct drpc_pstorage* pstorage){
-    printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
+    printf("que %p   ;;;   pstorage %p\n",pstorage->client_messages, pstorage->pstorage);
 
     char str[64];
     for(uint64_t i = 0; i < max_len; i++){
@@ -41,7 +41,7 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
 
 }
 struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc_pstorage* pstorage){
-    printf("que %p   ;;;   pstorage %p\n",pstorage->delayed_messages, pstorage->pstorage);
+    printf("que %p   ;;;   pstorage %p\n",pstorage->client_messages, pstorage->pstorage);
 
     for(uint64_t i = 0; i < maxpop; i++){
 
