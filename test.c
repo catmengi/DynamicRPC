@@ -12,10 +12,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STRUCT_LEN 100000
-#define QUEUE_LEN 100000
-#define ARRAY_LEN 100000
-#define TEST_ITERATIONS 10
+#define STRUCT_LEN 10000
+#define QUEUE_LEN 10000
+#define ARRAY_LEN 10000
+#define TEST_ITERATIONS 1024
 
 
 void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
@@ -72,7 +72,7 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     enum drpc_types darray_check[] = {d_array,d_uint64};
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
-    struct d_queue* delayed_check = new_d_queue();
+    // struct d_queue* delayed_check = new_d_queue();
 
     char str[64];
     for(uint64_t i = 0; i < STRUCT_LEN; i++){
@@ -83,15 +83,9 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
 
     for(uint64_t i = 0; i < QUEUE_LEN; i++){
         d_queue_push(check2,&i,d_uint64);
-        d_queue_push(delayed_check,&i,d_uint64);
     }
 
-    printf("%lu: before send\n",d_queue_len(delayed_check));
     uint64_t check2_len = d_queue_len(check2);
-    drpc_client_send_delayed(client,"dqueue_check",delayed_check);
-
-    struct d_queue* delayed_check2 = drpc_get_delayed_for(server,"dqueue_check");
-    printf("%lu: received\n",d_queue_len(delayed_check2));
 
     void* check1_ret = 0;
 
@@ -173,10 +167,23 @@ int main(void){
     struct drpc_client* dqueue_client = drpc_new_dqueue_client(server,-1);
     if(client == NULL){drpc_server_free(server); return 0;}
 
+    struct d_queue* delayed_check = new_d_queue();
+    for(uint16_t i = 0; i < 512; i++){
+        d_queue_push(delayed_check,&i,d_uint16);
+    }
+    struct d_queue* delayed_que = drpc_get_delayed_for(server,"dqueue_check");
+    assert(d_queue_len(delayed_que) == 0);
+    drpc_client_send_delayed(client,"dqueue_check",delayed_check);
+    assert(d_queue_len(delayed_que) == 512);
+
+    for(int i = 0; i < TEST_ITERATIONS;i++){
+        printf("%d : iteration of test\n",i);
+        check_client(server,dqueue_client);
+    }
+
     for(int i = 0; i < TEST_ITERATIONS;i++){
         printf("%d : iteration of test\n",i);
         check_client(server,client);
-        check_client(server,dqueue_client);
     }
 
     drpc_client_disconnect(dqueue_client);

@@ -458,7 +458,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     return DRPC_OK;
 }
 
-int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d_queue* messages){
+int drpc_client_send_message(struct drpc_client* client, char* fn_name, struct d_queue* messages){
     assert(client);
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
 
@@ -470,7 +470,7 @@ int drpc_client_send_delayed(struct drpc_client* client, char* fn_name, struct d
     struct drpc_message recv = {0};
     struct drpc_message send = {
         .message = message,
-        .message_type = drpc_send_delayed,
+        .message_type = drpc_client_message,
     };
     pthread_mutex_lock(&client->connection_mutex);
     if(drpc_send_message(client->io,&send) != 0){

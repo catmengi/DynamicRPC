@@ -113,8 +113,8 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->ffi_prototype);
     free(fn_info->prototype);
 
-   if(fn_info->pstorage.delayed_messages)
-       d_queue_free(fn_info->pstorage.delayed_messages);
+   if(fn_info->pstorage.client_messages)
+       d_queue_free(fn_info->pstorage.client_messages);
 
     free(fn_info);
 }
@@ -177,7 +177,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
         fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
         memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
     }
-    fn_info->pstorage.delayed_messages = new_d_queue();
+    fn_info->pstorage.client_messages = new_d_queue();
     hashtable_set(server->functions,fn_name,fn_info);
 
 }
@@ -651,7 +651,7 @@ exit:
     return handle_ret;
 }
 
-int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection* client, int client_perm){
+int drpc_handle_client_message(struct drpc_message recv, struct drpc_connection* client, int client_perm){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_bad,
@@ -665,7 +665,7 @@ int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection
 
      struct drpc_function* receiver = NULL;  // who gonna get this message
      if((receiver = hashtable_get(client->drpc_server->functions,recv_fn_name)) == NULL){
-         printf("%s: no such function for drpc_send_delayed(%s)\n",__PRETTY_FUNCTION__,recv_fn_name);
+         printf("%s: no such function for drpc_send_client(%s)\n",__PRETTY_FUNCTION__,recv_fn_name);
          send.message_type = drpc_nofn;
          ret = 1; goto exit;
      }
@@ -674,14 +674,14 @@ int drpc_handle_delayed_message(struct drpc_message recv, struct drpc_connection
      if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
          struct d_queue* message_que = NULL;
          if(d_struct_get(recv.message,"payload",&message_que,d_queue) != 0){
-             printf("%s: malformed delayed message, no 'payload'\n",__PRETTY_FUNCTION__);
+             printf("%s: malformed client message, no 'payload'\n",__PRETTY_FUNCTION__);
              send.message_type = drpc_bad;
              ret = 1; goto exit;
          }
 
          size_t message_que_len = d_queue_len(message_que);
          for(size_t i = 0; i <message_que_len; i++){
-             drpc_que_push(receiver->pstorage.delayed_messages->que,drpc_que_pop(message_que->que));
+             drpc_que_push(receiver->pstorage.client_messages->que,drpc_que_pop(message_que->que));
          }
          send.message_type = drpc_ok;
          ret = 0; goto exit;
@@ -721,8 +721,8 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_disconnect:
                 printf("\n%s: client disconnected\n",__PRETTY_FUNCTION__);
                 return;
-            case drpc_send_delayed:
-                if(drpc_handle_delayed_message(recv,client,client_perm) != 0) return;
+            case drpc_client_message:
+                if(drpc_handle_client_message(recv,client,client_perm) != 0) return;
                 break;
             case drpc_call:
                 if(drpc_handle_call(recv,client,client_perm) != 0) return;
@@ -890,12 +890,12 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
     hashtable_set(serv->users,username,user);
 }
 
-struct d_queue* drpc_get_delayed_for(struct drpc_server* server, char* fn_name){
+struct d_queue* drpc_get_client_for(struct drpc_server* server, char* fn_name){
     struct drpc_function* fn = NULL;
     if((fn = hashtable_get(server->functions,fn_name)) == NULL){
         return NULL;
     }
-    return fn->pstorage.delayed_messages;
+    return fn->pstorage.client_messages;
 }
 
 void drpc_server_set_servername(struct drpc_server* server, char* name){

@@ -24,7 +24,7 @@ enum drpc_protocol{
 
     drpc_auth,
 
-    drpc_send_delayed,   //this sends message for function fn_name, this message will appear in d_delayed_message_queue type. function isnt called by this server protocol method
+    drpc_client_message,   //this sends message for function fn_name, this message will appear in d_client_message_queue type. function isnt called by this server protocol method
 
     drpc_disconnect,
 
