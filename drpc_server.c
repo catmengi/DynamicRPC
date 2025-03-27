@@ -890,7 +890,7 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
     hashtable_set(serv->users,username,user);
 }
 
-struct d_queue* drpc_get_client_for(struct drpc_server* server, char* fn_name){
+struct d_queue* drpc_get_message_queue_for(struct drpc_server* server, char* fn_name){
     struct drpc_function* fn = NULL;
     if((fn = hashtable_get(server->functions,fn_name)) == NULL){
         return NULL;
