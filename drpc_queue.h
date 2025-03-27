@@ -29,5 +29,5 @@ char* d_queue_buf(struct d_queue* dqueue,size_t* buflen);
 void buf_d_queue(char* buf, struct d_queue* dqueue);
 
 size_t d_queue_len(struct d_queue* dqueue);                       //get d_queue len
-enum drpc_types d_queue_top_type(struct d_queue* dqueue);         //get type of d_queue top element
+enum drpc_types d_queue_get_type(struct d_queue* dqueue);         //get type of d_queue top element
 

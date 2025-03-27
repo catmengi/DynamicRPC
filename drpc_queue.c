@@ -365,7 +365,7 @@ size_t d_queue_len(struct d_queue* dqueue){
     size_t len = drpc_que_get_len(dqueue->que);
     return len;
 }
-enum drpc_types d_queue_top_type(struct d_queue* dqueue){
+enum drpc_types d_queue_get_type(struct d_queue* dqueue){
     if(dqueue == NULL) return d_void;
     if(dqueue->que->cur == NULL) return d_void;
 

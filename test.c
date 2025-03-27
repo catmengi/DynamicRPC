@@ -46,7 +46,7 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc
     for(uint64_t i = 0; i < maxpop; i++){
 
         uint64_t check_int = 0;
-        assert(d_queue_top_type(check) == d_uint64);
+        assert(d_queue_get_type(check) == d_uint64);
         assert(d_queue_pop(check,&check_int,d_uint64) == 0);
         assert(check_int == i);
     }
