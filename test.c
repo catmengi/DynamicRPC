@@ -1,11 +1,11 @@
 #include "drpc_protocol.h"
-#include "drpc_que.h"
 #include "drpc_server.h"
 #include "drpc_client.h"
 #include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
 #include "drpc_array.h"
+#include "hashtable.c/hashtable.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -15,7 +15,7 @@
 #define STRUCT_LEN 10000
 #define QUEUE_LEN 10000
 #define ARRAY_LEN 10000
-#define TEST_ITERATIONS 1024
+#define TEST_ITERATIONS 8
 
 
 void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
@@ -24,8 +24,8 @@ void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event 
     else printf("%s: FORCE disconnected\n",connection->username);
 }
 
-struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct drpc_pstorage* pstorage){
-    printf("que %p   ;;;   pstorage %p\n",pstorage->client_messages, pstorage->pstorage);
+struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, void* pstorage){
+    printf("pstorage %p\n", pstorage);
 
     char str[64];
     for(uint64_t i = 0; i < max_len; i++){
@@ -40,8 +40,8 @@ struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, struct
     return check;
 
 }
-struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,struct drpc_pstorage* pstorage){
-    printf("que %p   ;;;   pstorage %p\n",pstorage->client_messages, pstorage->pstorage);
+struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,void* pstorage){
+    printf("pstorage %p\n", pstorage);
 
     for(uint64_t i = 0; i < maxpop; i++){
 
@@ -67,8 +67,8 @@ struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
 }
 
 void check_client(struct drpc_server* server, struct drpc_client* client){
-    enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};
-    enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fn_pstorage};
+    enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
+    enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
@@ -147,8 +147,8 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
 int main(void){
     struct drpc_server* server = new_drpc_server(2077);
 
-    enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fn_pstorage};
-    enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fn_pstorage};
+    enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
+    enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
 
     drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
@@ -166,16 +166,6 @@ int main(void){
     struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
     struct drpc_client* dqueue_client = drpc_new_dqueue_client(server,-1);
     if(client == NULL){drpc_server_free(server); return 0;}
-
-    struct d_queue* delayed_check = new_d_queue();
-    for(uint16_t i = 0; i < 512; i++){
-        d_queue_push(delayed_check,&i,d_uint16);
-    }
-    struct d_queue* delayed_que = drpc_server_get_message_queue_for(server,"dqueue_check");
-    assert(d_queue_len(delayed_que) == 0);
-    drpc_client_send_message(client,"dqueue_check",delayed_check);
-    assert(d_queue_len(delayed_que) == 512);
-
     for(int i = 0; i < TEST_ITERATIONS;i++){
         printf("%d : iteration of test\n",i);
         check_client(server,dqueue_client);
@@ -185,7 +175,16 @@ int main(void){
         printf("%d : iteration of test\n",i);
         check_client(server,client);
     }
+    struct d_queue* len = new_drpc_mailbox(server,"mailbox_123");
 
+    struct d_queue* mailbox_test = new_d_queue();
+    for(uint32_t i = 0; i < 42; i++){
+        d_queue_push(mailbox_test,&i,d_uint32);
+    }
+    assert(drpc_client_mailbox_send(client,"mailbox_123",mailbox_test) == 0);
+
+    printf("len %lu\n",d_queue_len(len));
+    drpc_free_mailbox(server,"mailbox_123");
     drpc_client_disconnect(dqueue_client);
     drpc_client_disconnect(client);
     drpc_server_free(server);

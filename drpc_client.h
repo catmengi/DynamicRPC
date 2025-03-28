@@ -36,8 +36,8 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                                                             * ...    - callee function arguments, d_sizedbuf type should be passed as char*,size_t
                                                             */
 
-int drpc_client_send_message(struct drpc_client* client, char* fn_name, struct d_queue* messages);   //send client message to function "fn_name", return 0 on success
 char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success
+int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages); //send queue of messages to server's mailbox with mailbox_name
 
 #ifdef DRPC_DQUEUE_IO
 void* drpc_ping_server(void* clientP);

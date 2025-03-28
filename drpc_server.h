@@ -8,10 +8,10 @@
 #include <ffi.h>
 
 #include "drpc_protocol.h"
-#include "drpc_queue.h"
 #include "drpc_types.h"
-#include "drpc_que.h"
 #include "hashtable.c/hashtable.h"
+
+#define DRPC_CLIENTID_LEN 32
 
 enum drpc_connection_event{
     drpc_connected,
@@ -27,6 +27,7 @@ struct drpc_server{
     void* interfunc;
     hashtable* users;
     hashtable* functions;
+    hashtable* mailboxes;
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;
@@ -48,7 +49,7 @@ struct drpc_function{
     enum drpc_types* prototype;
     enum drpc_types return_type;
 
-    struct drpc_pstorage pstorage;
+    void* fnstorage;
     int minimal_permission_level;
 
     void* fn;
@@ -60,6 +61,8 @@ struct drpc_connection{
     struct drpc_io* io;
     struct drpc_server* drpc_server;
     char* username;
+    char clientid[DRPC_CLIENTID_LEN];
+    void* userdata;
 
     int force_disconnect;
 };
@@ -86,17 +89,19 @@ void drpc_server_free(struct drpc_server* server);
 
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
-                             size_t prototype_len, void* pstorage, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
+                             size_t prototype_len, void* fnstorage, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
                                                                                     //call this function
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
-
-struct d_queue* drpc_server_get_message_queue_for(struct drpc_server* server, char* fn_name); //gets pstorage.client_messages of fn_name for local use
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
 
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
 void drpc_server_force_disconnect_client(struct drpc_connection* client); //disconnect client from server side
+
+struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name);
+struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name);
+void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name);
 
 #ifdef DRPC_DQUEUE_IO
 struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm);

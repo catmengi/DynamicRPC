@@ -71,8 +71,13 @@ ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len){
 
 /*=============================*/
 
-
-
+void random_str(char* dest, size_t len){
+    char charset[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    arc4random_buf(dest,len - 1);
+    for(size_t i = 0; i < len - 1; i++){
+        dest[i] = charset[dest[i] % (sizeof(charset) - 1)];
+    }
+}
 
 void* drpc_server_dispatcher(void* drpc_server_P);
 
@@ -81,6 +86,7 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
     drpc_serv->functions = hashtable_create();
     drpc_serv->users = hashtable_create();
+    drpc_serv->mailboxes = hashtable_create();
 
     drpc_serv->port = port;
 
@@ -112,10 +118,6 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->fn_name);
     free(fn_info->ffi_prototype);
     free(fn_info->prototype);
-
-   if(fn_info->pstorage.client_messages)
-       d_queue_free(fn_info->pstorage.client_messages);
-
     free(fn_info);
 }
 
@@ -152,8 +154,21 @@ void drpc_server_free(struct drpc_server* server){
     }
     drpc_que_free(que2);
 
+    struct drpc_que* que3 = drpc_que_create();
+    for(size_t i = 0; i < server->mailboxes->capacity; i++){
+        if(server->mailboxes->body[i].value != NULL && server->mailboxes->body[i].key != NULL && server->mailboxes->body[i].key != (char*)0xDEAD)
+            drpc_que_push(que3,server->mailboxes->body[i].value);
+    }
+
+    size_t elements_len3 = drpc_que_get_len(que3);
+    for(size_t i = 0 ; i < elements_len3; i++){
+        d_queue_free(drpc_que_pop(que3));
+    }
+    drpc_que_free(que3);
+
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
+    hashtable_destroy(server->mailboxes);
 
     free(server->name);
     free(server);
@@ -161,8 +176,8 @@ void drpc_server_free(struct drpc_server* server){
 
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
-                             size_t prototype_len, void* pstorage, int perm){
-    assert(return_type != d_sizedbuf   || return_type != d_fn_pstorage
+                             size_t prototype_len, void* fnstorage, int perm){
+    assert(return_type != d_sizedbuf   || return_type != d_fnstorage
         || return_type != d_clientinfo || return_type != d_interfunc);  //you cannot return thoose types!
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
@@ -170,14 +185,13 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
     fn_info->fn = fn;
     fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
-    fn_info->pstorage.pstorage = pstorage;
+    fn_info->fnstorage = fnstorage;
     if(prototype != NULL){
         /*copying prototype*/
         fn_info->prototype_len = prototype_len;
         fn_info->prototype = calloc(fn_info->prototype_len, sizeof(enum drpc_types));
         memcpy(fn_info->prototype,prototype, sizeof(enum drpc_types) * prototype_len);
     }
-    fn_info->pstorage.client_messages = new_d_queue();
     hashtable_set(server->functions,fn_name,fn_info);
 
 }
@@ -199,7 +213,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
 
     //creating server prototypes without server-only types
     for(size_t i = 0; i < servlen;i++){
-        if(serv[i] != d_interfunc && serv[i] != d_fn_pstorage && serv[i] != d_clientinfo){
+        if(serv[i] != d_interfunc && serv[i] != d_fnstorage && serv[i] != d_clientinfo){
             drpc_que_push(check_que,&serv[i]);
             newservlen++;
         }
@@ -247,31 +261,11 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
         /*those types does not exist on the client side, so extracting them from prototype, and then via que providing
           to the next layer
         */
-        if(prototype[i] == d_fn_pstorage){
+        if(prototype[i] == d_fnstorage || prototype[i] == d_clientinfo || prototype[i] == d_interfunc){
             ffi_arguments[k] = calloc(1,sizeof(void*));
             assert(ffi_arguments[k]);
             struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
-            fill_later_info->type = d_fn_pstorage;
-            fill_later_info->ptr = &ffi_arguments[k];
-            drpc_que_push(fill_later,fill_later_info);
-            k++;
-            continue;
-        }
-        if(prototype[i] == d_clientinfo){
-            ffi_arguments[k] = calloc(1,sizeof(void*));
-            assert(ffi_arguments[k]);
-            struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
-            fill_later_info->type = d_clientinfo;
-            fill_later_info->ptr = &ffi_arguments[k];
-            drpc_que_push(fill_later,fill_later_info);
-            k++;
-            continue;
-        }
-        if(prototype[i] == d_interfunc){
-            ffi_arguments[k] = calloc(1,sizeof(void*));
-            assert(ffi_arguments[k]);
-            struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
-            fill_later_info->type = d_interfunc;
+            fill_later_info->type = prototype[i];
             fill_later_info->ptr = &ffi_arguments[k];
             drpc_que_push(fill_later,fill_later_info);
             k++;
@@ -281,56 +275,29 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
 
         /*Those types exist in arguments so unpacking them, some maybe pushed to the 'to_repack' and be provided to the
          next layer*/
-            if(arguments[j].type == d_array){
+            if(arguments[j].type == d_array || arguments[j].type == d_struct || arguments[j].type == d_queue || arguments[j].type == d_str){
                 ffi_arguments[k] = calloc(1,sizeof(void*));
                 assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = drpc_to_d_array(&arguments[j]);
-
+                switch(arguments[j].type){
+                    case d_array:
+                        *(void**)ffi_arguments[k] = drpc_to_d_array(&arguments[j]);
+                        break;
+                    case d_struct:
+                        *(void**)ffi_arguments[k] = drpc_to_d_struct(&arguments[j]);
+                        break;
+                    case d_queue:
+                        *(void**)ffi_arguments[k] = drpc_to_d_queue(&arguments[j]);
+                        break;
+                    case d_str:
+                        *(void**)ffi_arguments[k] = drpc_to_str(&arguments[j]);
+                        break;
+                }
                 struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = d_array;
+                update->type = arguments[j].type;
                 update->ptr = *(void**)ffi_arguments[k];
                 drpc_que_push(to_repack,update);
 
                 j++; k++;
-                continue;
-            }
-            if(arguments[j].type == d_struct){
-                ffi_arguments[k] = calloc(1,sizeof(void*));
-                assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = drpc_to_d_struct(&arguments[j]);
-
-                struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = d_struct;
-                update->ptr = *(void**)ffi_arguments[k];
-                drpc_que_push(to_repack,update);
-
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_queue){
-                ffi_arguments[k] = calloc(1,sizeof(void*));
-                assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = drpc_to_d_queue(&arguments[j]);
-
-                struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = d_queue;
-                update->ptr = *(void**)ffi_arguments[k];
-                drpc_que_push(to_repack,update);
-
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_str){
-                ffi_arguments[k] = calloc(1,sizeof(void*));
-                assert(ffi_arguments[k]);
-                *(void**)ffi_arguments[k] = drpc_to_str(&arguments[j]);
-
-                struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = d_str;
-                update->ptr = *(void**)ffi_arguments[k];
-                drpc_que_push(to_repack,update);
-
-                j++;k++;
                 continue;
             }
             if(arguments[j].type == d_sizedbuf){
@@ -458,8 +425,8 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     for(size_t i = 0; i <to_fill_len; i++){
         struct drpc_type_update* to_update = drpc_que_pop(to_fill);
         switch(to_update->type){
-            case d_fn_pstorage:
-                **(void***)to_update->ptr = &fn_info->pstorage;
+            case d_fnstorage:
+                **(void***)to_update->ptr = fn_info->fnstorage;
                 break;
             case d_interfunc:
                 **(void***)to_update->ptr = client_info->drpc_server->interfunc;
@@ -570,22 +537,22 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
             case d_str:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             str_to_drpc(&returned->returned,(char*)native_return);
-                if(fn_info->pstorage.pstorage != (void*)native_return) free((char*)native_return);
+                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) free((char*)native_return);
                 break;
             case d_array:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_array_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->pstorage.pstorage != (void*)native_return) d_array_free((void*)native_return);
+                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_array_free((void*)native_return);
                 break;
             case d_struct:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_struct_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->pstorage.pstorage != (void*)native_return) d_struct_free((void*)native_return);
+                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_struct_free((void*)native_return);
                 break;
             case d_queue:
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_queue_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->pstorage.pstorage != (void*)native_return) d_queue_free((void*)native_return);
+                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_queue_free((void*)native_return);
             break;
             default: break;
         }
@@ -616,7 +583,7 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
         printf("%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
         drpc_call_free(call);
         free(call);
-        send.message_type = drpc_nofn;
+        send.message_type = drpc_notfound;
         handle_ret = 1; goto exit;
     }
 
@@ -651,51 +618,40 @@ exit:
     return handle_ret;
 }
 
-int drpc_handle_client_message(struct drpc_message recv, struct drpc_connection* client, int client_perm){
+int drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client){
     struct drpc_message send = {
         .message = NULL,
-        .message_type = drpc_bad,
+        .message_type = drpc_notfound,
     };
-    char* recv_fn_name = NULL;
-    int ret = 0;
+    int handle_ret = 1;
+    if(recv.message == NULL) {send.message_type = drpc_bad; goto exit;}
 
-    if(d_struct_get(recv.message,"fn_name",&recv_fn_name,d_str) != 0){
-        ret = 1; goto exit;
+    char* mailbox_name; struct d_queue* messages;
+    if(d_struct_get(recv.message,"receiver_mailbox",&mailbox_name,d_str) != 0) goto exit;
+    if(d_struct_get(recv.message,"messages",&messages,d_queue) != 0) goto exit;
+
+    struct d_queue* receiver_mailbox = hashtable_get(client->drpc_server->mailboxes, mailbox_name);
+    if(receiver_mailbox == NULL) goto exit;
+
+    size_t messages_len = d_queue_len(messages);
+    for(size_t i = 0; i < messages_len; i++){
+        drpc_que_push(receiver_mailbox->que,drpc_que_pop(messages->que));
     }
-
-     struct drpc_function* receiver = NULL;  // who gonna get this message
-     if((receiver = hashtable_get(client->drpc_server->functions,recv_fn_name)) == NULL){
-         printf("%s: no such function for drpc_send_client(%s)\n",__PRETTY_FUNCTION__,recv_fn_name);
-         send.message_type = drpc_nofn;
-         ret = 1; goto exit;
-     }
-      printf("%s: receiver is '%s'\n",__PRETTY_FUNCTION__,receiver->fn_name);
-
-     if((client_perm > receiver->minimal_permission_level && receiver->minimal_permission_level != -1) || client_perm == -1){
-         struct d_queue* message_que = NULL;
-         if(d_struct_get(recv.message,"payload",&message_que,d_queue) != 0){
-             printf("%s: malformed client message, no 'payload'\n",__PRETTY_FUNCTION__);
-             send.message_type = drpc_bad;
-             ret = 1; goto exit;
-         }
-
-         size_t message_que_len = d_queue_len(message_que);
-         for(size_t i = 0; i <message_que_len; i++){
-             drpc_que_push(receiver->pstorage.client_messages->que,drpc_que_pop(message_que->que));
-         }
-         send.message_type = drpc_ok;
-         ret = 0; goto exit;
-    }
-
+    handle_ret = 0;
+    send.message_type = drpc_ok;
 exit:
     d_struct_free(recv.message);
-    drpc_send_message(client->io, &send);
-    return ret;
+    drpc_send_message(client->io,&send);
+    return handle_ret;
 }
 
 void drpc_handle_client(struct drpc_connection* client, int client_perm){
     struct drpc_message recv;
     struct drpc_message send;
+
+    /*this is here to dont duplicate this code in future*/
+    random_str(client->clientid,sizeof(client->clientid));
+    /*==================================================*/
 
     if(client->drpc_server->connection_event_cb != NULL)
         client->drpc_server->connection_event_cb(client,drpc_connected);
@@ -712,7 +668,6 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
         if(drpc_recv_message(client->io,&recv) != 0) {
             printf("\n%s: no message provided,exiting\n",__PRETTY_FUNCTION__); return;
         }
-
         switch(recv.message_type){
             case drpc_ping:
                 send.message = NULL; send.message_type = drpc_ping;
@@ -721,11 +676,11 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_disconnect:
                 printf("\n%s: client disconnected\n",__PRETTY_FUNCTION__);
                 return;
-            case drpc_client_message:
-                if(drpc_handle_client_message(recv,client,client_perm) != 0) return;
-                break;
             case drpc_call:
                 if(drpc_handle_call(recv,client,client_perm) != 0) return;
+                break;
+            case drpc_mailbox:
+                if(drpc_handle_mailbox(recv,client) != 0) return;
                 break;
             case drpc_servername:
                 send.message_type = drpc_servername;
@@ -890,14 +845,6 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
     hashtable_set(serv->users,username,user);
 }
 
-struct d_queue* drpc_server_get_message_queue_for(struct drpc_server* server, char* fn_name){
-    struct drpc_function* fn = NULL;
-    if((fn = hashtable_get(server->functions,fn_name)) == NULL){
-        return NULL;
-    }
-    return fn->pstorage.client_messages;
-}
-
 void drpc_server_set_servername(struct drpc_server* server, char* name){
     if(server->name != NULL) free(server->name);
 
@@ -921,6 +868,25 @@ void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connec
 void drpc_server_force_disconnect_client(struct drpc_connection* client){
     client->force_disconnect = 1;
 }
+
+struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct d_queue* check = hashtable_get(server->mailboxes,mailbox_name);
+    if(check != NULL) return check;
+
+    struct d_queue* mailbox = new_d_queue();
+    hashtable_set(server->mailboxes,mailbox_name,mailbox);
+    return mailbox;
+}
+struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct d_queue* mailbox = hashtable_get(server->mailboxes,mailbox_name);
+    return mailbox;
+}
+void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct d_queue* mailbox = hashtable_get(server->mailboxes,mailbox_name);
+    d_queue_free(mailbox);
+    hashtable_remove(server->mailboxes,mailbox_name);
+}
+
 #ifdef DRPC_DQUEUE_IO
 #include "drpc_client.h"
 

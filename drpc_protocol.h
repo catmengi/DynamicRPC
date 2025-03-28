@@ -16,19 +16,15 @@ enum drpc_protocol{
     drpc_call,           //this used for function call request
     drpc_return,         //this is answer for drpc_call that carries function return
     drpc_servername,     //gets server's name string, if it is NULL it would set to "UNKNOWN_DRPC"
+    drpc_auth,
+    drpc_mailbox,
+    drpc_disconnect,
+    drpc_ping,
 
-    drpc_nofn,           //function doesnt exist
+    drpc_notfound,       //function doesnt exist
     drpc_bad,            //arguments missmatch or other errors
     drpc_ok,             //auth ok
     drpc_eperm,
-
-    drpc_auth,
-
-    drpc_client_message,   //this sends message for function fn_name, this message will appear in d_client_message_queue type. function isnt called by this server protocol method
-
-    drpc_disconnect,
-
-    drpc_ping,
 };
 
 struct drpc_io;

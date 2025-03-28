@@ -458,32 +458,25 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     return DRPC_OK;
 }
 
-int drpc_client_send_message(struct drpc_client* client, char* fn_name, struct d_queue* messages){
-    assert(client);
+int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages){
+    if(client == NULL) return 1;
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
-
-    struct d_struct* message = new_d_struct();
-
-    d_struct_set(message,"fn_name",fn_name,d_str);
-    d_struct_set(message,"payload",messages,d_queue);
-
-    struct drpc_message recv = {0};
-    struct drpc_message send = {
-        .message = message,
-        .message_type = drpc_client_message,
+    struct d_struct* mailbox_msg = new_d_struct();
+    d_struct_set(mailbox_msg,"receiver_mailbox",mailbox_name,d_str);
+    d_struct_set(mailbox_msg,"messages",messages,d_queue);
+    struct drpc_message msg = {
+        .message_type = drpc_mailbox,
+        .message = mailbox_msg,
     };
-    pthread_mutex_lock(&client->connection_mutex);
-    if(drpc_send_message(client->io,&send) != 0){
-        pthread_mutex_unlock(&client->connection_mutex);
+    if(drpc_send_message(client->io,&msg) != 0){
+        d_struct_free(mailbox_msg);
         return DRPC_ENETWORK;
     }
+    struct drpc_message recv;
+    if(drpc_recv_message(client->io,&recv) != 0) return DRPC_ENETWORK;
+    if(recv.message_type != drpc_ok) return DRPC_BADREPLY;
 
-    if(drpc_recv_message(client->io,&recv) != 0 || recv.message_type != drpc_ok){
-        pthread_mutex_unlock(&client->connection_mutex);
-        return DRPC_BADREPLY;
-    }
-    pthread_mutex_unlock(&client->connection_mutex);
-    return DRPC_OK;
+    return 0;
 }
 
 char* drpc_client_get_servername(struct drpc_client* client){
