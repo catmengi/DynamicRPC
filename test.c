@@ -171,7 +171,7 @@ int main(void){
     for(uint16_t i = 0; i < 512; i++){
         d_queue_push(delayed_check,&i,d_uint16);
     }
-    struct d_queue* delayed_que = drpc_get_message_queue_for(server,"dqueue_check");
+    struct d_queue* delayed_que = drpc_server_get_message_queue_for(server,"dqueue_check");
     assert(d_queue_len(delayed_que) == 0);
     drpc_client_send_message(client,"dqueue_check",delayed_check);
     assert(d_queue_len(delayed_que) == 512);
