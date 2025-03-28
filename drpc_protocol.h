@@ -7,7 +7,7 @@
 #define DRPC_IO_TIMEOUT 10
 #define DRPC_DQUEUE_IO
 
-#define DRPC_SIGNATURE "DRPCv220+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
+#define DRPC_SIGNATURE "DRPCv230+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
                                     // FIRST DIGIT -- code version (changes ????).
                                     // SECOND DIGIT AND THIRD -- network compat version(changes on massive updates),
                                     // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
