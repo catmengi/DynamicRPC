@@ -90,7 +90,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                                                                                     //call this function
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
 
-struct d_queue* drpc_get_message_queue_for(struct drpc_server* server, char* fn_name); //gets pstorage.client_messages of fn_name for local use
+struct d_queue* drpc_server_get_message_queue_for(struct drpc_server* server, char* fn_name); //gets pstorage.client_messages of fn_name for local use
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
