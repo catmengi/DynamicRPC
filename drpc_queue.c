@@ -1,5 +1,5 @@
 #include "drpc_queue.h"
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_struct.h"
 #include "drpc_array.h"
 #include "drpc_types.h"
@@ -13,7 +13,7 @@
 struct d_queue* new_d_queue(){
     struct d_queue* dque = malloc(sizeof(*dque)); assert(dque);
 
-    dque->que = drpc_que_create();
+    dque->que = queue_create();
 
     return dque;
 }
@@ -123,7 +123,7 @@ void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types typ
             return;
 
     }
-    drpc_que_push(dqueue->que,element);
+    queue_push(dqueue->que,element);
 }
 
 int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
@@ -134,7 +134,7 @@ int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,
     struct d_struct_element* check = dqueue->que->cur->ptr;
     if(check->type != type) return 1;
 
-    struct d_struct_element* element = drpc_que_pop(dqueue->que);
+    struct d_struct_element* element = queue_pop(dqueue->que);
     if(element == NULL) return 1;
 
     switch(type){
@@ -204,10 +204,10 @@ int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,
 void d_queue_free_internals(struct d_queue* dqueue){
     if(dqueue == NULL) return;
     if(dqueue->que == NULL) return;
-    size_t que_len = drpc_que_get_len(dqueue->que);
+    size_t que_len = queue_get_len(dqueue->que);
 
     for(size_t i = 0; i < que_len; i++){
-        struct d_struct_element* element = drpc_que_pop(dqueue->que);
+        struct d_struct_element* element = queue_pop(dqueue->que);
         if(element->is_packed == 1){
             drpc_type_free(element->data);
             free(element->data);
@@ -233,7 +233,7 @@ void d_queue_free_internals(struct d_queue* dqueue){
         free(element);
     }
 
-    drpc_que_free(dqueue->que);
+    queue_free(dqueue->que);
 }
 void d_queue_free(struct d_queue* dqueue){
     if(dqueue == NULL) return;
@@ -244,7 +244,7 @@ char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
     size_t dqueue_len = d_queue_len(dqueue);
     struct drpc_type* packed_types = calloc(dqueue_len,sizeof(*packed_types)); assert(packed_types);
     for(size_t i = 0; i < dqueue_len; i++){
-        struct d_struct_element* element = drpc_que_pop(dqueue->que);
+        struct d_struct_element* element = queue_pop(dqueue->que);
         if(element == NULL){
             packed_types[i].type = d_void;
             packed_types[i].len = 0;
@@ -287,7 +287,7 @@ char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
                 drpc_buf(element->data,packed_types[i].packed_data);
             }
         }
-        drpc_que_push(dqueue->que,element);
+        queue_push(dqueue->que,element);
     }
     *buflen = drpc_types_buflen(packed_types,dqueue_len);
     char* outbuf = malloc(*buflen); assert(outbuf);
@@ -356,13 +356,13 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
                 buf_drpc(element->data,packed_types[i].packed_data);
                 break;
         }
-        drpc_que_push(dqueue->que,element);
+        queue_push(dqueue->que,element);
     }
     drpc_types_free(packed_types,packed_types_len);
 }
 
 size_t d_queue_len(struct d_queue* dqueue){
-    size_t len = drpc_que_get_len(dqueue->que);
+    size_t len = queue_get_len(dqueue->que);
     return len;
 }
 enum drpc_types d_queue_get_type(struct d_queue* dqueue){

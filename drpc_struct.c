@@ -1,4 +1,4 @@
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_types.h"
 #include "drpc_struct.h"
 #include "drpc_queue.h"
@@ -18,7 +18,7 @@ struct d_struct* new_d_struct(){
     d_struct->hashtable = hashtable_create();
     d_struct->current_len = 0;
 
-    d_struct->heap_keys = drpc_que_create();
+    d_struct->heap_keys = queue_create();
 
     return d_struct;
 }
@@ -29,7 +29,7 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
     struct d_struct_element* element = NULL;
 
     char* heap_key = strdup(key); assert(heap_key);
-    drpc_que_push(dstruct->heap_keys,heap_key);
+    queue_push(dstruct->heap_keys,heap_key);
 
     if((element = hashtable_get(dstruct->hashtable,heap_key)) == NULL){
         element = malloc(sizeof(*element)); assert(element);
@@ -280,20 +280,20 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     struct drpc_type* packed = calloc(dstruct->current_len, sizeof(*packed));
 
     //gathering elements from hashtable
-    struct drpc_que* element_queue = drpc_que_create();
-    struct drpc_que* key_queue = drpc_que_create();
+    struct queue* element_queue = queue_create();
+    struct queue* key_queue = queue_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
         if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
-            drpc_que_push(element_queue,dstruct->hashtable->body[i].value);
-            drpc_que_push(key_queue,dstruct->hashtable->body[i].key);
+            queue_push(element_queue,dstruct->hashtable->body[i].value);
+            queue_push(key_queue,dstruct->hashtable->body[i].key);
         }
     }
     //=================================
 
-    size_t elements_len = drpc_que_get_len(element_queue);
+    size_t elements_len = queue_get_len(element_queue);
     for(size_t i = 0 ; i < elements_len; i++){
-        struct d_struct_element* element = drpc_que_pop(element_queue);
-        char* key = drpc_que_pop(key_queue);
+        struct d_struct_element* element = queue_pop(element_queue);
+        char* key = queue_pop(key_queue);
 
         enum drpc_types type = element->type;
         struct drpc_type* packed_type = NULL;
@@ -335,8 +335,8 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
             free(packed_type);
         }
     }
-    drpc_que_free(element_queue);
-    drpc_que_free(key_queue);
+    queue_free(element_queue);
+    queue_free(key_queue);
 
     *buflen = drpc_types_buflen(packed,dstruct->current_len);
     char* buf = malloc(*buflen); assert(buf);
@@ -353,7 +353,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
     for(size_t i = 0; i < packed_types_len; i++){
         if(packed_types[i].type == d_void) continue;
         char* key = strdup(packed_types[i].packed_data);
-        drpc_que_push(dstruct->heap_keys,key);
+        queue_push(dstruct->heap_keys,key);
 
         void* type_packed = packed_types[i].packed_data + strlen(key) + 1;
         struct drpc_type* type = NULL;
@@ -420,32 +420,32 @@ char** d_struct_get_fields(struct d_struct* dstruct, size_t* len){
 
     char** keys = calloc(*len,sizeof(char**)); assert(keys != NULL);
 
-    struct drpc_que* keys_queue = drpc_que_create();
+    struct queue* keys_queue = queue_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
         if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
-            drpc_que_push(keys_queue,dstruct->hashtable->body[i].key);
+            queue_push(keys_queue,dstruct->hashtable->body[i].key);
         }
     }
 
-    size_t elements_len = drpc_que_get_len(keys_queue);
+    size_t elements_len = queue_get_len(keys_queue);
     for(size_t i = 0 ; i <elements_len; i++){
-       keys[i] = drpc_que_pop(keys_queue);
+       keys[i] = queue_pop(keys_queue);
     }
-    drpc_que_free(keys_queue);
+    queue_free(keys_queue);
 
     return keys;
 }
 
 void d_struct_free_internal(struct d_struct* dstruct){
-    struct drpc_que* element_queue = drpc_que_create();
+    struct queue* element_queue = queue_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
         if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD)
-            drpc_que_push(element_queue,dstruct->hashtable->body[i].value);
+            queue_push(element_queue,dstruct->hashtable->body[i].value);
     }
 
-    size_t elements_len = drpc_que_get_len(element_queue);
+    size_t elements_len = queue_get_len(element_queue);
     for(size_t i = 0 ; i < elements_len; i++){
-        struct d_struct_element* element = drpc_que_pop(element_queue);
+        struct d_struct_element* element = queue_pop(element_queue);
         if(element->is_packed == 1){
             drpc_type_free(element->data);
             free(element->data);
@@ -472,13 +472,13 @@ void d_struct_free_internal(struct d_struct* dstruct){
         free(element);
     }
     hashtable_destroy(dstruct->hashtable);
-    drpc_que_free(element_queue);
+    queue_free(element_queue);
 ///////////
     char* heap_key = NULL;
-    while((heap_key = drpc_que_pop(dstruct->heap_keys)) != NULL){
+    while((heap_key = queue_pop(dstruct->heap_keys)) != NULL){
         free(heap_key);
     }
-    drpc_que_free(dstruct->heap_keys);
+    queue_free(dstruct->heap_keys);
 ///////////
 
 }

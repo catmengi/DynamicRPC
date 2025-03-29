@@ -1,9 +1,9 @@
 #pragma once
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_types.h"
 
 struct d_queue{
-    struct drpc_que* que;
+    struct queue* que;
 };
 
 struct d_queue* new_d_queue();

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_types.h"
 
 #include <pthread.h>

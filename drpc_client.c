@@ -1,6 +1,6 @@
 #include "drpc_client.h"
 #include "drpc_protocol.h"
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_queue.h"
 #include "drpc_server.h"
 #include "drpc_types.h"
@@ -197,7 +197,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     va_start(varargs,native_return);
 
     struct drpc_type* arguments = calloc(prototype_len,sizeof(*arguments)); assert(arguments);
-    struct drpc_que* updated_arguments_que = drpc_que_create();
+    struct queue* updated_arguments_que = queue_create();
 
     void* arg = NULL;
     struct drpc_type_update* update = NULL;
@@ -241,7 +241,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 update = malloc(sizeof(*update)); assert(update);
                 update->type = d_str;
                 update->ptr = arg;
-                drpc_que_push(updated_arguments_que,update);
+                queue_push(updated_arguments_que,update);
 
                 str_to_drpc(&arguments[i],arg);
                 break;
@@ -252,7 +252,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 update->type = d_sizedbuf;
                 update->ptr = arg;
                 update->len = va_arg(varargs,size_t);
-                drpc_que_push(updated_arguments_que,update);
+                queue_push(updated_arguments_que,update);
 
                 sizedbuf_to_drpc(&arguments[i],arg,update->len);
                 break;
@@ -262,7 +262,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 update = malloc(sizeof(*update)); assert(update);
                 update->type = d_struct;
                 update->ptr = arg;
-                drpc_que_push(updated_arguments_que,update);
+                queue_push(updated_arguments_que,update);
 
                 d_struct_to_drpc(&arguments[i],arg);
                 break;
@@ -272,7 +272,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 update = malloc(sizeof(*update)); assert(update);
                 update->type = d_array;
                 update->ptr = arg;
-                drpc_que_push(updated_arguments_que,update);
+                queue_push(updated_arguments_que,update);
 
                 d_array_to_drpc(&arguments[i],arg);
                 break;
@@ -282,7 +282,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                 update = malloc(sizeof(*update)); assert(update);
                 update->type = d_queue;
                 update->ptr = arg;
-                drpc_que_push(updated_arguments_que,update);
+                queue_push(updated_arguments_que,update);
 
                 d_queue_to_drpc(&arguments[i],arg);
                 break;
@@ -311,26 +311,26 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     pthread_mutex_lock(&client->connection_mutex);
     if(drpc_send_message(client->io,&send) != 0){
         struct drpc_type_update* freeU = NULL;
-        while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
+        while((freeU = queue_pop(updated_arguments_que)) != NULL) free(freeU);
 
-        drpc_que_free(updated_arguments_que);
+        queue_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
 
     if(drpc_recv_message(client->io,&recv) != 0){
         struct drpc_type_update* freeU = NULL;
-        while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
+        while((freeU = queue_pop(updated_arguments_que)) != NULL) free(freeU);
 
-        drpc_que_free(updated_arguments_que);
+        queue_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
     if(recv.message_type != drpc_return){
         struct drpc_type_update* freeU = NULL;
-        while((freeU = drpc_que_pop(updated_arguments_que)) != NULL) free(freeU);
+        while((freeU = queue_pop(updated_arguments_que)) != NULL) free(freeU);
 
-        drpc_que_free(updated_arguments_que);
+        queue_free(updated_arguments_que);
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_BADREPLY;
     }
@@ -344,10 +344,10 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     if(ret->returned.type == d_return_is){
         return_is = drpc_to_return_is(&ret->returned);
     }
-    assert(drpc_que_get_len(updated_arguments_que) == ret->updated_arguments_len);
+    assert(queue_get_len(updated_arguments_que) == ret->updated_arguments_len);
 
     for(uint8_t i = 0 ; i < ret->updated_arguments_len ; i++){
-        struct drpc_type_update* to_update = drpc_que_pop(updated_arguments_que);
+        struct drpc_type_update* to_update = queue_pop(updated_arguments_que);
 
         void* unpacked = NULL; size_t strcpy_len = 0; size_t unused;
 
@@ -403,7 +403,7 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
         }
         free(to_update);
     }
-    drpc_que_free(updated_arguments_que);
+    queue_free(updated_arguments_que);
     if(return_is == -1){
         switch(ret->returned.type){
             case d_int8:

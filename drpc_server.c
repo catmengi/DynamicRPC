@@ -2,7 +2,7 @@
 #include "drpc_types.h"
 #include "drpc_protocol.h"
 #include "drpc_server.h"
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_queue.h"
 #include "drpc_array.h"
 #include "hashtable.c/hashtable.h"
@@ -129,30 +129,30 @@ void drpc_server_free(struct drpc_server* server){
     close(server->server_fd);
     pthread_join(server->dispatcher,NULL); // waiting for dispatcher
 
-    struct drpc_que* que = drpc_que_create();
+    struct queue* que = queue_create();
     for(size_t i = 0; i < server->functions->capacity; i++){
         if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
-            drpc_que_push(que,server->functions->body[i].value);
+            queue_push(que,server->functions->body[i].value);
     }
 
-    size_t elements_len = drpc_que_get_len(que);
+    size_t elements_len = queue_get_len(que);
     for(size_t i = 0 ; i <elements_len; i++){
-        drpc_fn_info_free_CB(drpc_que_pop(que));
+        drpc_fn_info_free_CB(queue_pop(que));
     }
-    drpc_que_free(que);
+    queue_free(que);
 
 
-    struct drpc_que* que2 = drpc_que_create();
+    struct queue* que2 = queue_create();
     for(size_t i = 0; i < server->users->capacity; i++){
         if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
-            drpc_que_push(que2,server->users->body[i].value);
+            queue_push(que2,server->users->body[i].value);
     }
 
-    size_t elements_len2 = drpc_que_get_len(que2);
+    size_t elements_len2 = queue_get_len(que2);
     for(size_t i = 0 ; i <elements_len2; i++){
-        free(drpc_que_pop(que2));
+        free(queue_pop(que2));
     }
-    drpc_que_free(que2);
+    queue_free(que2);
     d_struct_free(server->mailboxes);
 
     hashtable_destroy(server->users);
@@ -195,36 +195,36 @@ enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_
 
 int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drpc_types* client, size_t clientlen){
     if(!serv && !client) return 0;
-    struct drpc_que* check_que = drpc_que_create();
+    struct queue* check_que = queue_create();
     assert(check_que);
     size_t newservlen = 0;
 
     //creating server prototypes without server-only types
     for(size_t i = 0; i < servlen;i++){
         if(serv[i] != d_interfunc && serv[i] != d_fnstorage && serv[i] != d_clientinfo){
-            drpc_que_push(check_que,&serv[i]);
+            queue_push(check_que,&serv[i]);
             newservlen++;
         }
     }
 
     if((serv && !client) || (!serv && client)) {
         if(clientlen == 0 && newservlen == 0){
-            drpc_que_free(check_que);
+            queue_free(check_que);
             return 0;
         }
-        drpc_que_free(check_que);
+        queue_free(check_que);
         return 1;
     }
 
     //if new len is different they are different
-    if(newservlen != clientlen) {drpc_que_free(check_que);return 1;}
+    if(newservlen != clientlen) {queue_free(check_que);return 1;}
 
     enum drpc_types* newserv = calloc(newservlen,sizeof(enum drpc_types));
     assert(newserv);
 
     //recreating new server prototype from que
     for(size_t i = 0; i < newservlen; i++){
-        newserv[i] = *(enum drpc_types*)drpc_que_pop(check_que);
+        newserv[i] = *(enum drpc_types*)queue_pop(check_que);
     }
 
     int ret = 0;
@@ -233,13 +233,13 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
         if(newserv[i] != client[i]) {ret = 1;break;}
 
 
-    drpc_que_free(check_que);
+    queue_free(check_que);
     free(newserv);
     return ret;
 }
 
 
-void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,struct drpc_que* to_repack, struct drpc_que* fill_later){
+void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,struct queue* to_repack, struct queue* fill_later){
     size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
     void** ffi_arguments = calloc(adjusted_len, sizeof(void*)); assert(ffi_arguments);
 
@@ -255,7 +255,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
             struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
             fill_later_info->type = prototype[i];
             fill_later_info->ptr = &ffi_arguments[k];
-            drpc_que_push(fill_later,fill_later_info);
+            queue_push(fill_later,fill_later_info);
             k++;
             continue;
         }
@@ -283,7 +283,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 struct drpc_type_update* update = calloc(1,sizeof(*update));
                 update->type = arguments[j].type;
                 update->ptr = *(void**)ffi_arguments[k];
-                drpc_que_push(to_repack,update);
+                queue_push(to_repack,update);
 
                 j++; k++;
                 continue;
@@ -304,7 +304,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 assert(ffi_arguments[k]);
                 *(size_t*)ffi_arguments[k] = sizedbuf_len;
 
-                drpc_que_push(to_repack,update);
+                queue_push(to_repack,update);
 
                 j++;k++;
                 continue;
@@ -390,8 +390,8 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         free(extracted_prototype);
         return 1;
     }
-    struct drpc_que* to_repack = drpc_que_create(); //this queue will be used for repackable arguments
-    struct drpc_que* to_fill = drpc_que_create();   //this queue will be used for server-only clients
+    struct queue* to_repack = queue_create(); //this queue will be used for repackable arguments
+    struct queue* to_fill = queue_create();   //this queue will be used for server-only clients
 
     size_t ffi_len = 0;
     ffi_arg native_return = 0;
@@ -409,9 +409,9 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
 
     //filling in server-only arguments
-    size_t to_fill_len = drpc_que_get_len(to_fill);
+    size_t to_fill_len = queue_get_len(to_fill);
     for(size_t i = 0; i <to_fill_len; i++){
-        struct drpc_type_update* to_update = drpc_que_pop(to_fill);
+        struct drpc_type_update* to_update = queue_pop(to_fill);
         switch(to_update->type){
             case d_fnstorage:
                 **(void***)to_update->ptr = fn_info->fnstorage;
@@ -430,7 +430,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_types_free(arguments,arguments_len);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
 
-    size_t repack_len = drpc_que_get_len(to_repack);
+    size_t repack_len = queue_get_len(to_repack);
 
     if(repack_len > 0){
         returned->updated_arguments = calloc(repack_len,sizeof(*returned->updated_arguments));
@@ -442,7 +442,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     //this types will be in ret->updated_arguments and be used on client side to "emulate" pointers
     //so we are getting pointer of raw arguments from to_repack que, then packing to drpc_type then free
     for(size_t i = 0; i < repack_len; i++){
-        struct drpc_type_update* repack = drpc_que_pop(to_repack);
+        struct drpc_type_update* repack = queue_pop(to_repack);
 
         //if pointer is the same as native_return then we setting return_is variable to i,native_return will
         //not be packed, and on client native_return will be same as the same as returned argument pointer
@@ -547,8 +547,8 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     }else{
         return_is_to_drpc(&returned->returned,return_is);
     }
-    drpc_que_free(to_repack);
-    drpc_que_free(to_fill);
+    queue_free(to_repack);
+    queue_free(to_fill);
     return 0;
 }
 int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, int client_perm){
@@ -623,7 +623,7 @@ int drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client)
 
     size_t messages_len = d_queue_len(messages);
     for(size_t i = 0; i < messages_len; i++){
-        drpc_que_push(receiver_mailbox->que,drpc_que_pop(messages->que));
+        queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
     handle_ret = 0;
     send.message_type = drpc_ok;

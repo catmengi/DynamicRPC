@@ -1,5 +1,5 @@
 #include "drpc_array.h"
-#include "drpc_que.h"
+#include "queue.h"
 #include "drpc_queue.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
@@ -331,15 +331,15 @@ char* d_array_buf(struct d_array* darray, size_t* buflen){
 
         hashtable_set(packed->hashtable,keyp,darray->lookup_table[i]);   //low level hashtable manipulations to set to already existing elements, because they are in the same format!
         packed->current_len++;
-        drpc_que_push(packed->heap_keys,keyp);
+        queue_push(packed->heap_keys,keyp);
     }
     char* buf = d_struct_buf(packed,buflen);
 
     void* freep = NULL;
-    while((freep = drpc_que_pop(packed->heap_keys)) != NULL){
+    while((freep = queue_pop(packed->heap_keys)) != NULL){
         free(freep);
     }
-    drpc_que_free(packed->heap_keys);
+    queue_free(packed->heap_keys);
     hashtable_destroy(packed->hashtable);
     free(packed);
     pthread_mutex_unlock(&darray->lock);
@@ -360,12 +360,12 @@ struct d_array* buf_d_array(char* buf){
     }
 
     void* freep = NULL;
-    while((freep = drpc_que_pop(packed->heap_keys)) != NULL){
+    while((freep = queue_pop(packed->heap_keys)) != NULL){
         free(freep);
     }
     free(keys);
 
-    drpc_que_free(packed->heap_keys);
+    queue_free(packed->heap_keys);
     hashtable_destroy(packed->hashtable);
     free(packed);
 
