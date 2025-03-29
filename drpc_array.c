@@ -5,7 +5,6 @@
 #include "drpc_types.h"
 #include "hashtable.c/hashtable.h"
 
-#include <asm-generic/errno.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
