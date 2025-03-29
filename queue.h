@@ -11,7 +11,7 @@ struct queue{
     pthread_mutex_t lock;
     struct queue_el* ltop;
     struct queue_el* cur;
-    uint64_t len;
+    size_t len;
 };
 struct queue* queue_create();
 void queue_push(struct queue* drpcq, void* el);

@@ -86,9 +86,9 @@ void* queue_pop(struct queue* drpcq){
 }
 
 
-uint64_t queue_get_len(struct queue* drpcq){
+size_t queue_get_len(struct queue* drpcq){
     pthread_mutex_lock(&drpcq->lock);
-    uint64_t ret = drpcq->len;
+    size_t ret = drpcq->len;
     pthread_mutex_unlock(&drpcq->lock);
     return ret;
 }

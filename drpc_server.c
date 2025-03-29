@@ -187,7 +187,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
 enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_t drpc_types_len){
     if(drpc_types == NULL) return NULL;
     enum drpc_types* ret = malloc(drpc_types_len * sizeof(enum drpc_types));
-    for(uint64_t i = 0; i < drpc_types_len; i++){
+    for(size_t i = 0; i < drpc_types_len; i++){
         ret[i] = drpc_types[i].type;
     }
     return ret;
