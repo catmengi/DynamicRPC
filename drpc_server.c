@@ -606,12 +606,11 @@ exit:
     return handle_ret;
 }
 
-int drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client){
+void drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_notfound,
     };
-    int handle_ret = 1;
     if(recv.message == NULL) {send.message_type = drpc_bad; goto exit;}
 
     char* mailbox_name; struct d_queue* messages;
@@ -625,12 +624,10 @@ int drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client)
     for(size_t i = 0; i < messages_len; i++){
         queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
-    handle_ret = 0;
     send.message_type = drpc_ok;
 exit:
     d_struct_free(recv.message);
     drpc_send_message(client->io,&send);
-    return handle_ret;
 }
 
 void drpc_handle_client(struct drpc_connection* client, int client_perm){
@@ -668,7 +665,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
                 if(drpc_handle_call(recv,client,client_perm) != 0) return;
                 break;
             case drpc_mailbox:
-                if(drpc_handle_mailbox(recv,client) != 0) return;
+                drpc_handle_mailbox(recv,client);
                 break;
             case drpc_servername:
                 send.message_type = drpc_servername;
