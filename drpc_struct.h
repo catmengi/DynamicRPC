@@ -28,6 +28,8 @@ void d_struct_set(struct d_struct* dstruct,char* key, void* native_type, enum dr
                     * native_type -- pointer to native C type that will be pushed
                     * type        -- type of native_type, used to serilialize-deserialize
                     * ...         -- used with d_sizedbuf type, used as d_sizedbuf len
+                    *
+                    R ETURN: 0 on success*
                     */
 int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drpc_types type,...);
                     /*
@@ -35,22 +37,21 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
                     * native_type -- pointer to memory where this type will be written
                     * type        -- type of native_type, used to serilialize-deserialize them
                     * ...         -- used with d_sizedbuf type, used as d_sizedbuf len output pointer
+                    *
+                    * RETURN: 0 on success
                     */
 
-int d_struct_unlink(struct d_struct* dstruct, char* key);
-                    /*
-                     * remove this entry from hashtable but dont free data
-                     */
+int d_struct_remove(struct d_struct* dstruct, char* key); //remove element with name key and free it's data RETURN: 0 on success
+int d_struct_unlink(struct d_struct* dstruct, char* key); //remove element with name key but DOESNT free it's data. RETURN: 0 on success
 
-void d_struct_free(struct d_struct* dstruct);
+void d_struct_free(struct d_struct* dstruct); //free d_struct and all it's data
 
-int d_struct_remove(struct d_struct* dstruct, char* key); //remove entry and free it
+char** d_struct_get_fields(struct d_struct* dstruct, size_t* len); //returns an array of string with d_struct elements' keys. length of this array will be placed into len
 
+enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key); //returns a type of element with name key. RETURN: d_void on error
+
+/*DRPC's internal API's that should not be used in user code*/
 void d_struct_free_internal(struct d_struct* dstruct);
-
-char** d_struct_get_fields(struct d_struct* dstruct, size_t* len);
-
-enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key);
-
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen);
 void buf_d_struct(char* buf, struct d_struct* dstruct);
+/*==========================================================*/

@@ -34,10 +34,12 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
                                                             * prototype_len - len of prototype
                                                             * native_return - pointer to chunk of memory where function return  will be placed
                                                             * ...    - callee function arguments, d_sizedbuf type should be passed as char*,size_t
+                                                            *
+                                                            * RETURN: 0 on success
                                                             */
 
 char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success
-int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages); //send queue of messages to server's mailbox with mailbox_name
+int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages); //send queue of messages to server's mailbox with mailbox_name. RETURN: 0 on success
 
 #ifdef DRPC_DQUEUE_IO
 void* drpc_ping_server(void* clientP);

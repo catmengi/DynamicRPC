@@ -23,7 +23,7 @@ enum drpc_protocol{
 
     drpc_notfound,       //function doesnt exist
     drpc_bad,            //arguments missmatch or other errors
-    drpc_ok,             //auth ok
+    drpc_ok,             //ok
     drpc_eperm,
 };
 

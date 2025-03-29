@@ -85,13 +85,26 @@ struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
 
 void drpc_server_start(struct drpc_server* server); //starts drpc server
 
-void drpc_server_free(struct drpc_server* server);
+void drpc_server_free(struct drpc_server* server);  //stops and frees drpc server
 
 void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                              enum drpc_types return_type, enum drpc_types* prototype,
-                             size_t prototype_len, void* fnstorage, int perm);       //register new drpc function; pstorage - pointer for d_fn_pstorage type; perm is minimal permission level to
-                                                                                    //call this function
+                             size_t prototype_len, void* fnstorage, int perm);
+                            /*
+                             * fn_name - name of function to be registered
+                             * fn - function pointer
+                             * return_type - return type of function from drpc_types.h
+                             * prototype - function prototype made from types from drpc_types.h
+                             * prototype_len - length of prototype
+                             * fnstorage - pointer that will be used in d_fnstorage type
+                             * perm - minimal permission to call this function. -1 - only -1 user can call this function
+                            */
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm);
+                            /*
+                             * username - username
+                             * passwd - user's password
+                             * perm - user's permission level
+                            */
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
@@ -99,10 +112,10 @@ char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
 void drpc_server_force_disconnect_client(struct drpc_connection* client); //disconnect client from server side
 
-struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name);
-struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name);
-void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name);
+struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name); //creates a new mailbox with a mailbox_name as name and returns it. Mailbox is struct d_queue
+struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name); //returns a mailbox with a mailbox_name as name. If it doesnt exist returns NULL
+void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name);          //frees and removes mailbox with mailbox_name as name and all it's data.
 
 #ifdef DRPC_DQUEUE_IO
-struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm);
+struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm); //creates a new drpc_client but use a local d_queue instead of TCP socket
 #endif
