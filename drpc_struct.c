@@ -216,12 +216,12 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
 
     return 0;
 }
-int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type){
-    assert(dstruct); assert(key); assert(type > 0);
+int d_struct_unlink(struct d_struct* dstruct, char* key){
+    assert(dstruct); assert(key);
     int ret = 1;
     struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
     if(element != NULL){
-        if(element->type == type && element->is_packed == 0){
+        if(element->is_packed == 0){
             free(element);
             hashtable_remove(dstruct->hashtable,key);
             dstruct->current_len--;

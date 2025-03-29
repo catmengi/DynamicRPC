@@ -60,7 +60,7 @@ struct drpc_call* message_to_drpc_call(struct d_struct* message){
         free(call);
         return NULL;
     }
-    d_struct_unlink(message,"fn_name",d_str);
+    d_struct_unlink(message,"fn_name");
     return call;
 }
 
@@ -140,7 +140,7 @@ int drpc_recv_message(struct drpc_io* io,struct drpc_message* msg){
     }
     assert(d_struct_get(container,"message_type",&msg->message_type,d_uint8) == 0);
     if(d_struct_get(container,"message",&msg->message,d_struct) == 0){
-        d_struct_unlink(container,"message",d_struct);
+        d_struct_unlink(container,"message");
     }
     d_struct_free(container);
     return 0;

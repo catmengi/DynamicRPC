@@ -27,7 +27,7 @@ struct drpc_server{
     void* interfunc;
     hashtable* users;
     hashtable* functions;
-    hashtable* mailboxes;
+    struct d_struct* mailboxes;
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;

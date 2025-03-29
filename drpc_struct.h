@@ -37,7 +37,7 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
                     * ...         -- used with d_sizedbuf type, used as d_sizedbuf len output pointer
                     */
 
-int d_struct_unlink(struct d_struct* dstruct, char* key, enum drpc_types type);
+int d_struct_unlink(struct d_struct* dstruct, char* key);
                     /*
                      * remove this entry from hashtable but dont free data
                      */

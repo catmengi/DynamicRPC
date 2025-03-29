@@ -86,7 +86,7 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
     drpc_serv->functions = hashtable_create();
     drpc_serv->users = hashtable_create();
-    drpc_serv->mailboxes = hashtable_create();
+    drpc_serv->mailboxes = new_d_struct();
 
     drpc_serv->port = port;
 
@@ -153,22 +153,10 @@ void drpc_server_free(struct drpc_server* server){
         free(drpc_que_pop(que2));
     }
     drpc_que_free(que2);
-
-    struct drpc_que* que3 = drpc_que_create();
-    for(size_t i = 0; i < server->mailboxes->capacity; i++){
-        if(server->mailboxes->body[i].value != NULL && server->mailboxes->body[i].key != NULL && server->mailboxes->body[i].key != (char*)0xDEAD)
-            drpc_que_push(que3,server->mailboxes->body[i].value);
-    }
-
-    size_t elements_len3 = drpc_que_get_len(que3);
-    for(size_t i = 0 ; i < elements_len3; i++){
-        d_queue_free(drpc_que_pop(que3));
-    }
-    drpc_que_free(que3);
+    d_struct_free(server->mailboxes);
 
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
-    hashtable_destroy(server->mailboxes);
 
     free(server->name);
     free(server);
@@ -630,8 +618,8 @@ int drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client)
     if(d_struct_get(recv.message,"receiver_mailbox",&mailbox_name,d_str) != 0) goto exit;
     if(d_struct_get(recv.message,"messages",&messages,d_queue) != 0) goto exit;
 
-    struct d_queue* receiver_mailbox = hashtable_get(client->drpc_server->mailboxes, mailbox_name);
-    if(receiver_mailbox == NULL) goto exit;
+    struct d_queue* receiver_mailbox = NULL;
+    if(d_struct_get(client->drpc_server->mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0) goto exit;
 
     size_t messages_len = d_queue_len(messages);
     for(size_t i = 0; i < messages_len; i++){
@@ -741,7 +729,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            drpc_send_message(client->io,&send);
            goto exit;
        }
-       d_struct_unlink(recv.message,"username",d_str);
+       d_struct_unlink(recv.message,"username");
        d_struct_free(recv.message);
        if((user = hashtable_get(client->drpc_server->users,username)) == NULL){
            printf("\n%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
@@ -870,21 +858,20 @@ void drpc_server_force_disconnect_client(struct drpc_connection* client){
 }
 
 struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name){
-    struct d_queue* check = hashtable_get(server->mailboxes,mailbox_name);
-    if(check != NULL) return check;
+    struct d_queue* check;
+    if(d_struct_get(server->mailboxes,mailbox_name,&check,d_queue) == 0) return check;
 
     struct d_queue* mailbox = new_d_queue();
-    hashtable_set(server->mailboxes,mailbox_name,mailbox);
+    d_struct_set(server->mailboxes,mailbox_name,mailbox,d_queue);
     return mailbox;
 }
 struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name){
-    struct d_queue* mailbox = hashtable_get(server->mailboxes,mailbox_name);
+    struct d_queue* mailbox = NULL;
+    d_struct_get(server->mailboxes,mailbox_name,&mailbox,d_queue);
     return mailbox;
 }
 void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name){
-    struct d_queue* mailbox = hashtable_get(server->mailboxes,mailbox_name);
-    d_queue_free(mailbox);
-    hashtable_remove(server->mailboxes,mailbox_name);
+    d_struct_remove(server->mailboxes,mailbox_name);
 }
 
 #ifdef DRPC_DQUEUE_IO

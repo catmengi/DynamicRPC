@@ -507,7 +507,7 @@ char* drpc_client_get_servername(struct drpc_client* client){
     assert(recv.message_type == drpc_servername);
     char* ret = NULL;
     d_struct_get(recv.message,"drpc_servername",&ret,d_str);
-    d_struct_unlink(recv.message,"drpc_servername",d_str);
+    d_struct_unlink(recv.message,"drpc_servername");
     d_struct_free(recv.message);
     return ret;
 }
