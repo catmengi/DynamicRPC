@@ -12,9 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STRUCT_LEN 10000
-#define QUEUE_LEN 10000
-#define ARRAY_LEN 10000
+#define STRUCT_LEN (uint64_t)10000
+#define QUEUE_LEN (uint64_t)10000
+#define ARRAY_LEN (uint64_t)10000
 #define TEST_ITERATIONS 8
 
 
