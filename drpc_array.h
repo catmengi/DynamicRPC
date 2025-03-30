@@ -33,7 +33,7 @@ int d_array_get(struct d_array* darray,size_t index, void* native_type, enum drp
                 * RETURN: 0 on success
                 */
 void d_array_remove(struct d_array* darray, size_t index); //remove element at index and free it's data RETURN: 0 on success
-int d_array_unlink(struct d_array* darray, size_t index, enum drpc_types type); //remove element at index but DOESNT free it's data. RETURN: 0 on success
+int d_array_unlink(struct d_array* darray, size_t index); //remove element at index but DOESNT free it's data. RETURN: 0 on success
 enum drpc_types d_array_get_type(struct d_array* darray, size_t index); //returns a type of element at index. RETURN: d_void on error
 size_t d_array_len(struct d_array* darray); //returns d_array len.
 

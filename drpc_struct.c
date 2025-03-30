@@ -218,24 +218,19 @@ int d_struct_get(struct d_struct* dstruct,char* key, void* native_type, enum drp
 }
 int d_struct_unlink(struct d_struct* dstruct, char* key){
     assert(dstruct); assert(key);
-    int ret = 1;
     struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
-    if(element != NULL){
-        if(element->is_packed == 0){
-            free(element);
-            hashtable_remove(dstruct->hashtable,key);
-            dstruct->current_len--;
-            ret = 0;
-        }
+    if(element != NULL && element->is_packed == 0){
+        free(element);
+        hashtable_remove(dstruct->hashtable,key);
+        dstruct->current_len--;
+        return 0;
     }
-    return ret;
+    return 1;
 }
 
 int d_struct_remove(struct d_struct* dstruct, char* key){
     struct d_struct_element* element = hashtable_get(dstruct->hashtable,key);
-    int ret = 1;
     if(element != NULL){
-        ret = 0;
         hashtable_remove(dstruct->hashtable,key);
 
         dstruct->current_len--;
@@ -263,8 +258,9 @@ int d_struct_remove(struct d_struct* dstruct, char* key){
             }
         }
         free(element);
+        return 0;
     }
-    return ret;
+    return 1;
 }
 
 enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){

@@ -288,7 +288,8 @@ enum drpc_types d_array_get_type(struct d_array* darray, size_t index){
     return ret;
 }
 
-int d_array_unlink(struct d_array* darray, size_t index, enum drpc_types type){
+int d_array_unlink(struct d_array* darray, size_t index){
+    assert(darray);
     struct d_struct_element* element = d_array_get_internal(darray,index);
     if(element != NULL && element->is_packed == 0){
         d_array_del_internal(darray,index);
