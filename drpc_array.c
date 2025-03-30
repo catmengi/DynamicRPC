@@ -290,15 +290,10 @@ enum drpc_types d_array_get_type(struct d_array* darray, size_t index){
 
 int d_array_unlink(struct d_array* darray, size_t index, enum drpc_types type){
     struct d_struct_element* element = d_array_get_internal(darray,index);
-
-    if(element){
-        if(element->is_packed == 0){
-            if(element->type == type){
-                d_array_del_internal(darray,index);
-                free(element);
-                return 0;
-            }
-        }
+    if(element != NULL && element->is_packed == 0){
+        d_array_del_internal(darray,index);
+        free(element);
+        return 0;
     }
     return 1;
 }
