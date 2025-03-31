@@ -67,26 +67,6 @@ void* hashtable_get(hashtable* t, char* key)
 /**
  * Assign a value to the given key in the table.
  */
-void hashtable_set(hashtable* t, char* key, void* value)
-{
-	pthread_mutex_lock(&t->lock);
-	int index = hashtable_find_slot(t, key);
-	if (t->body[index].key != NULL && t->body[index].key != (char*)0xDEAD) {
-		/* Entry exists; update it. */
-		t->body[index].value = value;
-	} else {
-		t->size++;
-		/* Create a new  entry */
-		if ((float)t->size / t->capacity > 0.8) {
-			/* Resize the hash table */
-			hashtable_resize(t, t->capacity * 2);
-			index = hashtable_find_slot(t, key);
-		}
-		t->body[index].key = key;
-		t->body[index].value = value;
-	}
-	pthread_mutex_unlock(&t->lock);
-}
 void hashtable_set_NL(hashtable* t, char* key, void* value)
 {
 	int index = hashtable_find_slot(t, key);
@@ -105,6 +85,13 @@ void hashtable_set_NL(hashtable* t, char* key, void* value)
 		t->body[index].value = value;
 	}
 }
+void hashtable_set(hashtable* t, char* key, void* value)
+{
+	pthread_mutex_lock(&t->lock);
+	hashtable_set_NL(t,key,value);
+	pthread_mutex_unlock(&t->lock);
+}
+
 
 /**
  * Remove a key from the table
