@@ -9,26 +9,30 @@ struct d_queue{
 struct d_queue* new_d_queue();
 
 void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types type,...);
+                //serializes native_type and store it. If pointer type was set (d_str,d_sizedbuf,d_array,d_struct,d_queue)
+                //it CAN be changed without re-setting it because it is stored as pointer until _buf serialization happens. POINTER TYPES WILL BE FREED WHEN STRUCTURE IS FREED
+                //IF IT WASNT UNLINKED(OR IN CASE of d_queue POPPED)
                 /*
-                 * native_type -- pointer to native C type that will be pushed
+                 * native_type -- pointer to native C type that will be pushed. If it is a NON pointer type you should pass this: &input else just pass: input
                  * type        -- type of native_type, used to serilialize-deserialize
-                 * ...         -- used with d_sizedbuf type, used as d_sizedbuf len
+                 * ...         -- used with d_sizedbuf type, you should provide len of d_sizedbuf here
                  *
                  * RETURN: 0 on success
                 */
-
 int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...);
+                //get element the unserialize it and store into native_type. In case of pointer types just store retrieved pointer into native_type
                 /*
-                * native_type -- pointer to memory where this type will be written
+                * native_type -- pointer to memory where this type will be written. Generaly you should pass something like this to it: &output
                 * type        -- type of native_type, used to serilialize-deserialize them
-                * ...         -- used with d_sizedbuf type, used as d_sizedbuf len output pointer
+                * ...         -- used with d_sizedbuf type, you should provide pointer to size_t, it will store d_sizedbuf length there
                 *
                 * RETURN: 0 on success
                 */
-
 size_t d_queue_len(struct d_queue* dqueue);                       //return d_queue len
 enum drpc_types d_queue_get_type(struct d_queue* dqueue);         //return type of d_queue top element
 void d_queue_free(struct d_queue* dqueue);                        //free d_queue and all it's data
+
+
 
 
 /*DRPC's internal API's that should not be used in user code*/

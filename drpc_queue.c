@@ -129,13 +129,12 @@ void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types typ
 int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...){
     assert(native_type);
     if(dqueue == NULL) return 1;
-    if(dqueue->que->cur == NULL) return 1;
-
-    struct d_struct_element* check = dqueue->que->cur->ptr;
-    if(check->type != type) return 1;
-
     struct d_struct_element* element = queue_pop(dqueue->que);
     if(element == NULL) return 1;
+    if(element->type != type){
+        queue_push(dqueue->que,element);
+        return 1;
+    }
 
     switch(type){
         default:
