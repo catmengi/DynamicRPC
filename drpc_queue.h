@@ -21,6 +21,7 @@ void d_queue_push(struct d_queue* dqueue, void* native_type, enum drpc_types typ
                 */
 int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,...);
                 //get element the unserialize it and store into native_type. In case of pointer types just store retrieved pointer into native_type
+                //if you tried to pop element with WRONG type that element WILL BE MOVED TO QUEUE'S END
                 /*
                 * native_type -- pointer to memory where this type will be written. Generaly you should pass something like this to it: &output
                 * type        -- type of native_type, used to serilialize-deserialize them
