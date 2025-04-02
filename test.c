@@ -189,6 +189,7 @@ int main(void){
     int ret = 1;
     assert((ret = drpc_client_mailbox_recv(client,"send_mailbox_123",output)) == 0);
     printf("client len: %lu\n",d_queue_len(output));
+    assert(d_queue_len(send) != d_queue_len(output));
 
     d_queue_free(output);
 
