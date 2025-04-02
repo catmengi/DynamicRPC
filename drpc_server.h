@@ -27,7 +27,8 @@ struct drpc_server{
     void* interfunc;
     hashtable* users;
     hashtable* functions;
-    struct d_struct* mailboxes;
+    struct d_struct* recv_mailboxes;
+    struct d_struct* send_mailboxes;
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;
@@ -112,9 +113,19 @@ char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server
 void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connection_event_cb drpc_connection_event_cb); //set drpc_connection_event_cb
 void drpc_server_force_disconnect_client(struct drpc_connection* client); //disconnect client from server side
 
-struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name); //creates a new mailbox with a mailbox_name as name and returns it. Mailbox is struct d_queue
-struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name); //returns a mailbox with a mailbox_name as name. If it doesnt exist returns NULL
-void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name);          //frees and removes mailbox with mailbox_name as name and all it's data.
+struct d_queue* new_drpc_recv_mailbox(struct drpc_server* server, char* mailbox_name);//creates a new receiver mailbox with a mailbox_name as name and returns it. Mailbox is struct d_queue.
+                                                                                      //You will receive messages from client through this mailbox
+
+struct d_queue* new_drpc_send_mailbox(struct drpc_server* server, char* mailbox_name);//creates a new sender mailbox with a mailbox_name as name and returns it. Mailbox is struct d_queue.
+                                                                                      //You will send messages to client through this mailbox
+
+struct d_queue* drpc_get_recv_mailbox(struct drpc_server* server, char* mailbox_name);//returns a receiver mailbox with a mailbox_name as name. If it doesnt exist returns NULL
+
+struct d_queue* drpc_get_send_mailbox(struct drpc_server* server, char* mailbox_name);//returns a sender mailbox with a mailbox_name as name. If it doesnt exist returns NULL
+
+void drpc_free_recv_mailbox(struct drpc_server* server, char* mailbox_name);          //frees and removes receiver mailbox with mailbox_name as name and all it's data.
+
+void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name);          //frees and removes sender mailbox with mailbox_name as name and all it's data.
 
 #ifdef DRPC_DQUEUE_IO
 struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm); //creates a new drpc_client but use a local d_queue instead of TCP socket

@@ -7,7 +7,7 @@
 #define DRPC_IO_TIMEOUT 10
 #define DRPC_DQUEUE_IO
 
-#define DRPC_SIGNATURE "DRPCv230+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
+#define DRPC_SIGNATURE "DRPCv240+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
                                     // FIRST DIGIT -- code version (changes ????).
                                     // SECOND DIGIT AND THIRD -- network compat version(changes on massive updates),
                                     // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
@@ -17,7 +17,8 @@ enum drpc_protocol{
     drpc_return,         //this is answer for drpc_call that carries function return
     drpc_servername,     //gets server's name string, if it is NULL it would set to "UNKNOWN_DRPC"
     drpc_auth,
-    drpc_mailbox,
+    drpc_mailbox_recv,
+    drpc_mailbox_send,
     drpc_disconnect,
     drpc_ping,
 

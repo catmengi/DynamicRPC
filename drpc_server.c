@@ -86,7 +86,8 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
     drpc_serv->functions = hashtable_create();
     drpc_serv->users = hashtable_create();
-    drpc_serv->mailboxes = new_d_struct();
+    drpc_serv->recv_mailboxes = new_d_struct();
+    drpc_serv->send_mailboxes = new_d_struct();
 
     drpc_serv->port = port;
 
@@ -153,7 +154,8 @@ void drpc_server_free(struct drpc_server* server){
         free(queue_pop(que2));
     }
     queue_free(que2);
-    d_struct_free(server->mailboxes);
+    d_struct_free(server->recv_mailboxes);
+    d_struct_free(server->send_mailboxes);
 
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
@@ -606,7 +608,7 @@ exit:
     return handle_ret;
 }
 
-void drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client){
+void drpc_handle_mailbox_recv(struct drpc_message recv,struct drpc_connection* client){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_notfound,
@@ -618,13 +620,38 @@ void drpc_handle_mailbox(struct drpc_message recv,struct drpc_connection* client
     if(d_struct_get(recv.message,"messages",&messages,d_queue) != 0) goto exit;
 
     struct d_queue* receiver_mailbox = NULL;
-    if(d_struct_get(client->drpc_server->mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0) goto exit;
+    if(d_struct_get(client->drpc_server->recv_mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0) goto exit;
 
     size_t messages_len = d_queue_len(messages);
     for(size_t i = 0; i < messages_len; i++){
         queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
     send.message_type = drpc_ok;
+
+exit:
+    d_struct_free(recv.message);
+    drpc_send_message(client->io,&send);
+}
+void drpc_handle_mailbox_send(struct drpc_message recv,struct drpc_connection* client){
+    struct drpc_message send = {
+        .message = NULL,
+        .message_type = drpc_notfound,
+    };
+    char* mailbox_name;
+    if(d_struct_get(recv.message,"sender_mailbox",&mailbox_name,d_str) != 0) goto exit;
+
+    struct d_queue* extracted_messages = NULL;
+    if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0) goto exit;
+
+    struct d_queue* sended_messages = new_d_queue();
+    size_t extracted_messages_len = d_queue_len(extracted_messages);
+    for(size_t i = 0; i < extracted_messages_len; i++){
+        queue_push(sended_messages->que,queue_pop(extracted_messages->que)); //we cannot simply send extracted_messages queue because it will be freed on drpc_send_message.
+    }
+    send.message = new_d_struct();
+    d_struct_set(send.message,"messages",sended_messages,d_queue);
+    send.message_type = drpc_ok;
+
 exit:
     d_struct_free(recv.message);
     drpc_send_message(client->io,&send);
@@ -664,8 +691,11 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
             case drpc_call:
                 if(drpc_handle_call(recv,client,client_perm) != 0) return;
                 break;
-            case drpc_mailbox:
-                drpc_handle_mailbox(recv,client);
+            case drpc_mailbox_recv:
+                drpc_handle_mailbox_recv(recv,client);
+                break;
+            case drpc_mailbox_send:
+                drpc_handle_mailbox_send(recv,client);
                 break;
             case drpc_servername:
                 send.message_type = drpc_servername;
@@ -854,21 +884,39 @@ void drpc_server_force_disconnect_client(struct drpc_connection* client){
     client->force_disconnect = 1;
 }
 
-struct d_queue* new_drpc_mailbox(struct drpc_server* server, char* mailbox_name){
+struct d_queue* new_drpc_recv_mailbox(struct drpc_server* server, char* mailbox_name){
     struct d_queue* check;
-    if(d_struct_get(server->mailboxes,mailbox_name,&check,d_queue) == 0) return check;
+    if(d_struct_get(server->recv_mailboxes,mailbox_name,&check,d_queue) == 0) return check;
 
     struct d_queue* mailbox = new_d_queue();
-    d_struct_set(server->mailboxes,mailbox_name,mailbox,d_queue);
+    d_struct_set(server->recv_mailboxes,mailbox_name,mailbox,d_queue);
     return mailbox;
 }
-struct d_queue* drpc_get_mailbox(struct drpc_server* server, char* mailbox_name){
+struct d_queue* new_drpc_send_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct d_queue* check;
+    if(d_struct_get(server->send_mailboxes,mailbox_name,&check,d_queue) == 0) return check;
+
+    struct d_queue* mailbox = new_d_queue();
+    d_struct_set(server->send_mailboxes,mailbox_name,mailbox,d_queue);
+    return mailbox;
+}
+
+struct d_queue* drpc_get_recv_mailbox(struct drpc_server* server, char* mailbox_name){
     struct d_queue* mailbox = NULL;
-    d_struct_get(server->mailboxes,mailbox_name,&mailbox,d_queue);
+    d_struct_get(server->recv_mailboxes,mailbox_name,&mailbox,d_queue);
     return mailbox;
 }
-void drpc_free_mailbox(struct drpc_server* server, char* mailbox_name){
-    d_struct_remove(server->mailboxes,mailbox_name);
+void drpc_free_recv_mailbox(struct drpc_server* server, char* mailbox_name){
+    d_struct_remove(server->recv_mailboxes,mailbox_name);
+}
+
+struct d_queue* drpc_get_send_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct d_queue* mailbox = NULL;
+    d_struct_get(server->send_mailboxes,mailbox_name,&mailbox,d_queue);
+    return mailbox;
+}
+void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name){
+    d_struct_remove(server->send_mailboxes,mailbox_name);
 }
 
 #ifdef DRPC_DQUEUE_IO

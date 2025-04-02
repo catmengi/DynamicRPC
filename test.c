@@ -175,13 +175,22 @@ int main(void){
         printf("%d : iteration of test\n",i);
         check_client(server,client);
     }
-    struct d_queue* len = new_drpc_mailbox(server,"mailbox_123");
+    struct d_queue* len = new_drpc_recv_mailbox(server,"mailbox_123");
+    struct d_queue* send = new_drpc_send_mailbox(server,"send_mailbox_123");
 
     struct d_queue* mailbox_test = new_d_queue();
     for(uint32_t i = 0; i < 42; i++){
         d_queue_push(mailbox_test,&i,d_uint32);
+        d_queue_push(send,&i,d_uint32);
     }
     assert(drpc_client_mailbox_send(client,"mailbox_123",mailbox_test) == 0);
+
+    struct d_queue* output = new_d_queue();
+    int ret = 1;
+    assert((ret = drpc_client_mailbox_recv(client,"send_mailbox_123",output)) == 0);
+    printf("client len: %lu\n",d_queue_len(output));
+
+    d_queue_free(output);
 
     printf("len %lu\n",d_queue_len(len));
     drpc_client_disconnect(dqueue_client);

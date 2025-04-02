@@ -11,6 +11,7 @@
 
 enum drpc_client_errors{
     DRPC_OK,
+    DRPC_BAD,
     DRPC_ENETWORK,
     DRPC_CLIENTSTOPPED,
     DRPC_BADREPLY,
@@ -42,6 +43,9 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 
 char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success
 int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages); //send queue of messages to server's mailbox with mailbox_name. RETURN: 0 on success
+
+int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, struct d_queue* output);  //get messages from server's mailbox with mailbox_name as name and pushes them to output queue;
+                                                                                                       //RETURN: 0 on success
 
 #ifdef DRPC_DQUEUE_IO
 void* drpc_ping_server(void* clientP);

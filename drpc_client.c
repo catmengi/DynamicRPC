@@ -459,24 +459,53 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
 }
 
 int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages){
-    if(client == NULL) return 1;
+    if(client == NULL) return DRPC_BAD;
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
-    struct d_struct* mailbox_msg = new_d_struct();
-    d_struct_set(mailbox_msg,"receiver_mailbox",mailbox_name,d_str);
-    d_struct_set(mailbox_msg,"messages",messages,d_queue);
-    struct drpc_message msg = {
-        .message_type = drpc_mailbox,
-        .message = mailbox_msg,
+
+    struct drpc_message send = {
+        .message_type = drpc_mailbox_recv,
+        .message = new_d_struct(),
     };
-    if(drpc_send_message(client->io,&msg) != 0){
-        d_struct_free(mailbox_msg);
+    d_struct_set(send.message,"receiver_mailbox",mailbox_name,d_str);
+    d_struct_set(send.message,"messages",messages,d_queue);
+    if(drpc_send_message(client->io,&send) != 0){
+        d_struct_free(send.message);
         return DRPC_ENETWORK;
     }
     struct drpc_message recv;
     if(drpc_recv_message(client->io,&recv) != 0) return DRPC_ENETWORK;
     if(recv.message_type != drpc_ok) return DRPC_BADREPLY;
 
-    return 0;
+    return DRPC_OK;
+}
+
+int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, struct d_queue* output){
+    if(output == NULL) return DRPC_BAD;
+    if(client == NULL) return DRPC_BAD;
+    if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
+
+    struct drpc_message send = {
+        .message_type = drpc_mailbox_send,
+        .message = new_d_struct(),
+    };
+    d_struct_set(send.message,"sender_mailbox",mailbox_name,d_str);
+    if(drpc_send_message(client->io,&send) != 0){
+        d_struct_free(send.message);
+        return DRPC_ENETWORK;
+    }
+    struct drpc_message recv;
+    if(drpc_recv_message(client->io,&recv) != 0) return DRPC_ENETWORK;
+    if(recv.message_type != drpc_ok || recv.message == NULL) return DRPC_BADREPLY;
+
+    struct d_queue* messages;
+    assert(d_struct_get(recv.message,"messages",&messages,d_queue) == 0);
+
+    size_t messages_len = d_queue_len(messages);
+    for(size_t i = 0; i < messages_len; i++){
+        queue_push(output->que,queue_pop(messages->que)); //i know this looks bad, but i made no api to automaticly copy one queue to another
+    }
+    d_struct_free(recv.message);
+    return DRPC_OK;
 }
 
 char* drpc_client_get_servername(struct drpc_client* client){
