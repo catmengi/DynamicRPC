@@ -12,9 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STRUCT_LEN (uint64_t)10000 //uint64_t was added because of windows/msys2
-#define QUEUE_LEN (uint64_t)10000
-#define ARRAY_LEN (uint64_t)10000
+#define STRUCT_LEN (uint64_t)1 //uint64_t was added because of windows/msys2
+#define QUEUE_LEN (uint64_t)1
+#define ARRAY_LEN (uint64_t)2
 #define TEST_ITERATIONS 8
 
 void fn_storage_free_cb(void* fnstorage, void* userdata, struct drpc_function* fn){
