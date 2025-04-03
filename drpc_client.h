@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <stdarg.h>
 
 enum drpc_client_errors{
     DRPC_OK,
@@ -52,3 +53,7 @@ int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, str
 #ifdef DRPC_DQUEUE_IO
 void* drpc_ping_server(void* clientP);
 #endif
+
+/*DRPC's internal API's that should not be used in user code*/
+int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,va_list varargs);
+/*==========================================================*/

@@ -188,13 +188,9 @@ void drpc_client_disconnect(struct drpc_client* client){
     free(client);
 }
 
-
-int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...){
+int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,va_list varargs){
     assert(client);
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
-
-    va_list varargs;
-    va_start(varargs,native_return);
 
     struct drpc_type* arguments = calloc(prototype_len,sizeof(*arguments)); assert(arguments);
     struct queue* updated_arguments_que = queue_create();
@@ -456,6 +452,11 @@ int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types*
     }
     drpc_return_free(ret); free(ret);
     return DRPC_OK;
+}
+int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...){
+    va_list varargs;
+    va_start(varargs,native_return);
+    return drpc_client_call_internal(client,fn_name,prototype,prototype_len,native_return,varargs);
 }
 
 int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages){

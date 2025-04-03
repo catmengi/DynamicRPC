@@ -36,7 +36,7 @@ static ffi_type* drpc_ffi_convert_table[d_return_is] =
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
     &ffi_type_pointer,  &ffi_type_pointer,
-    &ffi_type_pointer
+    &ffi_type_pointer,  &ffi_type_pointer
 
 };
 
@@ -182,50 +182,53 @@ enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_
     }
     return ret;
 }
-
-int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drpc_types* client, size_t clientlen){
-    if(!serv && !client) return 0;
-    struct queue* check_que = queue_create();
-    assert(check_que);
-    size_t newservlen = 0;
-
+enum drpc_types* drpc_create_client_header(enum drpc_types* serv, size_t servlen, size_t* client_len_output){
+    struct queue* client_prototype_parts = queue_create();
+    assert(client_prototype_parts);
     //creating server prototypes without server-only types
     for(size_t i = 0; i < servlen;i++){
-        if(serv[i] != d_interfunc && serv[i] != d_fnstorage && serv[i] != d_clientinfo){
-            queue_push(check_que,&serv[i]);
-            newservlen++;
+        if(serv[i] != d_interfunc && serv[i] != d_fnstorage && serv[i] != d_clientinfo && serv[i] != d_fninfo){
+            queue_push(client_prototype_parts,&serv[i]);
+            (*client_len_output)++;
         }
     }
 
+    enum drpc_types* client_prototype = calloc(*client_len_output,sizeof(enum drpc_types));
+    assert(client_prototype);
+
+    //recreating new server prototype from que
+    for(size_t i = 0; i < *client_len_output; i++){
+        client_prototype[i] = *(enum drpc_types*)queue_pop(client_prototype_parts);
+    }
+    queue_free(client_prototype_parts);
+    return client_prototype;
+}
+
+
+int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drpc_types* client, size_t clientlen){
+    if(!serv && !client) return 0;
+    size_t newservlen = 0;
+
+    //creating server prototypes without server-only types
+    enum drpc_types* newserv = drpc_create_client_header(serv,servlen,&newservlen);
+
     if((serv && !client) || (!serv && client)) {
         if(clientlen == 0 && newservlen == 0){
-            queue_free(check_que);
             return 0;
         }
-        queue_free(check_que);
         return 1;
     }
 
     //if new len is different they are different
-    if(newservlen != clientlen) {queue_free(check_que);return 1;}
+    if(newservlen != clientlen) return 1;
 
-    enum drpc_types* newserv = calloc(newservlen,sizeof(enum drpc_types));
-    assert(newserv);
-
-    //recreating new server prototype from que
-    for(size_t i = 0; i < newservlen; i++){
-        newserv[i] = *(enum drpc_types*)queue_pop(check_que);
-    }
-
-    int ret = 0;
     for(size_t i = 0; i < clientlen; i++)
         //if they are different breaking the loop
-        if(newserv[i] != client[i]) {ret = 1;break;}
+        if(newserv[i] != client[i]) return 1;
 
 
-    queue_free(check_que);
     free(newserv);
-    return ret;
+    return 0;
 }
 
 
@@ -239,7 +242,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
         /*those types does not exist on the client side, so extracting them from prototype, and then via que providing
           to the next layer
         */
-        if(prototype[i] == d_fnstorage || prototype[i] == d_clientinfo || prototype[i] == d_interfunc){
+        if(prototype[i] == d_fnstorage || prototype[i] == d_clientinfo || prototype[i] == d_interfunc || prototype[i] == d_fninfo){
             ffi_arguments[k] = calloc(1,sizeof(void*));
             assert(ffi_arguments[k]);
             struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
@@ -411,6 +414,9 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 break;
             case d_clientinfo:
                 **(void***)to_update->ptr = client_info;
+                break;
+            case d_fninfo:
+                **(void***)to_update->ptr = fn_info;
                 break;
             default:
                 break;

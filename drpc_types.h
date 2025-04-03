@@ -34,6 +34,7 @@ enum drpc_types{
     d_fnstorage,     //this type provides your registered fnstorage void* pointer
     d_clientinfo,
     d_interfunc,
+    d_fninfo,        //provide yours drpc_function* struct. It may be unsafe but it was added to make proxy support
 
     d_return_is,   //this type will be used to say to the client that return is SAME as one of arguments, and to be provided to function
 
