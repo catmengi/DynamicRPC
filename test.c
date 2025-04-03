@@ -12,11 +12,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STRUCT_LEN (uint64_t)10000
+#define STRUCT_LEN (uint64_t)10000 //uint64_t was added because of windows/msys2
 #define QUEUE_LEN (uint64_t)10000
 #define ARRAY_LEN (uint64_t)10000
 #define TEST_ITERATIONS 8
 
+void fn_storage_free_cb(void* fnstorage, void* userdata, struct drpc_function* fn){
+    printf("=================================\n");
+    printf("fn->fn_name = %s\n",fn->fn_name);
+    printf("fn->fnstorage = %p\n",fnstorage);
+    printf("=================================\n");
+}
 
 void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event event){
     if(event == drpc_connected) printf("%s: connected\n",connection->username);
@@ -155,11 +161,14 @@ int main(void){
 
     drpc_server_register_fn(server,"dqueue_check",d_queue_check,d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),(void*)0x12F,0);
 
-    drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),NULL,0);
+    drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),(void*)"abcdefg",0);
 
     drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
     drpc_server_set_connection_event_cb(server,condiscon_cb);
+    drpc_server_set_fnstorage_free_cb(server,"dstruct_check",fn_storage_free_cb,NULL);
+    drpc_server_set_fnstorage_free_cb(server,"dqueue_check",fn_storage_free_cb,NULL);
+    drpc_server_set_fnstorage_free_cb(server,"darray_check",fn_storage_free_cb,NULL);
 
     drpc_server_start(server);
 

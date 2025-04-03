@@ -410,65 +410,50 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
     }
     drpc_types_free(packed_types,packed_types_len);
 }
-
 char** d_struct_get_fields(struct d_struct* dstruct, size_t* len){
     *len = dstruct->current_len;
 
     char** keys = calloc(*len,sizeof(char**)); assert(keys != NULL);
-
-    struct queue* keys_queue = queue_create();
+    size_t j = 0;
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
         if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
-            queue_push(keys_queue,dstruct->hashtable->body[i].key);
+            keys[j] = dstruct->hashtable->body[i].key; j++;
         }
     }
-
-    size_t elements_len = queue_get_len(keys_queue);
-    for(size_t i = 0 ; i <elements_len; i++){
-       keys[i] = queue_pop(keys_queue);
-    }
-    queue_free(keys_queue);
-
     return keys;
 }
 
 void d_struct_free_internal(struct d_struct* dstruct){
-    struct queue* element_queue = queue_create();
     for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
-        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD)
-            queue_push(element_queue,dstruct->hashtable->body[i].value);
-    }
-
-    size_t elements_len = queue_get_len(element_queue);
-    for(size_t i = 0 ; i < elements_len; i++){
-        struct d_struct_element* element = queue_pop(element_queue);
-        if(element->is_packed == 1){
-            drpc_type_free(element->data);
-            free(element->data);
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
+            struct d_struct_element* element = dstruct->hashtable->body[i].value;
+            if(element->is_packed == 1){
+                drpc_type_free(element->data);
+                free(element->data);
+                free(element);
+                continue;
+            }
+            switch(element->type){
+                case d_sizedbuf:
+                    free(element->data);
+                    break;
+                case d_str:
+                    free(element->data);
+                    break;
+                case d_struct:
+                    d_struct_free(element->data);
+                    break;
+                case d_queue:
+                    d_queue_free(element->data);
+                    break;
+                case d_array:
+                    d_array_free(element->data);
+                    break;
+            }
             free(element);
-            continue;
         }
-        switch(element->type){
-            case d_sizedbuf:
-                free(element->data);
-                break;
-            case d_str:
-                free(element->data);
-                break;
-            case d_struct:
-                d_struct_free(element->data);
-                break;
-            case d_queue:
-                d_queue_free(element->data);
-                break;
-            case d_array:
-                d_array_free(element->data);
-                break;
-        }
-        free(element);
     }
     hashtable_destroy(dstruct->hashtable);
-    queue_free(element_queue);
 ///////////
     char* heap_key = NULL;
     while((heap_key = queue_pop(dstruct->heap_keys)) != NULL){
@@ -476,7 +461,6 @@ void d_struct_free_internal(struct d_struct* dstruct){
     }
     queue_free(dstruct->heap_keys);
 ///////////
-
 }
 void d_struct_free(struct d_struct* dstruct){
     if(dstruct == NULL) return;

@@ -28,20 +28,22 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
 
 void drpc_client_disconnect(struct drpc_client* client);  //disconnects and frees client struct
 
+//======================================================================================================================================================================================
 int drpc_client_call(struct drpc_client* client, char* fn_name, enum drpc_types* prototype, size_t prototype_len,void* native_return,...);
-                                                            //Calls a function from drpc server with provided arguments and handles pointer arguments sync and handle return values
-                                                            //POINTERS TO (d_str,d_sizedbuf,d_array,d_struct,d_queue) ARE ALWAYS CHANGE IN THOOSE TYPES: d_queue,d_array,d_struct
-                                                            /*
-                                                            * fn_name - name of function to be called
-                                                            * prototype - function prototype, used to parse variable arguments
-                                                            * prototype_len - len of prototype
-                                                            * native_return - pointer to chunk of memory where function return  will be placed
-                                                            * ...    - callee function arguments, d_sizedbuf type should be passed as char*,size_t
-                                                            *
-                                                            * RETURN: 0 on success
-                                                            */
+                                                    //Calls a function from drpc server with provided arguments and handles pointer arguments sync and handle return values
+                                                    //POINTERS TO (d_str,d_sizedbuf,d_array,d_struct,d_queue) ARE ALWAYS CHANGE AFTER CALL IN THOOSE TYPES: d_queue,d_array,d_struct
 
-char* drpc_client_get_servername(struct drpc_client* client); // gets drpc_server's name; NON NULL on success
+                                                    // fn_name - name of function to be called
+                                                    // prototype - function prototype, used to parse variable arguments
+                                                    // prototype_len - len of prototype
+                                                    // native_return - pointer to chunk of memory where function return  will be placed
+                                                    // ...    - callee function arguments, d_sizedbuf type should be passed as char*,size_t
+
+                                                    // RETURN: 0 on success
+//======================================================================================================================================================================================
+
+char* drpc_client_get_servername(struct drpc_client* client);                                           // gets drpc_server's name; NON NULL on success
+
 int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, struct d_queue* messages); //send queue of messages to server's mailbox with mailbox_name. RETURN: 0 on success
 
 int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, struct d_queue* output);  //get messages from server's mailbox with mailbox_name as name and pushes them to output queue;

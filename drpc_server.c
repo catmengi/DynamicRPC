@@ -114,6 +114,8 @@ void drpc_server_start(struct drpc_server* server){
 void drpc_fn_info_free_CB(void* fn_info_P){
     if(fn_info_P == NULL) return;
     struct drpc_function* fn_info = fn_info_P;
+    if(fn_info->fnstorage != NULL && fn_info->fnstorage_free_cb != NULL)
+        fn_info->fnstorage_free_cb(fn_info->fnstorage,fn_info->fnstorage_free_cb_userdata,fn_info);
 
     free(fn_info->cif);
     free(fn_info->fn_name);
@@ -130,30 +132,16 @@ void drpc_server_free(struct drpc_server* server){
     close(server->server_fd);
     pthread_join(server->dispatcher,NULL); // waiting for dispatcher
 
-    struct queue* que = queue_create();
     for(size_t i = 0; i < server->functions->capacity; i++){
         if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
-            queue_push(que,server->functions->body[i].value);
+            drpc_fn_info_free_CB(server->functions->body[i].value);
     }
 
-    size_t elements_len = queue_get_len(que);
-    for(size_t i = 0 ; i <elements_len; i++){
-        drpc_fn_info_free_CB(queue_pop(que));
-    }
-    queue_free(que);
-
-
-    struct queue* que2 = queue_create();
     for(size_t i = 0; i < server->users->capacity; i++){
         if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
-            queue_push(que2,server->users->body[i].value);
+            free(server->users->body[i].value);
     }
 
-    size_t elements_len2 = queue_get_len(que2);
-    for(size_t i = 0 ; i <elements_len2; i++){
-        free(queue_pop(que2));
-    }
-    queue_free(que2);
     d_struct_free(server->recv_mailboxes);
     d_struct_free(server->send_mailboxes);
 
@@ -393,7 +381,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         return 1;
     }
     struct queue* to_repack = queue_create(); //this queue will be used for repackable arguments
-    struct queue* to_fill = queue_create();   //this queue will be used for server-only clients
+    struct queue* to_fill = queue_create();   //this queue will be used for server-only arguments
 
     size_t ffi_len = 0;
     ffi_arg native_return = 0;
@@ -867,10 +855,8 @@ void drpc_server_set_servername(struct drpc_server* server, char* name){
         server->name = NULL;
         return;
     }
-    server->name = malloc(strlen(name) + 1);
-    assert(server->name);
-
-    memcpy(server->name,name,strlen(name) + 1);
+    server->name = strdup(name);
+    assert(server->name); //i dont know what may happen LOL
 }
 
 char* drpc_server_get_servername(struct drpc_server* server){
@@ -882,6 +868,15 @@ void drpc_server_set_connection_event_cb(struct drpc_server* server, drpc_connec
 }
 void drpc_server_force_disconnect_client(struct drpc_connection* client){
     client->force_disconnect = 1;
+}
+
+//if you are using one fnstorage for multiple functions and you registred one callback for all that function, YOU SHOULD implement some kind of sync mechanism to avoid double-free or other errors
+int drpc_server_set_fnstorage_free_cb(struct drpc_server* server, char* fn_name, drpc_fnstorage_free_cb fnstorage_free_cb, void* userdata){
+    struct drpc_function* fn = hashtable_get(server->functions,fn_name);
+    if(fn == NULL) return 1;
+    fn->fnstorage_free_cb = fnstorage_free_cb;
+    fn->fnstorage_free_cb_userdata = userdata;
+    return 0;
 }
 
 struct d_queue* new_drpc_recv_mailbox(struct drpc_server* server, char* mailbox_name){
