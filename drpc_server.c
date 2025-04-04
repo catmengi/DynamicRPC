@@ -715,8 +715,10 @@ void* drpc_client_executor(void* params_P){
                 if(drpc_send_message(params->client->io,&send) != 0) stop = 1;
                 break;
             case drpc_disconnect:
-                printf("%s: client (%s:%s) successfully disconnected\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
-                params->already_disconnected = 100; //fucking garbage
+                if(params->already_disconnected == 0){
+                    printf("%s: client (%s:%s) successfully disconnected\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                    params->already_disconnected = 100; //fucking garbage
+                }
                 stop = 1;
                 break;
             case drpc_call:
