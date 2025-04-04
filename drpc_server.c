@@ -608,7 +608,6 @@ int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* 
     free(call);
     send.message_type = drpc_eperm;
 exit:
-    d_struct_free(received_message);
     drpc_send_message(client->io, &send);
     return handle_ret;
 }
@@ -644,7 +643,6 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
     printf("%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
-    d_struct_free(received_message);
     drpc_send_message(client->io,&send);
 }
 void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_connection* client){
@@ -676,7 +674,6 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
     printf("%s: client (%s:%s) succesfully took messages from %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
-    d_struct_free(received_message);
     drpc_send_message(client->io,&send);
 }
 
@@ -751,6 +748,7 @@ void* drpc_client_executor(void* params_P){
                 stop = 1;
                 break;
         }
+        d_struct_free(event->recv_message);
         free(event);
     }
     params->already_disconnected = 100;
