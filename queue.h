@@ -20,5 +20,5 @@ void* queue_pop(struct queue* drpcq);
 void queue_free_internals(struct queue* drpcq);
 void queue_free(struct queue* drpcq);
 
-uint64_t queue_get_len(struct queue* drpcq);
+size_t queue_get_len(struct queue* drpcq);
 

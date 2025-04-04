@@ -15,6 +15,7 @@
 #include <ffi.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -22,6 +23,8 @@
 
 
 #define MAX_LISTEN 512
+
+
 
 /*=== server only libffi stuff ===*/
 
@@ -86,6 +89,8 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
     drpc_serv->functions = hashtable_create();
     drpc_serv->users = hashtable_create();
+    drpc_serv->client_threads = hashtable_create();
+
     drpc_serv->recv_mailboxes = new_d_struct();
     drpc_serv->send_mailboxes = new_d_struct();
 
@@ -126,7 +131,13 @@ void drpc_fn_info_free_CB(void* fn_info_P){
 
 void drpc_server_free(struct drpc_server* server){
     server->should_stop = 1;  //this variable will stop while loops in dispatcher and client_handle
-    while(server->client_ammount != 0) sleep(1);
+    for(size_t i = 0; i < server->client_threads->capacity; i++){
+        if(server->client_threads->body[i].value != NULL && server->client_threads->body[i].key != NULL && server->client_threads->body[i].key != (char*)0xDEAD){
+            pthread_join(*(pthread_t*)(server->client_threads->body[i].value),NULL);
+            free(server->client_threads->body[i].value);
+        }
+    }
+    hashtable_destroy(server->client_threads);
 
     shutdown(server->server_fd, SHUT_RD);
     close(server->server_fd);
@@ -416,7 +427,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 **(void***)to_update->ptr = client_info;
                 break;
             case d_fninfo:
-                **(void***)to_update->ptr = fn_info;
+                **(void***)to_update->ptr = fn_info; //should only be used in proxy implementation, not in user code please it is a huge security issue
                 break;
             default:
                 break;
@@ -547,7 +558,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     queue_free(to_fill);
     return 0;
 }
-int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, int client_perm){
+int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* client, int client_perm){
     printf("\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
     struct drpc_message send = {
         .message = NULL,
@@ -555,7 +566,7 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
     };
     int handle_ret = 0;
 
-    struct drpc_call* call = message_to_drpc_call(recv.message);
+    struct drpc_call* call = message_to_drpc_call(received_message);
 
     if(call == NULL){
         printf("%s: malformed call message\n",__PRETTY_FUNCTION__);
@@ -597,45 +608,62 @@ int drpc_handle_call(struct drpc_message recv, struct drpc_connection* client, i
     free(call);
     send.message_type = drpc_eperm;
 exit:
-    d_struct_free(recv.message);
+    d_struct_free(received_message);
     drpc_send_message(client->io, &send);
     return handle_ret;
 }
 
-void drpc_handle_mailbox_recv(struct drpc_message recv,struct drpc_connection* client){
+void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_connection* client){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_notfound,
     };
-    if(recv.message == NULL) {send.message_type = drpc_bad; goto exit;}
+    if(received_message == NULL) {send.message_type = drpc_bad; goto exit;}
 
     char* mailbox_name; struct d_queue* messages;
-    if(d_struct_get(recv.message,"receiver_mailbox",&mailbox_name,d_str) != 0) goto exit;
-    if(d_struct_get(recv.message,"messages",&messages,d_queue) != 0) goto exit;
+    if(d_struct_get(received_message,"receiver_mailbox",&mailbox_name,d_str) != 0){
+        printf("%s: client (%s:%s) sent malformed recv request, no receiver_mailbox\n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        goto exit;
+    }
+    if(d_struct_get(received_message,"messages",&messages,d_queue) != 0){
+        printf("%s: client (%s:%s) sent malformed recv request, no messages\n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        goto exit;
+    }
 
     struct d_queue* receiver_mailbox = NULL;
-    if(d_struct_get(client->drpc_server->recv_mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0) goto exit;
+    if(d_struct_get(client->drpc_server->recv_mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0){
+        printf("%s: client (%s:%s) no such mailbox %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        goto exit;
+    }
 
     size_t messages_len = d_queue_len(messages);
     for(size_t i = 0; i < messages_len; i++){
         queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
     send.message_type = drpc_ok;
+    printf("%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
-    d_struct_free(recv.message);
+    d_struct_free(received_message);
     drpc_send_message(client->io,&send);
 }
-void drpc_handle_mailbox_send(struct drpc_message recv,struct drpc_connection* client){
+void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_connection* client){
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_notfound,
     };
+    if(received_message == NULL) {send.message_type = drpc_bad; goto exit;}
     char* mailbox_name;
-    if(d_struct_get(recv.message,"sender_mailbox",&mailbox_name,d_str) != 0) goto exit;
+    if(d_struct_get(received_message,"sender_mailbox",&mailbox_name,d_str) != 0){
+        printf("%s: client (%s:%s) sent malformed send request \n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        goto exit;
+    }
 
     struct d_queue* extracted_messages = NULL;
-    if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0) goto exit;
+    if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0){
+        printf("%s: client (%s:%s) no such mailbox %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        goto exit;
+    }
 
     struct d_queue* sended_messages = new_d_queue();
     size_t extracted_messages_len = d_queue_len(extracted_messages);
@@ -645,97 +673,170 @@ void drpc_handle_mailbox_send(struct drpc_message recv,struct drpc_connection* c
     send.message = new_d_struct();
     d_struct_set(send.message,"messages",sended_messages,d_queue);
     send.message_type = drpc_ok;
+    printf("%s: client (%s:%s) succesfully took messages from %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
-    d_struct_free(recv.message);
+    d_struct_free(received_message);
     drpc_send_message(client->io,&send);
 }
 
-void drpc_handle_client(struct drpc_connection* client, int client_perm){
-    struct drpc_message recv;
-    struct drpc_message send;
+struct __drpc_server_event{
+    enum drpc_protocol event;
+    struct d_struct* recv_message;
+};
 
-    /*this is here to dont duplicate this code in future*/
+struct __drpc_executor_thread_params{
+    struct drpc_connection* client;
+    int client_perm;
+
+    int already_disconnected;
+    struct queue* event_queue;
+
+    sem_t wait; //used to fix issue when infinite loop was able to do this whole drpc_client_executor code WAAAAY ALOWER
+};
+
+//04.04.2025 19.30: i dont think this code is any better than previos but i had a strong feeling i should remade it that way
+//04.04.2025 21.27: OR I NEED TO FIND BETTER INTER-THREAD COMMUNICATION OR KILL THIS CODE
+//04.04.2025 22.12: i was able to make it run better via semaphore but results are still worse
+//04.04.2025 22.40: Only plus about that code that i found is: When something generate many drpc packages it will be able to catch them and them process in a row but.....
+//04.04.2025 23.17: pohuy commiting it
+void* drpc_client_executor(void* params_P){
+    struct __drpc_executor_thread_params* params = params_P;
+
+    int stop = 0;
+    //attempt to process remaining events
+    while(queue_get_len(params->event_queue) > 0 || stop == 0){
+        struct __drpc_server_event* event = queue_pop(params->event_queue);
+        struct drpc_message send = {0};
+        if(event == NULL){
+            sem_wait(&params->wait);
+            continue;
+        }
+        switch(event->event){
+            case drpc_ping:
+                send.message = NULL; send.message_type = drpc_ping;
+                if(drpc_send_message(params->client->io,&send) != 0) stop = 1;
+                break;
+            case drpc_disconnect:
+                printf("%s: client (%s:%s) successfully disconnected\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                params->already_disconnected = 100; //fucking garbage
+                stop = 1;
+                break;
+            case drpc_call:
+                printf("%s: function call request from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                if(drpc_handle_call(event->recv_message,params->client,params->client_perm) != 0) stop = 1;
+                break;
+            case drpc_mailbox_recv:
+                printf("%s: received messages from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                drpc_handle_mailbox_recv(event->recv_message,params->client);
+                break;
+            case drpc_mailbox_send:
+                printf("%s: send messages to client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                drpc_handle_mailbox_send(event->recv_message,params->client);
+                break;
+            case drpc_servername:
+                printf("%s: client (%s:%s) asked about server name\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                send.message_type = drpc_servername;
+                send.message = new_d_struct();
+                char* name = NULL;
+
+                if(params->client->drpc_server->name == NULL) name = "UNKNOWN_DRPC";
+                else name = params->client->drpc_server->name;
+
+                d_struct_set(send.message,"drpc_servername",name,d_str);
+                if(drpc_send_message(params->client->io,&send) != 0) stop = 1;
+                break;
+
+            default:
+                stop = 1;
+                break;
+        }
+        free(event);
+    }
+    params->already_disconnected = 100;
+    return NULL;
+}
+
+void drpc_handle_client(struct drpc_connection* client, int client_perm){
+    assert(client); //we are fucked
+
+    /*Generic handle thread initialization code*/
     random_str(client->clientid,sizeof(client->clientid));
+    pthread_t* self = calloc(1,sizeof(*self)); assert(self);
+    *self = pthread_self();
+    hashtable_set(client->drpc_server->client_threads,client->clientid,self);
+
+    struct queue* event_queue = queue_create();
+
+    struct __drpc_executor_thread_params* params = calloc(1,sizeof(*params));
+
+    params->client = client;
+    params->client_perm = client_perm;
+    params->event_queue = event_queue;
+    assert(sem_init(&params->wait,0,0) == 0);
+
+    pthread_t executor_thread;
+    assert(pthread_create(&executor_thread,NULL,drpc_client_executor,params) == 0);
     /*==================================================*/
 
     if(client->drpc_server->connection_event_cb != NULL)
         client->drpc_server->connection_event_cb(client,drpc_connected);
 
-    while(client->drpc_server->should_stop == 0){
-        if(client->force_disconnect == 1){
-            send.message_type = drpc_disconnect;
-            send.message = NULL;
-            drpc_send_message(client->io,&send);
-            if(client->drpc_server->connection_event_cb != NULL)
-                client->drpc_server->connection_event_cb(client,drpc_force_disconnected);
-            return;
+    while(client->drpc_server->should_stop == 0 && client->force_disconnect == 0){
+        struct drpc_message recv = {0};
+        struct __drpc_server_event* event = malloc(sizeof(*event)); assert(event);
+        if(drpc_recv_message(client->io,&recv) != 0){
+            free(event);
+            break;
         }
-        if(drpc_recv_message(client->io,&recv) != 0) {
-            printf("\n%s: no message provided,exiting\n",__PRETTY_FUNCTION__); return;
-        }
-        switch(recv.message_type){
-            case drpc_ping:
-                send.message = NULL; send.message_type = drpc_ping;
-                if(drpc_send_message(client->io,&send) != 0) return;
-                break;
-            case drpc_disconnect:
-                printf("\n%s: client disconnected\n",__PRETTY_FUNCTION__);
-                return;
-            case drpc_call:
-                if(drpc_handle_call(recv,client,client_perm) != 0) return;
-                break;
-            case drpc_mailbox_recv:
-                drpc_handle_mailbox_recv(recv,client);
-                break;
-            case drpc_mailbox_send:
-                drpc_handle_mailbox_send(recv,client);
-                break;
-            case drpc_servername:
-                send.message_type = drpc_servername;
-                send.message = new_d_struct();
-                char* name = NULL;
-                int SNerr = 0; // server name error
-
-                if(client->drpc_server->name == NULL) name = "UNKNOWN_DRPC";
-                else name = client->drpc_server->name;
-
-                d_struct_set(send.message,"drpc_servername",name,d_str);
-                if(drpc_send_message(client->io,&send) != 0) SNerr = 1;
-                if(SNerr == 1) return;
-                break;
-
-            default:
-                printf("\n%s: unknow request type %d\n",__PRETTY_FUNCTION__,recv.message_type);
-                d_struct_free(recv.message);
-                return;
-        }
+        event->event = recv.message_type;
+        event->recv_message = recv.message;
+        queue_push(event_queue,event);
+        assert(sem_post(&params->wait) == 0);
     }
+    if(params->already_disconnected == 0){
+        struct __drpc_server_event* disconnect_event = malloc(sizeof(*disconnect_event)); assert(disconnect_event);
+        disconnect_event->event = drpc_disconnect;
+        disconnect_event->recv_message = NULL;
+        queue_push(event_queue,disconnect_event);
+        assert(sem_post(&params->wait) == 0);
+    }
+    pthread_join(executor_thread,NULL);
+
+    size_t l = queue_get_len(event_queue);
+    for(size_t i = 0; i < l; i++) free(queue_pop(event_queue)); //somehow one in 2/5 test runs drpc_disconnect  event was able to stay in queue
+
+
+    queue_free(event_queue);
+    free(params);
+
+    hashtable_remove(client->drpc_server->client_threads,client->clientid);
+    pthread_detach(*self);
+    free(self);
 }
 
 void* drpc_server_client_auth(void* drpc_connection_P){
    struct drpc_connection* client = drpc_connection_P;
-   pthread_detach(pthread_self());
 
    struct drpc_message recv;
    struct drpc_message send;
    int perm = 0;
    if(drpc_recv_message(client->io,&recv) != 0){
-       printf("\n%s: no auth request!\n",__PRETTY_FUNCTION__);
+       printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
    if(recv.message_type != drpc_auth || recv.message == NULL){
        send.message_type = drpc_bad;
        send.message = NULL;
        drpc_send_message(client->io,&send);
-       printf("\n%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
+       printf("%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
        char* username;
        uint64_t hash;
        struct drpc_user* user;
        if(d_struct_get(recv.message,"username",&username,d_str) != 0){
-           printf("\n%s: auth malformed1\n",__PRETTY_FUNCTION__);
+           printf("%s: auth malformed1\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -743,7 +844,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(d_struct_get(recv.message,"passwd_hash",&hash,d_uint64) != 0){
-           printf("\n%s: auth malformed2\n",__PRETTY_FUNCTION__);
+           printf("%s: auth malformed2\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -753,7 +854,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        d_struct_unlink(recv.message,"username");
        d_struct_free(recv.message);
        if((user = hashtable_get(client->drpc_server->users,username)) == NULL){
-           printf("\n%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
+           printf("%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
@@ -761,7 +862,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(user->hash != hash){
-           printf("\n%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
+           printf("%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
@@ -786,13 +887,11 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            client->io->aes128_key[i] = xor_base[i] ^ user->aes128_passwd[i];
        }
 
-       printf("\n%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
+       printf("%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
-   client->drpc_server->client_ammount++;
    drpc_handle_client(client,perm);
    if(client->drpc_server->connection_event_cb != NULL)
        client->drpc_server->connection_event_cb(client,drpc_disconnected);
-   client->drpc_server->client_ammount--;
 exit:
    client->io->close(client->io);
    client->io->free(client->io);
@@ -805,7 +904,7 @@ exit:
 
 void* drpc_server_dispatcher(void* drpc_server_P){
     struct drpc_server* server = drpc_server_P;
-    printf("\n%s: started\n",__PRETTY_FUNCTION__);
+    printf("%s: TCP started\n",__PRETTY_FUNCTION__);
     while(server->should_stop == 0){
         socklen_t client_addr_len = sizeof(struct sockaddr_in);
         struct sockaddr_in client_addr;
@@ -930,9 +1029,7 @@ struct drpc_handle_client_thread_wrapper{
 
 void* drpc_new_dqueue_handle_client_wrapper(void* params_P){
     struct drpc_handle_client_thread_wrapper* params = params_P;
-    params->client->drpc_server->client_ammount++;
     drpc_handle_client(params->client,params->client_perm);
-    params->client->drpc_server->client_ammount--;
     params->client->io->close(params->client->io);
     params->client->io->free(params->client->io);
     free(params->client);

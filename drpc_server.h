@@ -11,12 +11,11 @@
 #include "drpc_types.h"
 #include "hashtable.c/hashtable.h"
 
-#define DRPC_CLIENTID_LEN 32
+#define DRPC_CLIENTID_LEN 16 //16 should enough. If not ---> increase
 
 enum drpc_connection_event{
     drpc_connected,
     drpc_disconnected,
-    drpc_force_disconnected,
 };
 
 struct drpc_connection; struct drpc_function;
@@ -26,15 +25,18 @@ typedef void (*drpc_fnstorage_free_cb)(void* fnstorage, void* userdata, struct d
 struct drpc_server{
     char* name; //if not set, drpc_servername would give "UNKNOWN_DRPC"
     void* interfunc;
+
     hashtable* users;
     hashtable* functions;
+    hashtable* client_threads;
+
     struct d_struct* recv_mailboxes;
     struct d_struct* send_mailboxes;
+
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;
     int should_stop;
-    atomic_ullong client_ammount;
 
     drpc_connection_event_cb connection_event_cb;
 };
