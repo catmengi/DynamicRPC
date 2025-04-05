@@ -677,19 +677,13 @@ exit:
     drpc_send_message(client->io,&send);
 }
 
-struct __drpc_server_event{
-    enum drpc_protocol event;
-    struct d_struct* recv_message;
-};
-
 struct __drpc_executor_thread_params{
     struct drpc_connection* client;
     int client_perm;
+    struct queue* event_queue;
+    sem_t wait; //used to fix issue when infinite loop was able to do this whole drpc_client_executor code WAAAAY ALOWER
 
     int already_disconnected;
-    struct queue* event_queue;
-
-    sem_t wait; //used to fix issue when infinite loop was able to do this whole drpc_client_executor code WAAAAY ALOWER
 };
 
 //04.04.2025 19.30: i dont think this code is any better than previos but i had a strong feeling i should remade it that way
@@ -697,19 +691,20 @@ struct __drpc_executor_thread_params{
 //04.04.2025 22.12: i was able to make it run better via semaphore but results are still worse
 //04.04.2025 22.40: Only plus about that code that i found is: When something generate many drpc packages it will be able to catch them and them process in a row but.....
 //04.04.2025 23.17: pohuy commiting it
+//05.04.2025 19:46: Why i even desided to created __drpc_server_event struct when drpc_message struct exist????????
 void* drpc_client_executor(void* params_P){
     struct __drpc_executor_thread_params* params = params_P;
 
     int stop = 0;
     //attempt to process remaining events
     while(queue_get_len(params->event_queue) > 0 || stop == 0){
-        struct __drpc_server_event* event = queue_pop(params->event_queue);
+        struct drpc_message* event = queue_pop(params->event_queue);
         struct drpc_message send = {0};
         if(event == NULL){
             sem_wait(&params->wait);
             continue;
         }
-        switch(event->event){
+        switch(event->message_type){
             case drpc_ping:
                 send.message = NULL; send.message_type = drpc_ping;
                 if(drpc_send_message(params->client->io,&send) != 0) stop = 1;
@@ -723,15 +718,15 @@ void* drpc_client_executor(void* params_P){
                 break;
             case drpc_call:
                 printf("%s: function call request from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
-                if(drpc_handle_call(event->recv_message,params->client,params->client_perm) != 0) stop = 1;
+                if(drpc_handle_call(event->message,params->client,params->client_perm) != 0) stop = 1;
                 break;
             case drpc_mailbox_recv:
                 printf("%s: received messages from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
-                drpc_handle_mailbox_recv(event->recv_message,params->client);
+                drpc_handle_mailbox_recv(event->message,params->client);
                 break;
             case drpc_mailbox_send:
                 printf("%s: send messages to client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
-                drpc_handle_mailbox_send(event->recv_message,params->client);
+                drpc_handle_mailbox_send(event->message,params->client);
                 break;
             case drpc_servername:
                 printf("%s: client (%s:%s) asked about server name\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
@@ -750,7 +745,7 @@ void* drpc_client_executor(void* params_P){
                 stop = 1;
                 break;
         }
-        d_struct_free(event->recv_message);
+        d_struct_free(event->message);
         free(event);
     }
     params->already_disconnected = 100;
@@ -783,21 +778,17 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
         client->drpc_server->connection_event_cb(client,drpc_connected);
 
     while(client->drpc_server->should_stop == 0 && client->force_disconnect == 0){
-        struct drpc_message recv = {0};
-        struct __drpc_server_event* event = malloc(sizeof(*event)); assert(event);
-        if(drpc_recv_message(client->io,&recv) != 0){
+        struct drpc_message* event = calloc(1,sizeof(*event)); assert(event);
+        if(drpc_recv_message(client->io,event) != 0){
             free(event);
             break;
         }
-        event->event = recv.message_type;
-        event->recv_message = recv.message;
         queue_push(event_queue,event);
         assert(sem_post(&params->wait) == 0);
     }
     if(params->already_disconnected == 0){
-        struct __drpc_server_event* disconnect_event = malloc(sizeof(*disconnect_event)); assert(disconnect_event);
-        disconnect_event->event = drpc_disconnect;
-        disconnect_event->recv_message = NULL;
+        struct drpc_message* disconnect_event = calloc(1,sizeof(*disconnect_event)); assert(disconnect_event);
+        disconnect_event->message_type = drpc_disconnect;
         queue_push(event_queue,disconnect_event);
         assert(sem_post(&params->wait) == 0);
     }
