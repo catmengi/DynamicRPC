@@ -142,8 +142,6 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     clock_t arr_check_timeF = clock();
     printf("arr check time in ms %f\n", ((float)(arr_check_timeF - arr_check_timeS) / CLOCKS_PER_SEC) * 1000);
 
-
-
     d_array_free(darray);
     d_struct_free(check1);
     d_queue_free(check2);
@@ -174,15 +172,33 @@ int main(void){
 
     struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
     struct drpc_client* dqueue_client = drpc_new_dqueue_client(server,-1);
-    if(client == NULL){drpc_server_free(server); return 0;}
-    for(int i = 0; i < TEST_ITERATIONS;i++){
-        printf("%d : iteration of test\n",i);
-        check_client(server,dqueue_client);
-    }
+
+
+    struct drpc_server* s2 = new_drpc_server(2025);
+    drpc_server_add_user(s2,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
+
+    drpc_server_register_proxy_fn(s2,dqueue_client,"darray_check",d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]));
+    drpc_server_register_proxy_fn(s2,dqueue_client,"dqueue_check",d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]));
+    drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]));
+
+    drpc_server_start(s2);
+
+    struct drpc_client* proxy_client = drpc_client_connect("localhost:2025","check_user","i have absurdly long password to check that this will surly work as expected!");
+
+     if(client == NULL){drpc_server_free(server); return 0;}
+     for(int i = 0; i < TEST_ITERATIONS;i++){
+         printf("%d : iteration of test\n",i);
+         check_client(server,dqueue_client);
+     }
+
+     for(int i = 0; i < TEST_ITERATIONS;i++){
+         printf("%d : iteration of test\n",i);
+         check_client(server,client);
+     }
 
     for(int i = 0; i < TEST_ITERATIONS;i++){
         printf("%d : iteration of test\n",i);
-        check_client(server,client);
+        check_client(s2,proxy_client);
     }
     struct d_queue* len = new_drpc_recv_mailbox(server,"mailbox_123");
     struct d_queue* send = new_drpc_send_mailbox(server,"send_mailbox_123");
@@ -203,7 +219,8 @@ int main(void){
     d_queue_free(output);
 
     printf("len %lu\n",d_queue_len(len));
-    drpc_client_disconnect(dqueue_client);
     drpc_client_disconnect(client);
+    drpc_client_disconnect(proxy_client);
+    drpc_server_free(s2);
     drpc_server_free(server);
 }

@@ -6,6 +6,7 @@
 
 #define DRPC_IO_TIMEOUT 10
 #define DRPC_DQUEUE_IO
+#define DRPC_PROXY_SUPPORT
 
 #define DRPC_SIGNATURE "DRPCv245+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
                                     // FIRST DIGIT -- code version (changes ????).

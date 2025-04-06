@@ -557,3 +557,8 @@ char* drpc_client_get_servername(struct drpc_client* client){
     d_struct_free(recv.message);
     return ret;
 }
+
+void drpc_client_set_userdata(struct drpc_client* client, void* userdata){
+    if(client == NULL) return;
+    client->userdata = userdata;
+}

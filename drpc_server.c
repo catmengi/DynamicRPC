@@ -9,6 +9,7 @@
 
 
 #include <assert.h>
+#include <stdarg.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <string.h>
@@ -90,6 +91,9 @@ struct drpc_server* new_drpc_server(uint16_t port){
     drpc_serv->functions = hashtable_create();
     drpc_serv->users = hashtable_create();
     drpc_serv->client_threads = hashtable_create();
+#ifdef DRPC_PROXY_SUPPORT
+    drpc_serv->proxy_free_sync_ht = hashtable_create();
+#endif
 
     drpc_serv->recv_mailboxes = new_d_struct();
     drpc_serv->send_mailboxes = new_d_struct();
@@ -153,11 +157,19 @@ void drpc_server_free(struct drpc_server* server){
             free(server->users->body[i].value);
     }
 
+
     d_struct_free(server->recv_mailboxes);
     d_struct_free(server->send_mailboxes);
 
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
+#ifdef DRPC_PROXY_SUPPORT
+    for(size_t i = 0; i < server->proxy_free_sync_ht->capacity; i++){
+        if(server->proxy_free_sync_ht->body[i].value != NULL && server->proxy_free_sync_ht->body[i].key != NULL && server->proxy_free_sync_ht->body[i].key != (char*)0xDEAD)
+            free(server->proxy_free_sync_ht->body[i].key);
+    }
+    hashtable_destroy(server->proxy_free_sync_ht);
+#endif
 
     free(server->name);
     free(server);
@@ -193,7 +205,8 @@ enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_
     }
     return ret;
 }
-enum drpc_types* drpc_create_client_header(enum drpc_types* serv, size_t servlen, size_t* client_len_output){
+enum drpc_types* drpc_create_client_prototype(enum drpc_types* serv, size_t servlen, size_t* client_len_output){
+    if(serv == NULL) return NULL;
     struct queue* client_prototype_parts = queue_create();
     assert(client_prototype_parts);
     //creating server prototypes without server-only types
@@ -221,7 +234,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
     size_t newservlen = 0;
 
     //creating server prototypes without server-only types
-    enum drpc_types* newserv = drpc_create_client_header(serv,servlen,&newservlen);
+    enum drpc_types* newserv = drpc_create_client_prototype(serv,servlen,&newservlen);
 
     if((serv && !client) || (!serv && client)) {
         if(clientlen == 0 && newservlen == 0){
@@ -415,24 +428,24 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     //filling in server-only arguments
     size_t to_fill_len = queue_get_len(to_fill);
     for(size_t i = 0; i <to_fill_len; i++){
-        struct drpc_type_update* to_update = queue_pop(to_fill);
-        switch(to_update->type){
+        struct drpc_type_update* to_fill_ = queue_pop(to_fill);
+        switch(to_fill_->type){
             case d_fnstorage:
-                **(void***)to_update->ptr = fn_info->fnstorage;
+                **(void***)to_fill_->ptr = fn_info->fnstorage;
                 break;
             case d_interfunc:
-                **(void***)to_update->ptr = client_info->drpc_server->interfunc;
+                **(void***)to_fill_->ptr = client_info->drpc_server->interfunc;
                 break;
             case d_clientinfo:
-                **(void***)to_update->ptr = client_info;
+                **(void***)to_fill_->ptr = client_info;
                 break;
             case d_fninfo:
-                **(void***)to_update->ptr = fn_info; //should only be used in proxy implementation, not in user code please it is a huge security issue
+                **(void***)to_fill_->ptr = fn_info; //should only be used in proxy implementation, not in user code please it is a huge security issue
                 break;
             default:
                 break;
         }
-        free(to_update);
+        free(to_fill_);
     }
     drpc_types_free(arguments,arguments_len);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
@@ -802,7 +815,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     free(params);
 
     hashtable_remove(client->drpc_server->client_threads,client->clientid);
-    pthread_detach(*self);
+    pthread_detach(*self); //i know we are joining this threads in drpc_server_free, but this is here because thread CAN exit before server stop because of client's reasons (bad call or discon)
     free(self);
 }
 
@@ -1009,6 +1022,87 @@ struct d_queue* drpc_get_send_mailbox(struct drpc_server* server, char* mailbox_
 void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name){
     d_struct_remove(server->send_mailboxes,mailbox_name);
 }
+
+#ifdef DRPC_PROXY_SUPPORT
+#include "drpc_client.h"
+
+uint64_t drpc_proxy_impl(struct drpc_client* client,struct drpc_connection* connection,struct drpc_function* fn_info,...){
+    uint64_t generic_ret; //most big C-type. >= void* && == uint64_t
+    va_list call_argument;
+
+retry:
+    printf("%s: client (%s:%s) requested proxy call to %s\n",__PRETTY_FUNCTION__,connection->username,connection->clientid,fn_info->fn_name);
+    va_start(call_argument,fn_info);
+
+    if(drpc_client_call_internal(client,fn_info->fn_name,&(fn_info->prototype[3]),fn_info->prototype_len - 3,&generic_ret,call_argument) != 0){
+        if(connection->drpc_server->proxy_fail_handler != NULL){
+            if(connection->drpc_server->proxy_fail_handler(client) == 0) goto retry;
+            else drpc_server_force_disconnect_client(connection);
+        }
+    }
+
+    return generic_ret;
+}
+
+void drpc_proxy_client_free(void* fnstorage, void* userdata, struct drpc_function* fn){
+    char pointer_str[sizeof(void*) + 10];
+    sprintf(pointer_str,"%p",fnstorage);
+
+    char* was_freed = hashtable_get(userdata,pointer_str);
+    if(was_freed != NULL) return;
+
+    hashtable_set(userdata,strdup(pointer_str),(void*)0xDEAD);
+
+    drpc_client_disconnect(fnstorage);
+}
+
+void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,
+                                   enum drpc_types return_type, enum drpc_types* prototype,size_t prototype_len){
+
+    enum drpc_types proxy_base_proto[] = {d_fnstorage,d_clientinfo,d_fninfo};
+
+    size_t client_proto_len = 0;
+    enum drpc_types* client_prototype = drpc_create_client_prototype(prototype,prototype_len,&client_proto_len);
+    size_t proxy_prototype_len = (sizeof(proxy_base_proto) / sizeof(enum drpc_types)) + client_proto_len;
+    enum drpc_types* proxy_prototype = calloc(proxy_prototype_len,sizeof(enum drpc_types));
+    assert(proxy_prototype);
+
+    memcpy(proxy_prototype,proxy_base_proto,sizeof(proxy_base_proto));
+
+    if(client_prototype){
+        size_t j = 0;
+        for(size_t i = sizeof(proxy_base_proto) / sizeof(enum drpc_types); i < (sizeof(proxy_base_proto) / sizeof(enum drpc_types)) + client_proto_len; i++){
+            proxy_prototype[i] = client_prototype[j]; j++;
+        }
+    }
+    free(client_prototype);
+
+    struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
+
+    fn_info->fn_name = strdup(fn_name);
+    fn_info->fn = drpc_proxy_impl;
+    fn_info->minimal_permission_level = 0;
+    fn_info->return_type = return_type;
+    fn_info->fnstorage = client;
+    if(prototype != NULL){
+        /*copying prototype*/
+        fn_info->prototype_len = proxy_prototype_len;
+        fn_info->prototype = proxy_prototype;
+    }
+    fn_info->cif = calloc(1,sizeof(*fn_info->cif)); assert(fn_info->cif);
+    assert(ffi_prep_cif_var(fn_info->cif,FFI_DEFAULT_ABI,(sizeof(proxy_base_proto) / sizeof(enum drpc_types)),drpc_proto_to_ffi_len_adjust(proxy_prototype,proxy_prototype_len)
+            ,(ffi_type*)drpc_ffi_convert_table[fn_info->return_type],(fn_info->ffi_prototype = drpc_proto_to_ffi(fn_info->prototype, fn_info->prototype_len))) == FFI_OK);
+
+    fn_info->fnstorage_free_cb = drpc_proxy_client_free;
+    fn_info->fnstorage_free_cb_userdata = server->proxy_free_sync_ht;
+    hashtable_set(server->functions,fn_name,fn_info);
+}
+
+void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler){
+    server->proxy_fail_handler = fail_handler;
+}
+#endif
+
 
 #ifdef DRPC_DQUEUE_IO
 #include "drpc_client.h"

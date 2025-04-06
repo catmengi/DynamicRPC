@@ -22,6 +22,12 @@ struct drpc_connection; struct drpc_function;
 typedef void (*drpc_connection_event_cb)(struct drpc_connection* client,enum drpc_connection_event);
 typedef void (*drpc_fnstorage_free_cb)(void* fnstorage, void* userdata, struct drpc_function* fn);
 
+#ifdef DRPC_PROXY_SUPPORT
+#include "drpc_client.h"
+typedef int (*drpc_proxy_fail_handler)(struct drpc_client*); //should return 0 if client was successfully reconnected otherwise non 0
+#endif
+
+
 struct drpc_server{
     char* name; //if not set, drpc_servername would give "UNKNOWN_DRPC"
     void* interfunc;
@@ -29,6 +35,9 @@ struct drpc_server{
     hashtable* users;
     hashtable* functions;
     hashtable* client_threads;
+#ifdef DRPC_PROXY_SUPPORT
+    hashtable* proxy_free_sync_ht;
+#endif
 
     struct d_struct* recv_mailboxes;
     struct d_struct* send_mailboxes;
@@ -37,7 +46,9 @@ struct drpc_server{
     pthread_t dispatcher;
     int server_fd;
     int should_stop;
-
+#ifdef DRPC_PROXY_SUPPORT
+    drpc_proxy_fail_handler proxy_fail_handler;
+#endif
     drpc_connection_event_cb connection_event_cb;
 };
 
@@ -137,4 +148,18 @@ void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name);    
 
 #ifdef DRPC_DQUEUE_IO
 struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm); //creates a new drpc_client but use a local d_queue instead of TCP socket
+#endif
+
+#ifdef DRPC_PROXY_SUPPORT
+//======================================================================================================================================================================================
+void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,           // server - server where proxy function will be registered
+                                   enum drpc_types return_type, enum drpc_types* prototype,size_t prototype_len); // client - client connected to proxy destination server
+                                                                                                                  // fn_name - name of proxy function.SHOULD be same as on destination server
+                                                                                                                  // return_type - return type of proxy function
+                                                                                                                  // prototype - prototype of proxy function
+                                                                                                                  // prototype_len - length of prototype
+//NOTE: You SHOULD NOT disconnect proxy client your self because it will cause double-free
+//======================================================================================================================================================================================
+
+void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error
 #endif

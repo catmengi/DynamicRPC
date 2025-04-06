@@ -23,6 +23,8 @@ struct drpc_client{
     int client_stop;
     pthread_t ping_thread;
     pthread_mutex_t connection_mutex;
+
+    void* userdata;
 };
 
 struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd);  //connect client to the server. char* host is a string in format "HOST:PORT" Return NULL on connection error
@@ -49,6 +51,8 @@ int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, str
 
 int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, struct d_queue* output);  //get messages from server's mailbox with mailbox_name as name and pushes them to output queue;
                                                                                                        //RETURN: 0 on success
+
+void drpc_client_set_userdata(struct drpc_client* client, void* userdata); //sets client->userdata to userdata;
 
 #ifdef DRPC_DQUEUE_IO
 void* drpc_ping_server(void* clientP);
