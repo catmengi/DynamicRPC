@@ -120,6 +120,7 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     void* check2_ret = 0;
     drpc_client_call(client,"dqueue_check",dqueue_check,2,&check2_ret,check2,QUEUE_LEN);
     assert(check2 == check2_ret);
+    assert(d_queue_len(check2) == 0);
     clock_t que_check_timeF = clock();
     printf("que check time in ms %f\n", ((float)(que_check_timeF - que_check_timeS) / CLOCKS_PER_SEC) * 1000);
 

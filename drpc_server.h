@@ -160,6 +160,7 @@ void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client
                                                                                                                   // prototype_len - length of prototype
 
 //NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
+//NOTE 2: You CANT proxy mailboxes transparently for client without your own custom function wrappers, i really dont know how do this right
 //======================================================================================================================================================================================
 
 void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error
