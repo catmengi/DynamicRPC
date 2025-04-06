@@ -1027,7 +1027,7 @@ void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name){
 #include "drpc_client.h"
 
 uint64_t drpc_proxy_impl(struct drpc_client* client,struct drpc_connection* connection,struct drpc_function* fn_info,...){
-    uint64_t generic_ret; //most big C-type. >= void* && == uint64_t
+    uint64_t generic_ret = 0; //most big C-type. >= void* && == uint64_t
     va_list call_argument;
 
 retry:
