@@ -120,7 +120,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
 #ifdef DRPC_TCP_SUPPORT
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm); //adds user with username and passwd and permission level. User can call function with perm < user's perm
                                                                                             //-1 user can call ANY function. If function is -1 only -1 user can call it
-void drpc_server_start(struct drpc_server* server); //starts drpc server
+void drpc_server_start(struct drpc_server* server); //starts drpc server's TCP acceptor thread
 #endif
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
