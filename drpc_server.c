@@ -97,7 +97,10 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
     drpc_serv->recv_mailboxes = new_d_struct();
     drpc_serv->send_mailboxes = new_d_struct();
-
+#ifdef DRPC_PROXY_SUPPORT
+    drpc_serv->proxy_recv_mailboxes = hashtable_create();
+    drpc_serv->proxy_send_mailboxes = hashtable_create();
+#endif
     drpc_serv->port = port;
 
     return drpc_serv;
@@ -164,11 +167,40 @@ void drpc_server_free(struct drpc_server* server){
     hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
 #ifdef DRPC_PROXY_SUPPORT
+    for(size_t i = 0; i < server->proxy_recv_mailboxes->capacity; i++){
+        if(server->proxy_recv_mailboxes->body[i].value != NULL && server->proxy_recv_mailboxes->body[i].key != NULL && server->proxy_recv_mailboxes->body[i].key != (char*)0xDEAD){
+            char ptr[sizeof(void*) * 2];
+            sprintf(ptr,"%p",server->proxy_recv_mailboxes->body[i].value);
+
+            void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
+            if(was_freed != NULL) continue;
+
+            hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
+            drpc_client_disconnect(server->proxy_recv_mailboxes->body[i].value);
+        }
+    }
+    hashtable_destroy(server->proxy_recv_mailboxes);
+
+    for(size_t i = 0; i < server->proxy_send_mailboxes->capacity; i++){
+        if(server->proxy_send_mailboxes->body[i].value != NULL && server->proxy_send_mailboxes->body[i].key != NULL && server->proxy_send_mailboxes->body[i].key != (char*)0xDEAD){
+            char ptr[sizeof(void*) * 2];
+            sprintf(ptr,"%p",server->proxy_send_mailboxes->body[i].value);
+
+            void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
+            if(was_freed != NULL) continue;
+
+            hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
+            drpc_client_disconnect(server->proxy_send_mailboxes->body[i].value);
+        }
+    }
+    hashtable_destroy(server->proxy_send_mailboxes);
+
     for(size_t i = 0; i < server->proxy_free_sync_ht->capacity; i++){
         if(server->proxy_free_sync_ht->body[i].value != NULL && server->proxy_free_sync_ht->body[i].key != NULL && server->proxy_free_sync_ht->body[i].key != (char*)0xDEAD)
             free(server->proxy_free_sync_ht->body[i].key);
     }
     hashtable_destroy(server->proxy_free_sync_ht);
+
 #endif
 
     free(server->name);
@@ -644,7 +676,35 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
 
     struct d_queue* receiver_mailbox = NULL;
     if(d_struct_get(client->drpc_server->recv_mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0){
-        printf("%s: client (%s:%s) no such mailbox %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        printf("%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+
+        struct drpc_client* proxy_client = hashtable_get(client->drpc_server->proxy_recv_mailboxes,mailbox_name);
+        if(proxy_client == NULL){
+            printf("%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+            goto exit;
+        }
+        if(proxy_client->client_stop == 1){       //we can recover only from here :(
+            if(client->drpc_server->proxy_fail_handler != NULL){
+                if(client->drpc_server->proxy_fail_handler(proxy_client) != 0){
+                    goto exit;
+                }
+            }
+        }
+        d_struct_unlink(received_message,"messages");
+
+        int ret = drpc_client_mailbox_send(proxy_client,mailbox_name,messages);
+        switch(ret){
+            case DRPC_ENETWORK:
+                send.message_type = drpc_bad;
+                goto exit;
+            case DRPC_BADREPLY:
+                send.message_type = drpc_notfound;
+                goto exit;
+            case DRPC_OK:
+                break;
+        }
+        send.message_type = drpc_ok;
+        printf("%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
         goto exit;
     }
 
@@ -672,8 +732,39 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
 
     struct d_queue* extracted_messages = NULL;
     if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0){
-        printf("%s: client (%s:%s) no such mailbox %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        printf("%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+
+        struct drpc_client* proxy_client = hashtable_get(client->drpc_server->proxy_send_mailboxes,mailbox_name);
+        if(proxy_client == NULL){
+            printf("%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+            goto exit;
+        }
+        if(proxy_client->client_stop == 1){
+            if(client->drpc_server->proxy_fail_handler != NULL){
+                if(client->drpc_server->proxy_fail_handler(proxy_client) != 0){
+                    goto exit;
+                }
+            }
+        }
+        struct d_queue* output = new_d_queue();
+
+        int ret = drpc_client_mailbox_recv(proxy_client,mailbox_name,output);
+        switch(ret){
+            case DRPC_ENETWORK:
+                send.message_type = drpc_bad;
+                goto exit;
+            case DRPC_BADREPLY:
+                send.message_type = drpc_notfound;
+                goto exit;
+            case DRPC_OK:
+                break;
+        }
+        send.message_type = drpc_ok;
+        send.message = new_d_struct();
+        d_struct_set(send.message,"messages",output,d_queue);
+        printf("%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
         goto exit;
+
     }
 
     struct d_queue* sended_messages = new_d_queue();
@@ -1026,6 +1117,13 @@ void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name){
 #ifdef DRPC_PROXY_SUPPORT
 #include "drpc_client.h"
 
+void new_drpc_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name, struct drpc_client* client){
+    hashtable_set(server->proxy_recv_mailboxes,mailbox_name,client);
+}
+void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name, struct drpc_client* client){
+    hashtable_set(server->proxy_send_mailboxes,mailbox_name,client);
+}
+
 uint64_t drpc_proxy_impl(struct drpc_client* client,struct drpc_connection* connection,struct drpc_function* fn_info,...){
     uint64_t generic_ret = 0; //most big C-type. >= void* && == uint64_t
     va_list call_argument;
@@ -1045,10 +1143,10 @@ retry:
 }
 
 void drpc_proxy_client_free(void* fnstorage, void* userdata, struct drpc_function* fn){
-    char pointer_str[sizeof(void*) + 10];
+    char pointer_str[sizeof(void*) * 2];
     sprintf(pointer_str,"%p",fnstorage);
 
-    char* was_freed = hashtable_get(userdata,pointer_str);
+    void* was_freed = hashtable_get(userdata,pointer_str);
     if(was_freed != NULL) return;
 
     hashtable_set(userdata,strdup(pointer_str),(void*)0xDEAD);

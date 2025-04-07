@@ -41,7 +41,10 @@ struct drpc_server{
 
     struct d_struct* recv_mailboxes;
     struct d_struct* send_mailboxes;
-
+#ifdef DRPC_PROXY_SUPPORT
+    hashtable* proxy_recv_mailboxes;
+    hashtable* proxy_send_mailboxes;
+#endif
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;
@@ -160,7 +163,18 @@ void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client
                                                                                                                   // prototype_len - length of prototype
 
 //NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
-//NOTE 2: You CANT proxy mailboxes transparently for client without your own custom function wrappers, i really dont know how do this right
+//======================================================================================================================================================================================
+
+//======================================================================================================================================================================================
+void new_drpc_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name, struct drpc_client* client); //All messages sent by client to mailbox mailbox_name
+                                                                                                              //will be redirected to server connected via client client
+//NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
+//======================================================================================================================================================================================
+
+//======================================================================================================================================================================================
+void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name, struct drpc_client* client); //All messages retrieved by client from mailbox mailbox_name
+                                                                                                              //will be retrieved from server connected via client client
+//NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
 //======================================================================================================================================================================================
 
 void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error

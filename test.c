@@ -148,6 +148,27 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     d_queue_free(check2);
 }
 
+void mailbox_test(struct drpc_server* server, struct drpc_client* client){
+    struct d_queue* len = drpc_get_recv_mailbox(server,"mailbox_123");
+    struct d_queue* send = drpc_get_send_mailbox(server,"send_mailbox_123");
+
+    struct d_queue* mailbox_test = new_d_queue();
+    for(uint32_t i = 0; i < 42; i++){
+        d_queue_push(mailbox_test,&i,d_uint32);
+        d_queue_push(send,&i,d_uint32);
+    }
+    assert(drpc_client_mailbox_send(client,"mailbox_123",mailbox_test) == 0);
+
+    struct d_queue* output = new_d_queue();
+    int ret = 1;
+    assert((ret = drpc_client_mailbox_recv(client,"send_mailbox_123",output)) == 0);
+    printf("client len: %lu\n",d_queue_len(output));
+    assert(d_queue_len(send) != d_queue_len(output));
+
+    d_queue_free(output);
+
+    printf("len %lu\n",d_queue_len(len));
+}
 
 int main(void){
     struct drpc_server* server = new_drpc_server(2077);
@@ -182,6 +203,12 @@ int main(void){
     drpc_server_register_proxy_fn(s2,dqueue_client,"dqueue_check",d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]));
     drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]));
 
+    new_drpc_recv_mailbox(server,"mailbox_123");
+    new_drpc_send_mailbox(server,"send_mailbox_123");
+
+    hashtable_set(s2->proxy_recv_mailboxes,"mailbox_123",dqueue_client);
+    hashtable_set(s2->proxy_send_mailboxes,"send_mailbox_123",dqueue_client);
+
     drpc_server_start(s2);
 
     struct drpc_client* proxy_client = drpc_client_connect("localhost:2025","check_user","i have absurdly long password to check that this will surly work as expected!");
@@ -201,25 +228,14 @@ int main(void){
         printf("%d : iteration of test\n",i);
         check_client(s2,proxy_client);
     }
-    struct d_queue* len = new_drpc_recv_mailbox(server,"mailbox_123");
-    struct d_queue* send = new_drpc_send_mailbox(server,"send_mailbox_123");
 
-    struct d_queue* mailbox_test = new_d_queue();
-    for(uint32_t i = 0; i < 42; i++){
-        d_queue_push(mailbox_test,&i,d_uint32);
-        d_queue_push(send,&i,d_uint32);
+    for(int i = 0; i <TEST_ITERATIONS; i++){
+        mailbox_test(server,client);
     }
-    assert(drpc_client_mailbox_send(client,"mailbox_123",mailbox_test) == 0);
+    for(int i = 0; i <TEST_ITERATIONS; i++){
+        mailbox_test(server,proxy_client);
+    }
 
-    struct d_queue* output = new_d_queue();
-    int ret = 1;
-    assert((ret = drpc_client_mailbox_recv(client,"send_mailbox_123",output)) == 0);
-    printf("client len: %lu\n",d_queue_len(output));
-    assert(d_queue_len(send) != d_queue_len(output));
-
-    d_queue_free(output);
-
-    printf("len %lu\n",d_queue_len(len));
     drpc_client_disconnect(client);
     drpc_client_disconnect(proxy_client);
     drpc_server_free(s2);
