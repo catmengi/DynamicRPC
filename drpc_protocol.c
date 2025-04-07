@@ -169,9 +169,15 @@ void drpc_dqueue_free(struct drpc_io* io){
     free(io);
 }
 int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message){
-    if(io->io_data == NULL) return 1;
+    if(io->io_data == NULL){
+        d_struct_free(prepacked_message);
+        return 1;
+    }
     struct drpc_dqueue_io* io_data = io->io_data;
-    if(io_data->send == NULL) return 1;
+    if(io_data->send == NULL){
+        d_struct_free(prepacked_message);
+        return 1;
+    }
     pthread_mutex_lock(&io_data->lock);
     pthread_mutex_lock(&io_data->send->lock);
     d_queue_push(io_data->send->recv,prepacked_message,d_struct);
