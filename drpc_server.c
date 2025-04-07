@@ -904,6 +904,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
         assert(sem_post(&params->wait) == 0);
     }
     pthread_join(executor_thread,NULL);
+    sem_destroy(&params->wait); //system wide resourse leak fix
 
     size_t l = queue_get_len(event_queue);
     for(size_t i = 0; i < l; i++) free(queue_pop(event_queue)); //somehow one in 2/5 test runs drpc_disconnect  event was able to stay in queue
