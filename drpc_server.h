@@ -154,13 +154,16 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
 #endif
 
 #ifdef DRPC_PROXY_SUPPORT
+
+
+
 //======================================================================================================================================================================================
-void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,           // server - server where proxy function will be registered
-                                   enum drpc_types return_type, enum drpc_types* prototype,size_t prototype_len); // client - client connected to proxy destination server
-                                                                                                                  // fn_name - name of proxy function.SHOULD be same as on destination server
-                                                                                                                  // return_type - return type of proxy function
-                                                                                                                  // prototype - prototype of proxy function
-                                                                                                                  // prototype_len - length of prototype
+void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,enum drpc_types return_type, // server - server where proxy function will be registered
+                                   enum drpc_types* prototype,size_t prototype_len,int perm);                                       // client - client connected to proxy destination server
+                                                                                                                                    // fn_name - name of proxy function same as on destination server
+                                                                                                                                    // return_type - return type of proxy function
+                                                                                                                                    // prototype - prototype of proxy function
+                                                                                                                                    // prototype_len - length of prototype
 
 //NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
 //======================================================================================================================================================================================

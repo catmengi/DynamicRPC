@@ -199,15 +199,15 @@ int main(void){
     struct drpc_server* s2 = new_drpc_server(2025);
     drpc_server_add_user(s2,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
-    drpc_server_register_proxy_fn(s2,dqueue_client,"darray_check",d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]));
-    drpc_server_register_proxy_fn(s2,dqueue_client,"dqueue_check",d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]));
-    drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]));
+    drpc_server_register_proxy_fn(s2,dqueue_client,"darray_check",d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),0);
+    drpc_server_register_proxy_fn(s2,dqueue_client,"dqueue_check",d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),0);
+    drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),0);
 
     new_drpc_recv_mailbox(server,"mailbox_123");
     new_drpc_send_mailbox(server,"send_mailbox_123");
 
-    hashtable_set(s2->proxy_recv_mailboxes,"mailbox_123",dqueue_client);
-    hashtable_set(s2->proxy_send_mailboxes,"send_mailbox_123",dqueue_client);
+    new_drpc_proxy_recv_mailbox(s2,"mailbox_123",dqueue_client);
+    new_drpc_proxy_send_mailbox(s2,"send_mailbox_123",dqueue_client);
 
     drpc_server_start(s2);
 

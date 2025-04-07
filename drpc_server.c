@@ -1154,8 +1154,8 @@ void drpc_proxy_client_free(void* fnstorage, void* userdata, struct drpc_functio
     drpc_client_disconnect(fnstorage);
 }
 
-void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,
-                                   enum drpc_types return_type, enum drpc_types* prototype,size_t prototype_len){
+void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,enum drpc_types return_type,
+                                   enum drpc_types* prototype,size_t prototype_len,int perm){
 
     enum drpc_types proxy_base_proto[] = {d_fnstorage,d_clientinfo,d_fninfo};
 
@@ -1179,7 +1179,7 @@ void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client
 
     fn_info->fn_name = strdup(fn_name);
     fn_info->fn = drpc_proxy_impl;
-    fn_info->minimal_permission_level = 0;
+    fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
     fn_info->fnstorage = client;
     if(prototype != NULL){
