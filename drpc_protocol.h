@@ -7,6 +7,7 @@
 #define DRPC_IO_TIMEOUT 10
 #define DRPC_DQUEUE_IO
 #define DRPC_PROXY_SUPPORT
+#define DRPC_TCP_SUPPORT
 
 #define DRPC_SIGNATURE "DRPCv245+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
                                     // FIRST DIGIT -- code version (changes ????).
@@ -82,10 +83,12 @@ struct drpc_return* message_to_drpc_return(struct d_struct* message);
 int drpc_send_message(struct drpc_io* io, struct drpc_message* msg);
 int drpc_recv_message(struct drpc_io* io, struct drpc_message* msg);
 
+#ifdef DRPC_TCP_SUPPORT
 void drpc_tcp_close(struct drpc_io* io);
 void drpc_tcp_free(struct drpc_io* io);
 int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message);
 int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container);
+#endif
 
 #ifdef DRPC_DQUEUE_IO
 void drpc_dqueue_close(struct drpc_io* io);

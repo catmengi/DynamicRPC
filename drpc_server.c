@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <semaphore.h>
 
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -89,7 +90,12 @@ struct drpc_server* new_drpc_server(uint16_t port){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
 
     drpc_serv->functions = hashtable_create();
+
+#ifdef DRPC_TCP_SUPPORT
     drpc_serv->users = hashtable_create();
+    drpc_serv->port = port;
+#endif
+
     drpc_serv->client_threads = hashtable_create();
 #ifdef DRPC_PROXY_SUPPORT
     drpc_serv->proxy_free_sync_ht = hashtable_create();
@@ -101,11 +107,11 @@ struct drpc_server* new_drpc_server(uint16_t port){
     drpc_serv->proxy_recv_mailboxes = hashtable_create();
     drpc_serv->proxy_send_mailboxes = hashtable_create();
 #endif
-    drpc_serv->port = port;
 
     return drpc_serv;
 }
 
+#ifdef DRPC_TCP_SUPPORT
 void drpc_server_start(struct drpc_server* server){
     struct sockaddr_in addr = {
         .sin_addr.s_addr = INADDR_ANY,
@@ -122,6 +128,7 @@ void drpc_server_start(struct drpc_server* server){
 
     assert(pthread_create(&server->dispatcher,NULL,drpc_server_dispatcher,server) == 0);
 }
+#endif
 
 void drpc_fn_info_free_CB(void* fn_info_P){
     if(fn_info_P == NULL) return;
@@ -146,26 +153,27 @@ void drpc_server_free(struct drpc_server* server){
     }
     hashtable_destroy(server->client_threads);
 
+#ifdef DRPC_TCP_SUPPORT
     shutdown(server->server_fd, SHUT_RD);
     close(server->server_fd);
     pthread_join(server->dispatcher,NULL); // waiting for dispatcher
-
-    for(size_t i = 0; i < server->functions->capacity; i++){
-        if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
-            drpc_fn_info_free_CB(server->functions->body[i].value);
-    }
 
     for(size_t i = 0; i < server->users->capacity; i++){
         if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
             free(server->users->body[i].value);
     }
+    hashtable_destroy(server->users);
+#endif
 
-
+    for(size_t i = 0; i < server->functions->capacity; i++){
+        if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
+            drpc_fn_info_free_CB(server->functions->body[i].value);
+    }
     d_struct_free(server->recv_mailboxes);
     d_struct_free(server->send_mailboxes);
 
-    hashtable_destroy(server->users);
     hashtable_destroy(server->functions);
+
 #ifdef DRPC_PROXY_SUPPORT
     for(size_t i = 0; i < server->proxy_recv_mailboxes->capacity; i++){
         if(server->proxy_recv_mailboxes->body[i].value != NULL && server->proxy_recv_mailboxes->body[i].key != NULL && server->proxy_recv_mailboxes->body[i].key != (char*)0xDEAD){
@@ -200,7 +208,6 @@ void drpc_server_free(struct drpc_server* server){
             free(server->proxy_free_sync_ht->body[i].key);
     }
     hashtable_destroy(server->proxy_free_sync_ht);
-
 #endif
 
     free(server->name);
@@ -910,6 +917,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     free(self);
 }
 
+#ifdef DRPC_TCP_SUPPORT
 void* drpc_server_client_auth(void* drpc_connection_P){
    struct drpc_connection* client = drpc_connection_P;
 
@@ -1047,6 +1055,7 @@ void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd,
 
     hashtable_set(serv->users,username,user);
 }
+#endif
 
 void drpc_server_set_servername(struct drpc_server* server, char* name){
     if(server->name != NULL) free(server->name);

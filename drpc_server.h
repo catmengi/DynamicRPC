@@ -32,26 +32,24 @@ struct drpc_server{
     char* name; //if not set, drpc_servername would give "UNKNOWN_DRPC"
     void* interfunc;
 
-    hashtable* users;
     hashtable* functions;
     hashtable* client_threads;
-#ifdef DRPC_PROXY_SUPPORT
-    hashtable* proxy_free_sync_ht;
-#endif
-
     struct d_struct* recv_mailboxes;
     struct d_struct* send_mailboxes;
 #ifdef DRPC_PROXY_SUPPORT
     hashtable* proxy_recv_mailboxes;
     hashtable* proxy_send_mailboxes;
+    hashtable* proxy_free_sync_ht;
+    drpc_proxy_fail_handler proxy_fail_handler;
 #endif
+
+#ifdef DRPC_TCP_SUPPORT
+    hashtable* users;
     uint16_t port;
     pthread_t dispatcher;
     int server_fd;
-    int should_stop;
-#ifdef DRPC_PROXY_SUPPORT
-    drpc_proxy_fail_handler proxy_fail_handler;
 #endif
+    int should_stop;
     drpc_connection_event_cb connection_event_cb;
 };
 
@@ -95,17 +93,17 @@ struct drpc_type_update{
     void* ptr;
 };
 
+#ifdef DRPC_TCP_SUPPORT
 struct drpc_user{
     int perm;
     uint64_t hash;
 
     uint8_t aes128_passwd[16];
 };
-
+#endif
 
 struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
 
-void drpc_server_start(struct drpc_server* server); //starts drpc server
 
 void drpc_server_free(struct drpc_server* server);  //stops and frees drpc server
 
@@ -119,8 +117,11 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                                                                                         // perm - minimal permission to call this function. -1 means only -1 user can call this function
 //======================================================================================================================================================================================
 
+#ifdef DRPC_TCP_SUPPORT
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm); //adds user with username and passwd and permission level. User can call function with perm < user's perm
                                                                                             //-1 user can call ANY function. If function is -1 only -1 user can call it
+void drpc_server_start(struct drpc_server* server); //starts drpc server
+#endif
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
 char* drpc_server_get_servername(struct drpc_server* server); //gets drpc_server's name variable
@@ -154,9 +155,6 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
 #endif
 
 #ifdef DRPC_PROXY_SUPPORT
-
-
-
 //======================================================================================================================================================================================
 void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client* client,char* fn_name,enum drpc_types return_type, // server - server where proxy function will be registered
                                    enum drpc_types* prototype,size_t prototype_len,int perm);                                       // client - client connected to proxy destination server

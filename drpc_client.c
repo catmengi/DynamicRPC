@@ -62,6 +62,7 @@ void* drpc_ping_server(void* clientP){
     return NULL;
 }
 
+#ifdef DRPC_TCP_SUPPORT
 struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd){
     assert(host != NULL); assert(username != NULL); assert(passwd != NULL);
     struct addrinfo hints = {
@@ -179,6 +180,7 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
     freeaddrinfo(host_list);
     return ret;
 }
+#endif
 
 void drpc_client_disconnect(struct drpc_client* client){
     if(client == NULL) return;
