@@ -56,7 +56,7 @@ int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, str
 
 void drpc_client_set_userdata(struct drpc_client* client, void* userdata); //sets client->userdata to userdata;
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 void* drpc_ping_server(void* clientP);
 #endif
 

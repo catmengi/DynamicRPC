@@ -5,7 +5,7 @@
 #include "drpc_types.h"
 
 #define DRPC_IO_TIMEOUT 10
-#define DRPC_DQUEUE_IO
+#define DRPC_DQUEUE_IO_SUPPORT
 #define DRPC_PROXY_SUPPORT
 #define DRPC_TCP_SUPPORT
 
@@ -67,7 +67,7 @@ struct drpc_message{
     struct d_struct* message;
 };
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 struct drpc_dqueue_io{
     pthread_mutex_t lock;
     struct d_queue* recv;
@@ -90,7 +90,7 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
 int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container);
 #endif
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 void drpc_dqueue_close(struct drpc_io* io);
 void drpc_dqueue_free(struct drpc_io* io);
 int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message);

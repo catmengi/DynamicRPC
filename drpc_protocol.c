@@ -145,7 +145,7 @@ int drpc_recv_message(struct drpc_io* io,struct drpc_message* msg){
     return 0;
 }
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 void drpc_dqueue_close(struct drpc_io* io){
     if(io->io_data == NULL) return;
     struct drpc_dqueue_io* io_data = io->io_data;

@@ -1211,7 +1211,7 @@ void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_h
 #endif
 
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 #include "drpc_client.h"
 
 struct drpc_handle_client_thread_wrapper{

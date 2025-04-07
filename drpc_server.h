@@ -150,7 +150,7 @@ void drpc_free_recv_mailbox(struct drpc_server* server, char* mailbox_name);    
 
 void drpc_free_send_mailbox(struct drpc_server* server, char* mailbox_name);          //frees and removes sender mailbox with mailbox_name as name and all it's data.
 
-#ifdef DRPC_DQUEUE_IO
+#ifdef DRPC_DQUEUE_IO_SUPPORT
 struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int client_perm); //creates a new drpc_client but use a local d_queue instead of TCP socket
 #endif
 
