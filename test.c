@@ -111,14 +111,14 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     printf("AFTER AGAIN: %s\n",servername3);
     free(servername3);
     clock_t struct_check_timeS = clock();
-    drpc_client_call(client,"dstruct_check",dstruct_check,2,&check1_ret,check1,STRUCT_LEN);
+    assert(drpc_client_call(client,"dstruct_check",dstruct_check,2,&check1_ret,check1,STRUCT_LEN) == 0);
     assert(check1 == check1_ret);
     clock_t struct_check_timeF = clock();
     printf("struct check time in ms %f\n", ((float)(struct_check_timeF - struct_check_timeS) / CLOCKS_PER_SEC) * 1000);
 
     clock_t que_check_timeS = clock();
     void* check2_ret = 0;
-    drpc_client_call(client,"dqueue_check",dqueue_check,2,&check2_ret,check2,QUEUE_LEN);
+    assert(drpc_client_call(client,"dqueue_check",dqueue_check,2,&check2_ret,check2,QUEUE_LEN) == 0);
     assert(check2 == check2_ret);
     assert(d_queue_len(check2) == 0);
     clock_t que_check_timeF = clock();
