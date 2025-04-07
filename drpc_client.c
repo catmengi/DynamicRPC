@@ -471,7 +471,6 @@ int drpc_client_mailbox_send(struct drpc_client* client, char* mailbox_name, str
     d_struct_set(send.message,"receiver_mailbox",mailbox_name,d_str);
     d_struct_set(send.message,"messages",messages,d_queue);
     if(drpc_send_message(client->io,&send) != 0){
-        d_struct_free(send.message);
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
@@ -499,7 +498,6 @@ int drpc_client_mailbox_recv(struct drpc_client* client, char* mailbox_name, str
     };
     d_struct_set(send.message,"sender_mailbox",mailbox_name,d_str);
     if(drpc_send_message(client->io,&send) != 0){
-        d_struct_free(send.message);
         pthread_mutex_unlock(&client->connection_mutex);
         return DRPC_ENETWORK;
     }
