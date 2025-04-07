@@ -241,6 +241,8 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
      uint64_t send_buflen = nextby16(message_buflen);
      assert((send_buf = realloc(send_buf,send_buflen)) != NULL);
 
+     memset(send_buf + message_buflen,0,send_buflen - message_buflen);
+
      char drpc_message_header[sizeof(uint64_t) + sizeof(DRPC_SIGNATURE)];
      memcpy(drpc_message_header,DRPC_SIGNATURE,sizeof(DRPC_SIGNATURE));
      memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_buflen,sizeof(uint64_t));
