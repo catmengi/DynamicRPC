@@ -7,20 +7,23 @@
 #include "drpc_array.h"
 #include "hashtable.c/hashtable.h"
 
+#ifdef DRPC_TCP_SUPPORT
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 #include <assert.h>
 #include <stdarg.h>
-#include <netinet/in.h>
 #include <pthread.h>
 #include <string.h>
 #include <ffi.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <semaphore.h>
 
 
 #include <stdio.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 
 
@@ -222,7 +225,7 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
     fn_info->fn_name = strdup(fn_name);
-    fn_info->fn = fn;
+    fn_info->fn = FFI_FN(fn);
     fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
     fn_info->fnstorage = fnstorage;
@@ -1188,7 +1191,7 @@ void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client
     struct drpc_function* fn_info = calloc(1,sizeof(*fn_info)); assert(fn_info);
 
     fn_info->fn_name = strdup(fn_name);
-    fn_info->fn = drpc_proxy_impl;
+    fn_info->fn = FFI_FN(drpc_proxy_impl);
     fn_info->minimal_permission_level = perm;
     fn_info->return_type = return_type;
     fn_info->fnstorage = client;

@@ -6,16 +6,21 @@
 #include "drpc_types.h"
 #include "drpc_struct.h"
 #include "drpc_array.h"
-#include "hashtable.c/hashtable.h"
 
-#include <arpa/inet.h>
 #include <stdarg.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/socket.h>
 #include <string.h>
+
+#include <unistd.h> //sleep();
+
+#ifdef DRPC_TCP_SUPPORT
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <netdb.h>
+#endif
 
 
 #include <stdio.h>
@@ -47,7 +52,7 @@ void* drpc_ping_server(void* clientP){
             return NULL;
         }
         pthread_mutex_unlock(&client->connection_mutex);
-        sleep(4);
+        sleep(DRPC_IO_TIMEOUT / 2);
         continue;
     }
     pthread_mutex_lock(&client->connection_mutex);

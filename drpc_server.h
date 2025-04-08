@@ -1,15 +1,20 @@
 #pragma once
 
-#include <sys/types.h>
-#include <pthread.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdatomic.h>
-#include <ffi.h>
-
 #include "drpc_protocol.h"
 #include "drpc_types.h"
 #include "hashtable.c/hashtable.h"
+
+#ifdef DRPC_TCP_SUPPORT
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
+#include <sys/types.h>
+#include <pthread.h>
+#include <ffi.h>
+
 
 #define DRPC_CLIENTID_LEN 16 //16 should enough. If not ---> increase
 

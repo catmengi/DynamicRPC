@@ -10,4 +10,4 @@ DynamicRPC is a RPC framework that dont uses IDL and support argument-sync beetw
 **tested on:** Linux (x86_64, aarch64), Windows MSYS2(x86_64)
 
 
-Building without TCP support is not done yet(still require some network headers)
+Building without TCP should be supported but not tested on platform without unix socket headers

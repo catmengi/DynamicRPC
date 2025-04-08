@@ -2,13 +2,15 @@
 #include "drpc_struct.h"
 #include "drpc_types.h"
 
+#ifdef DRPC_TCP_SUPPORT
 #include "aes.h"
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
+
+#include <pthread.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -162,7 +164,6 @@ void drpc_dqueue_close(struct drpc_io* io){
 
     pthread_mutex_unlock(&io_data->lock);
 }
-#include <stdio.h>
 void drpc_dqueue_free(struct drpc_io* io){
     struct drpc_dqueue_io* io_data = io->io_data;
     free(io->io_data);
@@ -203,6 +204,7 @@ int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointe
 }
 #endif
 
+#ifdef DRPC_TCP_SUPPORT
 void drpc_tcp_close(struct drpc_io* io){
     close(*(int*)io->io_data);
 }
@@ -286,4 +288,5 @@ int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container){
     free(recv_buf);
     return 0;
 }
+#endif
 
