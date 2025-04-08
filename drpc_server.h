@@ -53,11 +53,6 @@ struct drpc_server{
     drpc_connection_event_cb connection_event_cb;
 };
 
-struct drpc_pstorage{
-    struct d_queue* client_messages;
-    void* pstorage;
-};
-
 struct drpc_function{
     char* fn_name;
 
