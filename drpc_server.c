@@ -87,8 +87,6 @@ void random_str(char* dest, size_t len){
     }
 }
 
-void* drpc_server_dispatcher(void* drpc_server_P);
-
 struct drpc_server* new_drpc_server(uint16_t port){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
 
@@ -100,13 +98,11 @@ struct drpc_server* new_drpc_server(uint16_t port){
 #endif
 
     drpc_serv->client_threads = hashtable_create();
-#ifdef DRPC_PROXY_SUPPORT
-    drpc_serv->proxy_free_sync_ht = hashtable_create();
-#endif
-
     drpc_serv->recv_mailboxes = new_d_struct();
     drpc_serv->send_mailboxes = new_d_struct();
+
 #ifdef DRPC_PROXY_SUPPORT
+    drpc_serv->proxy_free_sync_ht = hashtable_create();
     drpc_serv->proxy_recv_mailboxes = hashtable_create();
     drpc_serv->proxy_send_mailboxes = hashtable_create();
 #endif
@@ -115,7 +111,8 @@ struct drpc_server* new_drpc_server(uint16_t port){
 }
 
 #ifdef DRPC_TCP_SUPPORT
-void drpc_server_start(struct drpc_server* server){
+void* drpc_server_TCP_acceptor(void* drpc_server_P);
+void drpc_server_start_TCP(struct drpc_server* server){
     struct sockaddr_in addr = {
         .sin_addr.s_addr = INADDR_ANY,
         .sin_port = htons(server->port),
@@ -129,13 +126,13 @@ void drpc_server_start(struct drpc_server* server){
     assert(bind(server->server_fd,(struct sockaddr*)&addr,sizeof(addr)) == 0);
     assert(listen(server->server_fd,MAX_LISTEN) == 0);
 
-    assert(pthread_create(&server->dispatcher,NULL,drpc_server_dispatcher,server) == 0);
+    assert(pthread_create(&server->accept_thread,NULL,drpc_server_TCP_acceptor,server) == 0);
 }
 #endif
 
-void drpc_fn_info_free_CB(void* fn_info_P){
-    if(fn_info_P == NULL) return;
-    struct drpc_function* fn_info = fn_info_P;
+int drpc_fn_free(struct drpc_function* fn_info){
+    if(fn_info == NULL) return 1;
+
     if(fn_info->fnstorage != NULL && fn_info->fnstorage_free_cb != NULL)
         fn_info->fnstorage_free_cb(fn_info->fnstorage,fn_info->fnstorage_free_cb_userdata,fn_info);
 
@@ -144,6 +141,12 @@ void drpc_fn_info_free_CB(void* fn_info_P){
     free(fn_info->ffi_prototype);
     free(fn_info->prototype);
     free(fn_info);
+
+    return 0;
+}
+
+int drpc_server_unregister_fn(struct drpc_server* server, char* fn_name){
+    return drpc_fn_free(hashtable_get(server->functions,fn_name));
 }
 
 void drpc_server_free(struct drpc_server* server){
@@ -159,7 +162,7 @@ void drpc_server_free(struct drpc_server* server){
 #ifdef DRPC_TCP_SUPPORT
     shutdown(server->server_fd, SHUT_RD);
     close(server->server_fd);
-    pthread_join(server->dispatcher,NULL); // waiting for dispatcher
+    pthread_join(server->accept_thread,NULL); // waiting for accept thread
 
     for(size_t i = 0; i < server->users->capacity; i++){
         if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
@@ -170,7 +173,7 @@ void drpc_server_free(struct drpc_server* server){
 
     for(size_t i = 0; i < server->functions->capacity; i++){
         if(server->functions->body[i].value != NULL && server->functions->body[i].key != NULL && server->functions->body[i].key != (char*)0xDEAD)
-            drpc_fn_info_free_CB(server->functions->body[i].value);
+            drpc_fn_free(server->functions->body[i].value);
     }
     d_struct_free(server->recv_mailboxes);
     d_struct_free(server->send_mailboxes);
@@ -1009,7 +1012,7 @@ exit:
 
 
 
-void* drpc_server_dispatcher(void* drpc_server_P){
+void* drpc_server_TCP_acceptor(void* drpc_server_P){
     struct drpc_server* server = drpc_server_P;
     printf("%s: TCP started\n",__PRETTY_FUNCTION__);
     while(server->should_stop == 0){
@@ -1135,6 +1138,17 @@ void new_drpc_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name,
 }
 void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name, struct drpc_client* client){
     hashtable_set(server->proxy_send_mailboxes,mailbox_name,client);
+}
+
+void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct drpc_client* client = hashtable_get(server->proxy_recv_mailboxes,mailbox_name);
+    hashtable_remove(server->proxy_recv_mailboxes,mailbox_name);
+    drpc_client_disconnect(client);
+}
+void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name){
+    struct drpc_client* client = hashtable_get(server->proxy_send_mailboxes,mailbox_name);
+    hashtable_remove(server->proxy_send_mailboxes,mailbox_name);
+    drpc_client_disconnect(client);
 }
 
 uint64_t drpc_proxy_impl(struct drpc_client* client,struct drpc_connection* connection,struct drpc_function* fn_info,...){

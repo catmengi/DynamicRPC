@@ -51,7 +51,7 @@ struct drpc_server{
 #ifdef DRPC_TCP_SUPPORT
     hashtable* users;
     uint16_t port;
-    pthread_t dispatcher;
+    pthread_t accept_thread;
     int server_fd;
 #endif
     int should_stop;
@@ -117,10 +117,13 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                                                                                         // perm - minimal permission to call this function. -1 means only -1 user can call this function
 //======================================================================================================================================================================================
 
+int drpc_server_unregister_fn(struct drpc_server* server, char* fn_name); //removes and free function with name fn_name; RETURN: 0 on success
+
 #ifdef DRPC_TCP_SUPPORT
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm); //adds user with username and passwd and permission level. User can call function with perm < user's perm
                                                                                             //-1 user can call ANY function. If function is -1 only -1 user can call it
-void drpc_server_start(struct drpc_server* server); //starts drpc server's TCP acceptor thread
+
+void drpc_server_start_TCP(struct drpc_server* server); //starts drpc server's TCP acceptor thread
 #endif
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable
@@ -177,6 +180,10 @@ void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name,
                                                                                                               //will be retrieved from server connected via client client
 //NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
 //======================================================================================================================================================================================
+
+void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name); //removes proxy mailbox mailbox_name and disconnect client associated with it
+
+void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name); //removes proxy mailbox mailbox_name and disconnect client associated with it
 
 void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error
 #endif
