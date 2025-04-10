@@ -412,15 +412,17 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
 }
 char** d_struct_get_fields(struct d_struct* dstruct, size_t* len){
     *len = dstruct->current_len;
-
-    char** keys = calloc(*len,sizeof(char**)); assert(keys != NULL);
-    size_t j = 0;
-    for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
-        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
-            keys[j] = dstruct->hashtable->body[i].key; j++;
+    if(*len > 0){
+        char** keys = calloc(*len,sizeof(char**)); assert(keys != NULL);
+        size_t j = 0;
+        for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
+            if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
+                keys[j] = dstruct->hashtable->body[i].key; j++;
+            }
         }
+        return keys;
     }
-    return keys;
+    return NULL;
 }
 
 void d_struct_free_internal(struct d_struct* dstruct){
