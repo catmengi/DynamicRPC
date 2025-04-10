@@ -102,7 +102,7 @@ struct drpc_user{
 };
 #endif
 
-struct drpc_server* new_drpc_server(uint16_t port);  //creates drpc structure;
+struct drpc_server* new_drpc_server();  //creates drpc structure;
 
 
 void drpc_server_free(struct drpc_server* server);  //stops and frees drpc server
@@ -123,7 +123,7 @@ int drpc_server_unregister_fn(struct drpc_server* server, char* fn_name); //remo
 void drpc_server_add_user(struct drpc_server* serv, char* username,char* passwd, int perm); //adds user with username and passwd and permission level. User can call function with perm < user's perm
                                                                                             //-1 user can call ANY function. If function is -1 only -1 user can call it
 
-void drpc_server_start_TCP(struct drpc_server* server); //starts drpc server's TCP acceptor thread
+void drpc_server_start_TCP(struct drpc_server* server, uint16_t port); //starts drpc server's TCP acceptor thread
 #endif
 
 void drpc_server_set_servername(struct drpc_server* server, char* name); //copies name to drpc_server's name variable

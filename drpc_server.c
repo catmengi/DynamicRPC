@@ -87,14 +87,13 @@ void random_str(char* dest, size_t len){
     }
 }
 
-struct drpc_server* new_drpc_server(uint16_t port){
+struct drpc_server* new_drpc_server(){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
 
     drpc_serv->functions = hashtable_create();
 
 #ifdef DRPC_TCP_SUPPORT
     drpc_serv->users = hashtable_create();
-    drpc_serv->port = port;
 #endif
 
     drpc_serv->client_threads = hashtable_create();
@@ -112,7 +111,8 @@ struct drpc_server* new_drpc_server(uint16_t port){
 
 #ifdef DRPC_TCP_SUPPORT
 void* drpc_server_TCP_acceptor(void* drpc_server_P);
-void drpc_server_start_TCP(struct drpc_server* server){
+void drpc_server_start_TCP(struct drpc_server* server, uint16_t port){
+    server->port = port;
     struct sockaddr_in addr = {
         .sin_addr.s_addr = INADDR_ANY,
         .sin_port = htons(server->port),

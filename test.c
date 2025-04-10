@@ -179,7 +179,7 @@ void int_checkF(int8_t a, int16_t b, int32_t c){
 }
 
 int main(void){
-    struct drpc_server* server = new_drpc_server(2077);
+    struct drpc_server* server = new_drpc_server();
 
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
@@ -201,13 +201,13 @@ int main(void){
     drpc_server_set_fnstorage_free_cb(server,"dqueue_check",fn_storage_free_cb,NULL);
     drpc_server_set_fnstorage_free_cb(server,"darray_check",fn_storage_free_cb,NULL);
 
-    drpc_server_start_TCP(server);
+    drpc_server_start_TCP(server,2077);
 
     struct drpc_client* client = drpc_client_connect("localhost:2077","check_user","i have absurdly long password to check that this will surly work as expected!");
     struct drpc_client* dqueue_client = drpc_new_dqueue_client(server,-1);
 
 
-    struct drpc_server* s2 = new_drpc_server(2025);
+    struct drpc_server* s2 = new_drpc_server();
     drpc_server_add_user(s2,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
     drpc_server_register_proxy_fn(s2,dqueue_client,"darray_check",d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),0);
@@ -221,7 +221,7 @@ int main(void){
     new_drpc_proxy_recv_mailbox(s2,"mailbox_123",dqueue_client);
     new_drpc_proxy_send_mailbox(s2,"send_mailbox_123",dqueue_client);
 
-    drpc_server_start_TCP(s2);
+    drpc_server_start_TCP(s2,2025);
 
     struct drpc_client* proxy_client = drpc_client_connect("localhost:2025","check_user","i have absurdly long password to check that this will surly work as expected!");
 
