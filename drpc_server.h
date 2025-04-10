@@ -167,6 +167,7 @@ void drpc_server_register_proxy_fn(struct drpc_server* server,struct drpc_client
                                                                                                                                     // prototype_len - length of prototype
 
 //NOTE: You SHOULD NOT disconnect proxy client yourself because it will cause double-free or other errors, it will be done automaticly on drpc_server_free
+//NOTE 2: You CAN NOT proxy functions with types smaller than your platform int size, generaly you cant proxy d_int8, d_uint8, d_int16, d_uint16
 //======================================================================================================================================================================================
 
 //======================================================================================================================================================================================
