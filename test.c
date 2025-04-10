@@ -207,6 +207,7 @@ int main(void){
     new_drpc_send_mailbox(server,"send_mailbox_123");
 
     new_drpc_proxy_recv_mailbox(s2,"mailbox_123",dqueue_client);
+    new_drpc_proxy_send_mailbox(s2,"send_mailbox_123",dqueue_client);
 
     drpc_server_start_TCP(s2);
 
