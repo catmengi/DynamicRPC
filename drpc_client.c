@@ -73,11 +73,12 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
     struct addrinfo hints = {
         .ai_flags = AI_NUMERICSERV,
         .ai_socktype = SOCK_STREAM,
-        .ai_flags = AI_PASSIVE,
         .ai_protocol = 0,
         .ai_addr = NULL,
         .ai_next = NULL,
     };
+    hints.ai_flags = AI_PASSIVE;
+
     struct addrinfo* host_list = NULL;
     struct addrinfo* host_list_org = NULL;
     char* host_ip = strdup(host); assert(host_ip);
@@ -92,7 +93,6 @@ struct drpc_client* drpc_client_connect(char* host, char* username, char* passwd
     host_list = host_list_org;
     free(host_ip);
 
-    int success = 0;
     struct drpc_client* ret = NULL;
     while(host_list != NULL){
         int fd = socket(host_list->ai_family,SOCK_STREAM,0); //we are also trying IPv6, because somewhere in future drpc_server will also support IPv6

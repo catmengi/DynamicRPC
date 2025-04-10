@@ -277,7 +277,7 @@ int drpc_tcp_recv_message(struct drpc_io* io, struct d_struct** container){
     memcpy(&recv_buflen,drpc_message_header + sizeof(DRPC_SIGNATURE),sizeof(uint64_t));
 
     char* recv_buf = malloc(recv_buflen); assert(recv_buf);
-    int ret = tcp_recv_loop(*(int*)io->io_data,recv_buf,recv_buflen);
+    if(tcp_recv_loop(*(int*)io->io_data,recv_buf,recv_buflen) != 0) {free(recv_buf); return 1;}
 
     if(io->aes128_key != NULL && DRPC_SIGNATURE[strlen(DRPC_SIGNATURE) - 1] == 'E'){
         struct AES_ctx ctx;
