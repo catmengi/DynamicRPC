@@ -303,7 +303,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
 
 void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,struct queue* to_repack, struct queue* fill_later){
     size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
-    void** ffi_arguments = calloc(adjusted_len, sizeof(void*)); assert(ffi_arguments);
+    void** ffi_arguments = calloc(adjusted_len + 1, sizeof(void*)); assert(ffi_arguments);
 
     *ffi_len = adjusted_len;
     size_t j = 0; size_t k = 0;
