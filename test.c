@@ -178,6 +178,12 @@ void int_checkF(int8_t a, int16_t b, int32_t c){
     printf("%d %d %d\n",a,b,c);
 }
 
+void test_log(void* userdata, const char* fmt,...){
+    va_list args;
+    va_start(args,fmt);
+    vprintf(fmt,args);
+}
+
 int main(void){
     struct drpc_server* server = new_drpc_server();
 
@@ -200,6 +206,7 @@ int main(void){
     drpc_server_set_fnstorage_free_cb(server,"dstruct_check",fn_storage_free_cb,NULL);
     drpc_server_set_fnstorage_free_cb(server,"dqueue_check",fn_storage_free_cb,NULL);
     drpc_server_set_fnstorage_free_cb(server,"darray_check",fn_storage_free_cb,NULL);
+    drpc_server_set_logger_fn(server,test_log,NULL);
 
     drpc_server_start_TCP(server,2077);
 

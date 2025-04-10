@@ -87,6 +87,19 @@ void random_str(char* dest, size_t len){
     }
 }
 
+
+void logger_default(void* userdata, const char* fmt,...){
+    //do default console logger
+}
+
+void drpc_server_set_logger_fn(struct drpc_server* server, drpc_server_logger logger, void* logger_userdata){
+    if(logger == NULL)
+        server->logger = logger_default;
+    else
+        server->logger = logger;
+    server->logger_userdata = logger_userdata;
+}
+
 struct drpc_server* new_drpc_server(){
     struct drpc_server* drpc_serv = calloc(1,sizeof(*drpc_serv)); assert(drpc_serv);
 
@@ -106,6 +119,7 @@ struct drpc_server* new_drpc_server(){
     drpc_serv->proxy_send_mailboxes = hashtable_create();
 #endif
 
+    drpc_server_set_logger_fn(drpc_serv,logger_default,NULL);
     return drpc_serv;
 }
 
@@ -617,7 +631,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     return 0;
 }
 int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* client, int client_perm){
-    printf("\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"\n%s: client '%s': requested function call\n",__PRETTY_FUNCTION__,client->username);
     struct drpc_message send = {
         .message = NULL,
         .message_type = drpc_bad,
@@ -627,13 +641,13 @@ int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* 
     struct drpc_call* call = message_to_drpc_call(received_message);
 
     if(call == NULL){
-        printf("%s: malformed call message\n",__PRETTY_FUNCTION__);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: malformed call message\n",__PRETTY_FUNCTION__);
         send.message_type = drpc_bad;
         handle_ret = 1; goto exit;
     }
     struct drpc_function* call_fn = NULL;
     if((call_fn = hashtable_get(client->drpc_server->functions,call->fn_name)) == NULL){
-        printf("%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
         drpc_call_free(call);
         free(call);
         send.message_type = drpc_notfound;
@@ -643,13 +657,13 @@ int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* 
     struct drpc_return ret;
     if((client_perm > call_fn->minimal_permission_level && call_fn->minimal_permission_level != -1) || client_perm == -1){
         if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
-            printf("%s: bad arguments for function '%s'! \n",__PRETTY_FUNCTION__,call_fn->fn_name);
+            client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: bad arguments for function '%s'! \n",__PRETTY_FUNCTION__,call_fn->fn_name);
             drpc_call_free(call);
             free(call);
             send.message_type = drpc_bad;
             handle_ret = 1; goto exit;
         }
-        printf("%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
         free(call->fn_name);
         free(call);
 
@@ -660,7 +674,7 @@ int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* 
         handle_ret = 0; goto exit;
     }
 
-    printf("%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name, client_perm,call_fn->minimal_permission_level);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name, client_perm,call_fn->minimal_permission_level);
 
     drpc_call_free(call);
     free(call);
@@ -679,21 +693,22 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
 
     char* mailbox_name; struct d_queue* messages;
     if(d_struct_get(received_message,"receiver_mailbox",&mailbox_name,d_str) != 0){
-        printf("%s: client (%s:%s) sent malformed recv request, no receiver_mailbox\n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) sent malformed recv request, no receiver_mailbox\n",__PRETTY_FUNCTION__,client->username,client->clientid);
         goto exit;
     }
     if(d_struct_get(received_message,"messages",&messages,d_queue) != 0){
-        printf("%s: client (%s:%s) sent malformed recv request, no messages\n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) sent malformed recv request, no messages\n",__PRETTY_FUNCTION__,client->username,client->clientid);
         goto exit;
     }
 
     struct d_queue* receiver_mailbox = NULL;
     if(d_struct_get(client->drpc_server->recv_mailboxes,mailbox_name,&receiver_mailbox,d_queue) != 0){
-        printf("%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,
+                                    "%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
         struct drpc_client* proxy_client = hashtable_get(client->drpc_server->proxy_recv_mailboxes,mailbox_name);
         if(proxy_client == NULL){
-            printf("%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+            client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
             goto exit;
         }
         if(proxy_client->client_stop == 1){       //we can recover only from here :(
@@ -717,7 +732,7 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
                 break;
         }
         send.message_type = drpc_ok;
-        printf("%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
         goto exit;
     }
 
@@ -726,7 +741,7 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
         queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
     send.message_type = drpc_ok;
-    printf("%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
     drpc_send_message(client->io,&send);
@@ -739,17 +754,17 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
     if(received_message == NULL) {send.message_type = drpc_bad; goto exit;}
     char* mailbox_name;
     if(d_struct_get(received_message,"sender_mailbox",&mailbox_name,d_str) != 0){
-        printf("%s: client (%s:%s) sent malformed send request \n",__PRETTY_FUNCTION__,client->username,client->clientid);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) sent malformed send request \n",__PRETTY_FUNCTION__,client->username,client->clientid);
         goto exit;
     }
 
     struct d_queue* extracted_messages = NULL;
     if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0){
-        printf("%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
         struct drpc_client* proxy_client = hashtable_get(client->drpc_server->proxy_send_mailboxes,mailbox_name);
         if(proxy_client == NULL){
-            printf("%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+            client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) no such mailbox%s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
             goto exit;
         }
         if(proxy_client->client_stop == 1){
@@ -775,7 +790,7 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
         send.message_type = drpc_ok;
         send.message = new_d_struct();
         d_struct_set(send.message,"messages",output,d_queue);
-        printf("%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
         goto exit;
 
     }
@@ -788,7 +803,7 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
     send.message = new_d_struct();
     d_struct_set(send.message,"messages",sended_messages,d_queue);
     send.message_type = drpc_ok;
-    printf("%s: client (%s:%s) succesfully took messages from %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) succesfully took messages from %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
 
 exit:
     drpc_send_message(client->io,&send);
@@ -828,25 +843,33 @@ void* drpc_client_executor(void* params_P){
                 break;
             case drpc_disconnect:
                 if(params->already_disconnected == 0){
-                    printf("%s: client (%s:%s) successfully disconnected\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                    params->client->drpc_server->logger(params->client->drpc_server->logger_userdata,
+                                    "%s: client (%s:%s) successfully disconnected\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+
                     params->already_disconnected = 100; //fucking garbage
                 }
                 stop = 1;
                 break;
             case drpc_call:
-                printf("%s: function call request from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                params->client->drpc_server->logger(params->client->drpc_server->logger_userdata,
+                                "%s: function call request from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+
                 if(drpc_handle_call(event->message,params->client,params->client_perm) != 0) stop = 1;
                 break;
             case drpc_mailbox_recv:
-                printf("%s: received messages from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                params->client->drpc_server->logger(params->client->drpc_server->logger_userdata,
+                                "%s: received messages from client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
                 drpc_handle_mailbox_recv(event->message,params->client);
                 break;
             case drpc_mailbox_send:
-                printf("%s: send messages to client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                params->client->drpc_server->logger(params->client->drpc_server->logger_userdata,
+                                "%s: send messages to client (%s:%s)\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+
                 drpc_handle_mailbox_send(event->message,params->client);
                 break;
             case drpc_servername:
-                printf("%s: client (%s:%s) asked about server name\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
+                params->client->drpc_server->logger(params->client->drpc_server->logger_userdata,
+                                                    "%s: client (%s:%s) asked about server name\n",__PRETTY_FUNCTION__,params->client->username,params->client->clientid);
                 send.message_type = drpc_servername;
                 send.message = new_d_struct();
                 char* name = NULL;
@@ -937,21 +960,21 @@ void* drpc_server_client_auth(void* drpc_connection_P){
    struct drpc_message send;
    int perm = 0;
    if(drpc_recv_message(client->io,&recv) != 0){
-       printf("%s: no auth request!\n",__PRETTY_FUNCTION__);
+       client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: no auth request!\n",__PRETTY_FUNCTION__);
        goto exit;
    }
    if(recv.message_type != drpc_auth || recv.message == NULL){
        send.message_type = drpc_bad;
        send.message = NULL;
        drpc_send_message(client->io,&send);
-       printf("%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
+       client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: request is not auth or malformed!\n",__PRETTY_FUNCTION__);
        goto exit;
    }else{
        char* username;
        uint64_t hash;
        struct drpc_user* user;
        if(d_struct_get(recv.message,"username",&username,d_str) != 0){
-           printf("%s: auth malformed1\n",__PRETTY_FUNCTION__);
+           client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: auth malformed1\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -959,7 +982,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(d_struct_get(recv.message,"passwd_hash",&hash,d_uint64) != 0){
-           printf("%s: auth malformed2\n",__PRETTY_FUNCTION__);
+           client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: auth malformed2\n",__PRETTY_FUNCTION__);
            d_struct_free(recv.message);
            send.message_type = drpc_bad;
            send.message = NULL;
@@ -969,7 +992,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        d_struct_unlink(recv.message,"username");
        d_struct_free(recv.message);
        if((user = hashtable_get(client->drpc_server->users,username)) == NULL){
-           printf("%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
+           client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: no such username : %s\n",__PRETTY_FUNCTION__,username);
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
@@ -977,7 +1000,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            goto exit;
        }
        if(user->hash != hash){
-           printf("%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
+           client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: wrong password for : %s\n",__PRETTY_FUNCTION__,username);
            send.message_type = drpc_bad;
            send.message = NULL;
            free(username);
@@ -1002,7 +1025,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
            client->io->aes128_key[i] = xor_base[i] ^ user->aes128_passwd[i];
        }
 
-       printf("%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
+       client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
    drpc_handle_client(client,perm);
 exit:
@@ -1016,14 +1039,14 @@ exit:
 
 void* drpc_server_TCP_acceptor(void* drpc_server_P){
     struct drpc_server* server = drpc_server_P;
-    printf("%s: TCP started\n",__PRETTY_FUNCTION__);
+    server->logger(server->logger_userdata,"%s: TCP started\n",__PRETTY_FUNCTION__);
     while(server->should_stop == 0){
         socklen_t client_addr_len = sizeof(struct sockaddr_in);
         struct sockaddr_in client_addr;
         int client_fd = accept(server->server_fd,(struct sockaddr*)&client_addr,&client_addr_len);
         if(client_fd > 0){
 
-            printf("%s: picked up client: %s\n",__PRETTY_FUNCTION__,inet_ntoa(client_addr.sin_addr));
+            server->logger(server->logger_userdata,"%s: picked up client: %s\n",__PRETTY_FUNCTION__,inet_ntoa(client_addr.sin_addr));
 
             struct drpc_connection* client = calloc(1,sizeof(*client)); assert(client);
             client->io = calloc(1,sizeof(*client->io)); assert(client->io);
@@ -1175,7 +1198,9 @@ uint64_t drpc_proxy_impl(struct drpc_client* client,struct drpc_connection* conn
     va_list call_argument;
 
 retry:
-    printf("%s: client (%s:%s) requested proxy call to %s\n",__PRETTY_FUNCTION__,connection->username,connection->clientid,fn_info->fn_name);
+    connection->drpc_server->logger(connection->drpc_server->logger_userdata,
+                    "%s: client (%s:%s) requested proxy call to %s\n",__PRETTY_FUNCTION__,connection->username,connection->clientid,fn_info->fn_name);
+
     va_start(call_argument,fn_info);
 
     if(drpc_client_call_internal(client,fn_info->fn_name,&(fn_info->prototype[3]),fn_info->prototype_len - 3,&generic_ret,call_argument) != 0){
@@ -1316,3 +1341,4 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
 
 }
 #endif
+

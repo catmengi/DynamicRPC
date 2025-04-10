@@ -26,11 +26,14 @@ enum drpc_connection_event{
 struct drpc_connection; struct drpc_function;
 typedef void (*drpc_connection_event_cb)(struct drpc_connection* client,enum drpc_connection_event);
 typedef void (*drpc_fnstorage_free_cb)(void* fnstorage, void* userdata, struct drpc_function* fn);
+typedef void (*drpc_server_logger)(void* userdata,const char* fmt,...);
+
 
 #ifdef DRPC_PROXY_SUPPORT
 #include "drpc_client.h"
 typedef int (*drpc_proxy_fail_handler)(struct drpc_client*); //should return 0 if client was successfully reconnected otherwise non 0
 #endif
+
 
 
 struct drpc_server{
@@ -54,6 +57,9 @@ struct drpc_server{
     pthread_t accept_thread;
     int server_fd;
 #endif
+
+    drpc_server_logger logger;
+    void* logger_userdata;
     int should_stop;
     drpc_connection_event_cb connection_event_cb;
 };
@@ -188,3 +194,7 @@ void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_na
 
 void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error
 #endif
+
+#include <stdarg.h>
+void drpc_server_set_logger_fn(struct drpc_server* server, drpc_server_logger logger, void* logger_userdata); //sets drpc server logging function
+
