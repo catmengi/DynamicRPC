@@ -60,7 +60,7 @@ ffi_type** drpc_proto_to_ffi(enum drpc_types* prototype, size_t prototype_len){
     if(prototype == NULL) return NULL;
 
     size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
-    ffi_type** ffi_proto = calloc(adjusted_len + 1,sizeof(ffi_type*)); assert(ffi_proto);
+    ffi_type** ffi_proto = calloc(adjusted_len,sizeof(ffi_type*)); assert(ffi_proto);
     size_t j = 0;
 
     for(size_t i = 0; i < prototype_len; i++,j++){
