@@ -1,7 +1,6 @@
 #include "drpc_protocol.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
-#include <bits/time.h>
 #include <time.h>
 
 #ifdef DRPC_TCP_SUPPORT
