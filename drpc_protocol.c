@@ -1,6 +1,8 @@
 #include "drpc_protocol.h"
 #include "drpc_struct.h"
 #include "drpc_types.h"
+#include <bits/time.h>
+#include <time.h>
 
 #ifdef DRPC_TCP_SUPPORT
 #include "aes.h"
@@ -153,22 +155,28 @@ void drpc_dqueue_close(struct drpc_io* io){
     struct drpc_dqueue_io* io_data = io->io_data;
     struct drpc_dqueue_io* receiver_io_data = io_data->send;
     pthread_mutex_lock(&io_data->lock);
+    pthread_mutex_lock(&io_data->wait_lock);
     if(receiver_io_data != NULL){
         io_data->send = NULL;
         pthread_mutex_lock(&receiver_io_data->lock);
+        pthread_mutex_lock(&receiver_io_data->wait_lock);
         receiver_io_data->send = NULL;
         pthread_mutex_unlock(&receiver_io_data->lock);
+        pthread_mutex_unlock(&receiver_io_data->wait_lock);
     }
+    sem_destroy(&io_data->recv_wait);
     d_queue_free(io_data->recv);
     io_data->recv = NULL;
 
     pthread_mutex_unlock(&io_data->lock);
+    pthread_mutex_unlock(&io_data->wait_lock);
 }
 void drpc_dqueue_free(struct drpc_io* io){
     struct drpc_dqueue_io* io_data = io->io_data;
     free(io->io_data);
     free(io);
 }
+
 int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message){
     if(io->io_data == NULL){
         d_struct_free(prepacked_message);
@@ -181,7 +189,10 @@ int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_mess
     }
     pthread_mutex_lock(&io_data->lock);
     pthread_mutex_lock(&io_data->send->lock);
+
     d_queue_push(io_data->send->recv,prepacked_message,d_struct);
+    assert(sem_post(&io_data->send->recv_wait) == 0);
+
     pthread_mutex_unlock(&io_data->send->lock);
     pthread_mutex_unlock(&io_data->lock);
     return 0;
@@ -189,18 +200,21 @@ int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_mess
 int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointer){
     if(io->io_data == NULL) return 1;
     struct drpc_dqueue_io* io_data = io->io_data;
-    struct timespec start,end;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    while(io_data->recv != NULL && d_queue_pop(io_data->recv,output_pointer,d_struct) != 0){
-        pthread_mutex_lock(&io_data->lock);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-        if((end.tv_sec - start.tv_sec) > DRPC_IO_TIMEOUT) {
-            pthread_mutex_unlock(&io_data->lock);
-            return 1;
-        } // client or server frooze somehow ))))
-        pthread_mutex_unlock(&io_data->lock);
+    struct timespec timeout;;
+
+    clock_gettime(CLOCK_REALTIME, &timeout);
+
+    timeout.tv_sec += DRPC_IO_TIMEOUT;
+
+    pthread_mutex_lock(&io_data->wait_lock); //close in middle of semaphore wait will break everything
+    int ret = 1;
+    if(io_data->recv != NULL){
+        if(sem_timedwait(&io_data->recv_wait,&timeout) == 0)
+            if(d_queue_pop(io_data->recv,output_pointer,d_struct) == 0)
+                ret = 0;
     }
-    return 0;
+    pthread_mutex_unlock(&io_data->wait_lock);
+    return ret;
 }
 #endif
 

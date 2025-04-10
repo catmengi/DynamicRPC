@@ -1260,8 +1260,16 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
     struct drpc_dqueue_io* client_io_data = client->io->io_data;
     struct drpc_dqueue_io* server_io_data = server_client->io->io_data;
     assert(pthread_mutex_init(&client_io_data->lock,NULL) == 0);
+    assert(pthread_mutex_init(&client_io_data->wait_lock,NULL) == 0);
+
+    assert(pthread_mutex_init(&server_io_data->lock,NULL) == 0);
+    assert(pthread_mutex_init(&server_io_data->wait_lock,NULL) == 0);
+
     client_io_data->recv = new_d_queue();
     server_io_data->recv = new_d_queue();
+    assert(sem_init(&client_io_data->recv_wait,0,0) == 0);
+    assert(sem_init(&server_io_data->recv_wait,0,0) == 0);
+
 
     client_io_data->send = server_io_data;
     server_io_data->send = client_io_data;

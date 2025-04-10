@@ -68,8 +68,12 @@ struct drpc_message{
 };
 
 #ifdef DRPC_DQUEUE_IO_SUPPORT
+#include <semaphore.h>
 struct drpc_dqueue_io{
-    pthread_mutex_t lock;
+    pthread_mutex_t lock; //used to block editing
+    pthread_mutex_t wait_lock; //used to not free while in middle of semaphore timeout
+    sem_t recv_wait; //used to not loop while no messages
+
     struct d_queue* recv;
     struct drpc_dqueue_io* send;
 };
