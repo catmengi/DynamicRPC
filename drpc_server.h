@@ -195,6 +195,5 @@ void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_na
 void drpc_server_set_proxy_fail_cb(struct drpc_server* server, drpc_proxy_fail_handler fail_handler); //set proxy client fail callback. Which should return: 0 - success reconnect, NOT 0 - error
 #endif
 
-#include <stdarg.h>
 void drpc_server_set_logger_fn(struct drpc_server* server, drpc_server_logger logger, void* logger_userdata); //sets drpc server logging function
 
