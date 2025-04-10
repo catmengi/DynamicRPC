@@ -421,7 +421,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 continue;
             }
             if(arguments[j].type == d_uint64){
-                ffi_arguments[k] = calloc(1,sizeof(uint32_t*));
+                ffi_arguments[k] = calloc(1,sizeof(uint64_t*));
                 assert(ffi_arguments[k]);
                 *(uint64_t*)ffi_arguments[k] = drpc_to_uint64(&arguments[j]);
                 j++;k++;
