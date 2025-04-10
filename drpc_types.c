@@ -105,16 +105,16 @@ int8_t drpc_to_int8(struct drpc_type* type){
 uint8_t drpc_to_uint8(struct drpc_type* type){
     drpc_deconvert(type,uint8_t);
 }
-int8_t drpc_to_int16(struct drpc_type* type){
+int16_t drpc_to_int16(struct drpc_type* type){
     drpc_deconvert(type,int16_t);
 }
-uint64_t drpc_to_uint16(struct drpc_type* type){
+uint16_t drpc_to_uint16(struct drpc_type* type){
     drpc_deconvert(type,uint16_t);
 }
-int64_t drpc_to_int32(struct drpc_type* type){
+int32_t drpc_to_int32(struct drpc_type* type){
     drpc_deconvert(type,int32_t);
 }
-uint64_t drpc_to_uint32(struct drpc_type* type){
+uint32_t drpc_to_uint32(struct drpc_type* type){
     drpc_deconvert(type,uint32_t);
 }
 int64_t drpc_to_int64(struct drpc_type* type){

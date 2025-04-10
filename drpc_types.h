@@ -82,10 +82,10 @@ void d_queue_to_drpc(struct drpc_type* type, void* dqueue);
 
 int8_t drpc_to_int8(struct drpc_type* type);
 uint8_t drpc_to_uint8(struct drpc_type* type);
-int8_t drpc_to_int16(struct drpc_type* type);
-uint64_t drpc_to_uint16(struct drpc_type* type);
-int64_t drpc_to_int32(struct drpc_type* type);
-uint64_t drpc_to_uint32(struct drpc_type* type);
+int16_t drpc_to_int16(struct drpc_type* type);
+uint16_t drpc_to_uint16(struct drpc_type* type);
+int32_t drpc_to_int32(struct drpc_type* type);
+uint32_t drpc_to_uint32(struct drpc_type* type);
 int64_t drpc_to_int64(struct drpc_type* type);
 uint64_t drpc_to_uint64(struct drpc_type* type);
 float drpc_to_float(struct drpc_type* type);

@@ -372,78 +372,78 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 continue;
             }
             if(arguments[j].type == d_int8){
-                ffi_arguments[k] = calloc(1,sizeof(int8_t*));
+                ffi_arguments[k] = calloc(1,sizeof(int8_t));
                 assert(ffi_arguments[k]);
                 *(int8_t*)ffi_arguments[k] = drpc_to_int8(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_uint8){
-                ffi_arguments[k] = calloc(1,sizeof(uint8_t*));
+                ffi_arguments[k] = calloc(1,sizeof(uint8_t));
                 assert(ffi_arguments[k]);
                 *(uint8_t*)ffi_arguments[k] = drpc_to_uint8(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_int16){
-                ffi_arguments[k] = calloc(1,sizeof(int16_t*));
+                ffi_arguments[k] = calloc(1,sizeof(int16_t));
                 assert(ffi_arguments[k]);
                 *(int16_t*)ffi_arguments[k] = drpc_to_int16(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_uint16){
-                ffi_arguments[k] = calloc(1,sizeof(uint16_t*));
+                ffi_arguments[k] = calloc(1,sizeof(uint16_t));
                 assert(ffi_arguments[k]);
                 *(uint16_t*)ffi_arguments[k] = drpc_to_uint16(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_int32){
-                ffi_arguments[k] = calloc(1,sizeof(int32_t*));
+                ffi_arguments[k] = calloc(1,sizeof(int32_t));
                 assert(ffi_arguments[k]);
                 *(int32_t*)ffi_arguments[k] = drpc_to_int32(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_uint32){
-                ffi_arguments[k] = calloc(1,sizeof(uint32_t*));
+                ffi_arguments[k] = calloc(1,sizeof(uint32_t));
                 assert(ffi_arguments[k]);
                 *(uint32_t*)ffi_arguments[k] = drpc_to_uint32(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_int64){
-                ffi_arguments[k] = calloc(1,sizeof(int64_t*));
+                ffi_arguments[k] = calloc(1,sizeof(int64_t));
                 assert(ffi_arguments[k]);
-                *(int64_t*)ffi_arguments[k] = drpc_to_int64(&arguments[j]);
+                (*(int64_t*)ffi_arguments[k]) = drpc_to_int64(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_uint64){
-                ffi_arguments[k] = calloc(1,sizeof(uint64_t*));
+                ffi_arguments[k] = calloc(1,sizeof(uint64_t));
                 assert(ffi_arguments[k]);
-                *(uint64_t*)ffi_arguments[k] = drpc_to_uint64(&arguments[j]);
+                (*(uint64_t*)ffi_arguments[k]) = drpc_to_uint64(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_float){
-                ffi_arguments[k] = calloc(1,sizeof(float*));
+                ffi_arguments[k] = calloc(1,sizeof(float));
                 assert(ffi_arguments[k]);
                 *(float*)ffi_arguments[k] = drpc_to_float(&arguments[j]);
                 j++;k++;
                 continue;
             }
             if(arguments[j].type == d_double){
-                ffi_arguments[k] = calloc(1,sizeof(double*));
+                ffi_arguments[k] = calloc(1,sizeof(double));
                 assert(ffi_arguments[k]);
-                *(double*)ffi_arguments[k] = drpc_to_double(&arguments[j]);
+                (*(double*)ffi_arguments[k]) = drpc_to_double(&arguments[j]);
                 j++;k++;
                 continue;
             }
             /*//////////////////////////////////////////////////*/
     }
-    return ffi_arguments;
+    return (void**)ffi_arguments;
 }
 
 int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_connection* client_info, struct drpc_return* returned){

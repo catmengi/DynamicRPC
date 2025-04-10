@@ -76,6 +76,7 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
+    enum drpc_types int_check[] = {d_int8, d_int16, d_int32};
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
     // struct d_queue* delayed_check = new_d_queue();
@@ -146,6 +147,9 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     d_array_free(darray);
     d_struct_free(check1);
     d_queue_free(check2);
+
+    drpc_client_call(client,"int_check",int_check,sizeof(int_check) / sizeof(int_check[0]),NULL,123,5555,1234567);
+
 }
 
 void mailbox_test(struct drpc_server* server, struct drpc_client* client){
@@ -170,18 +174,25 @@ void mailbox_test(struct drpc_server* server, struct drpc_client* client){
     printf("len %lu\n",d_queue_len(len));
 }
 
+void int_checkF(int8_t a, int16_t b, int32_t c){
+    printf("%d %d %d\n",a,b,c);
+}
+
 int main(void){
     struct drpc_server* server = new_drpc_server(2077);
 
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
+    enum drpc_types int_check[] = {d_int8, d_int16, d_int32};
 
     drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
 
     drpc_server_register_fn(server,"dqueue_check",d_queue_check,d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),(void*)0x12F,0);
 
     drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),(void*)"abcdefg",0);
+
+    drpc_server_register_fn(server,"int_check",int_checkF,d_void,int_check,sizeof(int_check) / sizeof(int_check[0]),NULL,0);
 
     drpc_server_add_user(server,"check_user","i have absurdly long password to check that this will surly work as expected!",1);
 
