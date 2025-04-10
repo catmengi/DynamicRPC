@@ -921,9 +921,12 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     free(params);
 
     hashtable_remove(client->drpc_server->client_threads,client->clientid);
-    free(client->username);
     pthread_detach(*self); //i know we are joining this threads in drpc_server_free, but this is here because thread CAN exit before server stop because of client's reasons (bad call or discon)
     free(self);
+
+    if(client->drpc_server->connection_event_cb != NULL)
+        client->drpc_server->connection_event_cb(client,drpc_disconnected);
+    free(client->username);
 }
 
 #ifdef DRPC_TCP_SUPPORT
@@ -1002,8 +1005,6 @@ void* drpc_server_client_auth(void* drpc_connection_P){
        printf("%s: client '%s' authenticated succesfully\n",__PRETTY_FUNCTION__,client->username);
    }
    drpc_handle_client(client,perm);
-   if(client->drpc_server->connection_event_cb != NULL)
-       client->drpc_server->connection_event_cb(client,drpc_disconnected);
 exit:
    client->io->close(client->io);
    client->io->free(client->io);
