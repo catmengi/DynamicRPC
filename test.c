@@ -213,7 +213,7 @@ int main(void){
     drpc_server_register_proxy_fn(s2,dqueue_client,"darray_check",d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),0);
     drpc_server_register_proxy_fn(s2,dqueue_client,"dqueue_check",d_queue,dqueue_check,sizeof(dqueue_check) / sizeof(dqueue_check[0]),0);
     drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),0);
-    drpc_server_register_proxy_fn(s2,dqueue_client,"dstruct_check",d_void,int_check,sizeof(int_check) / sizeof(int_check[0]),0);
+    drpc_server_register_proxy_fn(s2,dqueue_client,"int_check",d_void,int_check,sizeof(int_check) / sizeof(int_check[0]),0);
 
     new_drpc_recv_mailbox(server,"mailbox_123");
     new_drpc_send_mailbox(server,"send_mailbox_123");
