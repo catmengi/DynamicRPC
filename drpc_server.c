@@ -1155,7 +1155,7 @@ void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_na
     drpc_client_disconnect(client);
 }
 void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name){
-    struct drpc_client* client = hashtable_get(server->proxy_recv_mailboxes,mailbox_name);
+    struct drpc_client* client = hashtable_get(server->proxy_send_mailboxes,mailbox_name);
 
     char ptr[sizeof(void*) * 2];
     sprintf(ptr,"%p",client);
