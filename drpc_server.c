@@ -1142,11 +1142,28 @@ void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name,
 
 void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name){
     struct drpc_client* client = hashtable_get(server->proxy_recv_mailboxes,mailbox_name);
+
+    char ptr[sizeof(void*) * 2];
+    sprintf(ptr,"%p",client);
+
+    void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
+    if(was_freed != NULL) return;
+
+    hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
+
     hashtable_remove(server->proxy_recv_mailboxes,mailbox_name);
     drpc_client_disconnect(client);
 }
 void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name){
-    struct drpc_client* client = hashtable_get(server->proxy_send_mailboxes,mailbox_name);
+    struct drpc_client* client = hashtable_get(server->proxy_recv_mailboxes,mailbox_name);
+
+    char ptr[sizeof(void*) * 2];
+    sprintf(ptr,"%p",client);
+
+    void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
+    if(was_freed != NULL) return;
+
+    hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
     hashtable_remove(server->proxy_send_mailboxes,mailbox_name);
     drpc_client_disconnect(client);
 }
