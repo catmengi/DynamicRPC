@@ -992,7 +992,7 @@ void* drpc_server_client_auth(void* drpc_connection_P){
 
        if(drpc_send_message(client->io,&send) != 0) goto exit;
 
-       client->io->aes128_key = calloc(sizeof(xor_base),1); assert(client->io->aes128_key);
+       client->io->aes128_key = calloc(1,sizeof(xor_base)); assert(client->io->aes128_key);
        for(int i = 0; i < sizeof(xor_base); i++){
            client->io->aes128_key[i] = xor_base[i] ^ user->aes128_passwd[i];
        }
