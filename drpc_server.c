@@ -889,6 +889,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
 
     pthread_t executor_thread;
     assert(pthread_create(&executor_thread,NULL,drpc_client_executor,params) == 0);
+    if(client->username == NULL) client->username = strdup(client->clientid);
     /*==================================================*/
 
     if(client->drpc_server->connection_event_cb != NULL)
@@ -920,6 +921,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     free(params);
 
     hashtable_remove(client->drpc_server->client_threads,client->clientid);
+    free(client->username);
     pthread_detach(*self); //i know we are joining this threads in drpc_server_free, but this is here because thread CAN exit before server stop because of client's reasons (bad call or discon)
     free(self);
 }
@@ -1005,7 +1007,6 @@ void* drpc_server_client_auth(void* drpc_connection_P){
 exit:
    client->io->close(client->io);
    client->io->free(client->io);
-   free(client->username);
    free(client);
    return NULL;
 }
