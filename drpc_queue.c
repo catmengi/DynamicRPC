@@ -241,7 +241,8 @@ void d_queue_free(struct d_queue* dqueue){
 }
 char* d_queue_buf(struct d_queue* dqueue,size_t* buflen){
     size_t dqueue_len = d_queue_len(dqueue);
-    struct drpc_type* packed_types = calloc(dqueue_len,sizeof(*packed_types)); assert(packed_types);
+    size_t alloc_len = (dqueue_len == 0 ? 1 : dqueue_len);
+    struct drpc_type* packed_types = calloc(alloc_len,sizeof(*packed_types)); assert(packed_types);
     for(size_t i = 0; i < dqueue_len; i++){
         struct d_struct_element* element = queue_pop(dqueue->que);
         if(element == NULL){
