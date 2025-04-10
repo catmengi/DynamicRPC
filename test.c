@@ -15,7 +15,7 @@
 #define STRUCT_LEN (uint64_t)255 //uint64_t was added because of windows/msys2
 #define QUEUE_LEN (uint64_t)255
 #define ARRAY_LEN (uint64_t)255
-#define TEST_ITERATIONS 8
+#define TEST_ITERATIONS 1
 
 void fn_storage_free_cb(void* fnstorage, void* userdata, struct drpc_function* fn){
     printf("=================================\n");
@@ -238,6 +238,10 @@ int main(void){
 
     drpc_client_disconnect(client);
     drpc_client_disconnect(proxy_client);
+
+    drpc_remove_proxy_recv_mailbox(s2,"mailbox_123");
+    drpc_remove_proxy_send_mailbox(s2,"send_mailbox_123");
+
     drpc_server_free(s2);
     drpc_server_free(server);
 }

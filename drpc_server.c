@@ -1140,16 +1140,21 @@ void new_drpc_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name,
     hashtable_set(server->proxy_send_mailboxes,mailbox_name,client);
 }
 
+static inline int check_is_removed(void* p, hashtable* ht){
+    if(p == NULL) return 1;
+
+    char ptr[sizeof(void*) * 2];
+    sprintf(ptr,"%p",p);
+    void* was_freed = hashtable_get(ht,ptr);
+    if(was_freed != NULL) return 1;
+    hashtable_set(ht,strdup(ptr),(void*)0xDEAD);
+    return 0;
+}
+
 void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_name){
     struct drpc_client* client = hashtable_get(server->proxy_recv_mailboxes,mailbox_name);
 
-    char ptr[sizeof(void*) * 2];
-    sprintf(ptr,"%p",client);
-
-    void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
-    if(was_freed != NULL) return;
-
-    hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
+    if(check_is_removed(client,server->proxy_free_sync_ht) != 0) return;
 
     hashtable_remove(server->proxy_recv_mailboxes,mailbox_name);
     drpc_client_disconnect(client);
@@ -1157,13 +1162,8 @@ void drpc_remove_proxy_recv_mailbox(struct drpc_server* server, char* mailbox_na
 void drpc_remove_proxy_send_mailbox(struct drpc_server* server, char* mailbox_name){
     struct drpc_client* client = hashtable_get(server->proxy_send_mailboxes,mailbox_name);
 
-    char ptr[sizeof(void*) * 2];
-    sprintf(ptr,"%p",client);
+    if(check_is_removed(client,server->proxy_free_sync_ht) != 0) return;
 
-    void* was_freed = hashtable_get(server->proxy_free_sync_ht,ptr);
-    if(was_freed != NULL) return;
-
-    hashtable_set(server->proxy_free_sync_ht,strdup(ptr),(void*)0xDEAD);
     hashtable_remove(server->proxy_send_mailboxes,mailbox_name);
     drpc_client_disconnect(client);
 }
@@ -1290,10 +1290,8 @@ struct drpc_client* drpc_new_dqueue_client(struct drpc_server* server, int clien
 
     struct drpc_dqueue_io* client_io_data = client->io->io_data;
     struct drpc_dqueue_io* server_io_data = server_client->io->io_data;
-    assert(pthread_mutex_init(&client_io_data->lock,NULL) == 0);
     assert(pthread_mutex_init(&client_io_data->wait_lock,NULL) == 0);
 
-    assert(pthread_mutex_init(&server_io_data->lock,NULL) == 0);
     assert(pthread_mutex_init(&server_io_data->wait_lock,NULL) == 0);
 
     client_io_data->recv = new_d_queue();

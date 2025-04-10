@@ -150,28 +150,23 @@ int drpc_recv_message(struct drpc_io* io,struct drpc_message* msg){
 
 #ifdef DRPC_DQUEUE_IO_SUPPORT
 void drpc_dqueue_close(struct drpc_io* io){
+    if(io == NULL) return;
     if(io->io_data == NULL) return;
     struct drpc_dqueue_io* io_data = io->io_data;
-    struct drpc_dqueue_io* receiver_io_data = io_data->send;
-    pthread_mutex_lock(&io_data->lock);
     pthread_mutex_lock(&io_data->wait_lock);
-    if(receiver_io_data != NULL){
-        io_data->send = NULL;
-        pthread_mutex_lock(&receiver_io_data->lock);
-        pthread_mutex_lock(&receiver_io_data->wait_lock);
-        receiver_io_data->send = NULL;
-        pthread_mutex_unlock(&receiver_io_data->lock);
-        pthread_mutex_unlock(&receiver_io_data->wait_lock);
-    }
+
     sem_destroy(&io_data->recv_wait);
     d_queue_free(io_data->recv);
-    io_data->recv = NULL;
 
-    pthread_mutex_unlock(&io_data->lock);
+    if(io_data->send != NULL)
+        io_data->send->send = NULL;
+
+    io_data->recv = NULL;
+    io_data->send = NULL;
+
     pthread_mutex_unlock(&io_data->wait_lock);
 }
 void drpc_dqueue_free(struct drpc_io* io){
-    struct drpc_dqueue_io* io_data = io->io_data;
     free(io->io_data);
     free(io);
 }
@@ -186,14 +181,8 @@ int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_mess
         d_struct_free(prepacked_message);
         return 1;
     }
-    pthread_mutex_lock(&io_data->lock);
-    pthread_mutex_lock(&io_data->send->lock);
-
     d_queue_push(io_data->send->recv,prepacked_message,d_struct);
     assert(sem_post(&io_data->send->recv_wait) == 0);
-
-    pthread_mutex_unlock(&io_data->send->lock);
-    pthread_mutex_unlock(&io_data->lock);
     return 0;
 }
 int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointer){
