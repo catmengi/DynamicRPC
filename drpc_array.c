@@ -322,7 +322,7 @@ char* d_array_buf(struct d_array* darray, size_t* buflen){
 
         char key[64];
         char* keyp;
-        sprintf(key,"%lu",i);
+        sprintf(key,"%zu",i);
         keyp = strdup(key);
 
         hashtable_set(packed->hashtable,keyp,darray->lookup_table[i]);   //low level hashtable manipulations to set to already existing elements, because they are in the same format!
