@@ -38,7 +38,6 @@ int hashtable_strcmp_wrap(char* s1, char* s2){
 	if(s1 == (char*)0xDEAD|| s2 == (char*)0xDEAD) return 1;
 	return strcmp(s1,s2);
 }
-
 unsigned int hashtable_find_slot(hashtable* t, char* key)
 {
 	int index = hashtable_hash(key) % t->capacity;
@@ -114,9 +113,13 @@ void hashtable_remove(hashtable* t, char* key)
 hashtable* hashtable_create()
 {
 	hashtable* new_ht = malloc(sizeof(hashtable));
+	assert(new_ht);
+
 	new_ht->size = 0;
 	new_ht->capacity = HASHTABLE_INITIAL_CAPACITY;
 	new_ht->body = hashtable_body_allocate(new_ht->capacity);
+	assert(new_ht->body);
+
 	pthread_mutex_init(&new_ht->lock,NULL);
 	return new_ht;
 }
@@ -139,6 +142,7 @@ void hashtable_resize(hashtable* t, unsigned int capacity)
 	unsigned int old_capacity = t->capacity;
 	hashtable_entry* old_body = t->body;
 	t->body = hashtable_body_allocate(capacity);
+	assert(t->body);
 	t->capacity = capacity;
 
 	// Copy all the old values into the newly allocated body
