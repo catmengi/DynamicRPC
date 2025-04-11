@@ -4,6 +4,7 @@
 
 struct d_queue{
     struct queue* que;
+    enum drpc_types last_element_type; //i cannot access to queue raw without changing its order(((
 };
 
 struct d_queue* new_d_queue();
@@ -32,8 +33,15 @@ int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,
 
                                                     // RETURN: 0 on success
 //======================================================================================================================================================================================
+
+//======================================================================================================================================================================================
+int d_queue_pop_with_type(struct d_queue* dqueue, void* native_type, enum drpc_types* out_type,...);
+                                                    //same as d_queue_pop but does not require type. Instead it outputs elements type in out_type
+//======================================================================================================================================================================================
+
+
 size_t d_queue_len(struct d_queue* dqueue);                       //return d_queue len
-enum drpc_types d_queue_get_type(struct d_queue* dqueue);         //return type of d_queue top element
+// enum drpc_types d_queue_get_type(struct d_queue* dqueue);      I dont know how to make this with current queue implementaton
 void d_queue_free(struct d_queue* dqueue);                        //free d_queue and all it's data
 
 

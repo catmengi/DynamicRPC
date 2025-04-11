@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <semaphore.h>
 
 
 
@@ -46,6 +47,10 @@ struct drpc_type{
     char type;
     size_t len;
     char* packed_data;
+};
+struct drpc_types_buf_threaded_output{
+    char* buf;
+    size_t buflen;
 };
 
 #include "drpc_struct.h"
@@ -99,7 +104,6 @@ struct d_array* drpc_to_d_array(struct drpc_type* type);
 struct d_struct* drpc_to_d_struct(struct drpc_type* type);
 struct d_queue* drpc_to_d_queue(struct drpc_type* type);
 
-size_t drpc_buflen(struct drpc_type* type);
 size_t drpc_buf(struct drpc_type* type, char* buf);
 
 size_t buf_drpc(struct drpc_type* type, char* buf);
@@ -107,6 +111,9 @@ size_t buf_drpc(struct drpc_type* type, char* buf);
 size_t drpc_types_buflen(struct drpc_type* types, size_t len);
 
 void drpc_types_buf(struct drpc_type* types,size_t len,char* buf);
+
+struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct drpc_type* types,sem_t* wait,size_t len);
+
 struct drpc_type* buf_drpc_types(char* buf, size_t *len);
 
 void drpc_types_free(struct drpc_type* types, size_t len);

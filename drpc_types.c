@@ -2,18 +2,18 @@
 #include "drpc_struct.h"
 #include "drpc_queue.h"
 #include "drpc_array.h"
+#include "queue.h"
 
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#include <stdio.h>
+#include <semaphore.h>
 
 #define drpc_convert(type,native) type->packed_data = malloc(sizeof(native)); assert(type->packed_data); type->len = sizeof(native); memcpy(type->packed_data,&native, sizeof(native));
 #define drpc_deconvert(type,native_type) native_type ret = 0; memcpy(&ret,type->packed_data,sizeof(ret)); return ret;
 
-size_t drpc_type_buflen(struct drpc_type* type){
+inline size_t drpc_type_buflen(struct drpc_type* type){
     return 1 + sizeof(uint64_t) + type->len;
 }
 
@@ -163,14 +163,7 @@ struct d_queue* drpc_to_d_queue(struct drpc_type* type){
     return ret;
 }
 
-
-size_t drpc_buflen(struct drpc_type* type){
-    size_t len = 1 + sizeof(uint64_t) + type->len;
-
-    return len;
-}
-
-size_t drpc_buf(struct drpc_type* type, char* buf){
+inline size_t drpc_buf(struct drpc_type* type, char* buf){
     *buf = type->type; buf++;
 
     uint64_t len64 = type->len;
@@ -199,7 +192,7 @@ exit:
 size_t drpc_types_buflen(struct drpc_type* types, size_t len){
     size_t ret = sizeof(uint64_t);
     for(size_t i = 0; i < len; i++){
-        ret += drpc_buflen(&types[i]);
+        ret += drpc_type_buflen(&types[i]);
     }
     return ret;
 }
@@ -212,6 +205,22 @@ void drpc_types_buf(struct drpc_type* types,size_t len,char* buf){
         buf += drpc_buf(&types[i],buf);
     }
 }
+
+struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct drpc_type* types,sem_t* wait,size_t len){
+    size_t buflen = sizeof(uint64_t);
+
+    for(size_t i = 0; i < len; i++){
+        sem_wait(wait);
+        buflen += drpc_type_buflen(&types[i]);
+    }
+    char* buf = malloc(buflen); assert(buf);
+    drpc_types_buf(types,len,buf);
+    struct drpc_types_buf_threaded_output* out = malloc(sizeof(*out)); assert(out);
+    out->buf = buf;
+    out->buflen = buflen;
+    return out;
+}
+
 struct drpc_type* buf_drpc_types(char* buf, size_t *len){
     uint64_t len64 = 0;
     memcpy(&len64,buf,sizeof(uint64_t)); buf += sizeof(uint64_t);

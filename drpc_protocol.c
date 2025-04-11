@@ -76,7 +76,7 @@ struct d_struct* drpc_return_to_message(struct drpc_return* drpc_return){
     d_struct_set(message,"updated_arguments",arguments_buf,d_sizedbuf,arguments_buflen);
     free(arguments_buf);
 
-    size_t returned_buflen = drpc_buflen(&drpc_return->returned);
+    size_t returned_buflen = drpc_type_buflen(&drpc_return->returned);
     char* returned_buf = malloc(returned_buflen);
     drpc_buf(&drpc_return->returned,returned_buf);
 

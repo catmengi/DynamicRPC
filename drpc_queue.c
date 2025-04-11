@@ -200,6 +200,80 @@ int d_queue_pop(struct d_queue* dqueue, void* native_type, enum drpc_types type,
     free(element);
     return 0;
 }
+
+int d_queue_pop_with_type(struct d_queue* dqueue, void* native_type, enum drpc_types* out_type,...){
+    assert(native_type);
+    if(dqueue == NULL) return 1;
+    struct d_struct_element* element = queue_pop(dqueue->que);
+    if(element == NULL) return 1;
+    enum drpc_types type = element->type;
+    switch(type){
+        default:
+            *(void**)native_type = element->data;
+            if(type == d_sizedbuf){
+                va_list varargs;
+                va_start(varargs,out_type);
+                size_t* sizedbuf_len = va_arg(varargs,size_t*);
+                *sizedbuf_len = element->sizedbuf_len;
+            }
+            break;
+        case d_int8:
+            *(int8_t*)native_type = drpc_to_int8(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_uint8:
+            *(uint8_t*)native_type = drpc_to_uint8(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_int16:
+            *(int16_t*)native_type = drpc_to_int16(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_uint16:
+            *(uint16_t*)native_type = drpc_to_uint16(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_int32:
+            *(int32_t*)native_type = drpc_to_int32(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_uint32:
+            *(uint32_t*)native_type = drpc_to_uint32(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_int64:
+            *(int64_t*)native_type = drpc_to_int64(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_uint64:
+            *(uint64_t*)native_type = drpc_to_uint64(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_float:
+            *(float*)native_type = drpc_to_float(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+        case d_double:
+            *(double*)native_type = drpc_to_double(element->data);
+            drpc_type_free(element->data);
+            free(element->data);
+            break;
+    }
+    if(out_type != NULL)
+        *out_type = type;
+    free(element);
+    return 0;
+}
+
 void d_queue_free_internals(struct d_queue* dqueue){
     if(dqueue == NULL) return;
     if(dqueue->que == NULL) return;
@@ -364,12 +438,4 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
 size_t d_queue_len(struct d_queue* dqueue){
     size_t len = queue_get_len(dqueue->que);
     return len;
-}
-enum drpc_types d_queue_get_type(struct d_queue* dqueue){
-    if(dqueue == NULL) return d_void;
-    if(dqueue->que->cur == NULL) return d_void;
-
-
-    enum drpc_types ret = ((struct d_struct_element*)dqueue->que->cur->ptr)->type;
-    return ret;
 }
