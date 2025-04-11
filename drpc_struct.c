@@ -7,7 +7,6 @@
 #include "hashtable.c/hashtable.h"
 
 #include <assert.h>
-#include <bits/time.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdarg.h>
