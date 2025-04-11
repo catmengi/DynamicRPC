@@ -14,7 +14,7 @@ void queue_push(struct queue* drpcq, void* el){
     assert(lfqueue_enq(&drpcq->lqueue,el) == 0);
 }
 void* queue_pop(struct queue* drpcq){
-    return lfqueue_deq(&drpcq->lqueue);
+    return lfqueue_single_deq(&drpcq->lqueue);
 }
 void queue_free(struct queue* drpcq){
     lfqueue_destroy(&drpcq->lqueue);

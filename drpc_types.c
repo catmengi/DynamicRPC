@@ -205,7 +205,6 @@ void drpc_types_buf(struct drpc_type* types,size_t len,char* buf){
         buf += drpc_buf(&types[i],buf);
     }
 }
-
 struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct drpc_type* types,sem_t* wait,size_t len){
     size_t buflen = sizeof(uint64_t);
 

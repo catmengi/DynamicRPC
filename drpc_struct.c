@@ -9,9 +9,9 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdarg.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 struct d_struct* new_d_struct(){
     struct d_struct* d_struct = malloc(sizeof(*d_struct)); assert(d_struct);
@@ -280,7 +280,7 @@ struct __d_struct_preser_thrd_input{
 struct __d_struct_thrd_serialise_param{
     struct d_struct* dstruct;
     struct drpc_type* output_type;
-    struct __d_struct_preser_thrd_input* input;
+    char** keys;
 
     sem_t pre_serialise_wait;
     sem_t final_serialise_wait;
@@ -288,16 +288,11 @@ struct __d_struct_thrd_serialise_param{
 
 static void* d_struct_thrd_data_gather(void* param_P){
     struct __d_struct_thrd_serialise_param* param = param_P;
-
     size_t j = 0;
-    size_t remaining = param->dstruct->current_len;
     for(size_t i = 0; i < param->dstruct->hashtable->capacity; i++){
         if(param->dstruct->hashtable->body[i].value != NULL && param->dstruct->hashtable->body[i].key != NULL && param->dstruct->hashtable->body[i].key != (char*)0xDEAD){
 
-            param->input[j].key = param->dstruct->hashtable->body[i].key;
-            param->input[j].el = param->dstruct->hashtable->body[i].value;
-            j++;
-
+            param->keys[j] = param->dstruct->hashtable->body[i].key; j++;
             sem_post(&param->pre_serialise_wait);
         }
     }
@@ -309,9 +304,8 @@ static void* d_struct_thrd_preserialise(void* param_P){
 
     for(size_t i = 0; i < param->dstruct->current_len; i++){
         assert(sem_wait(&param->pre_serialise_wait) == 0);
-
-        struct d_struct_element* element = param->input[i].el;
-        char* key = param->input[i].key;
+        char* key = param->keys[i];
+        struct d_struct_element* element = hashtable_get(param->dstruct->hashtable,key);
 
         enum drpc_types type = element->type;
         struct drpc_type* packed_type = NULL;
@@ -364,16 +358,15 @@ static void* d_struct_thrd_finalserialise(void* param_P){
 
     return drpc_types_buf_threaded(param->output_type,&param->final_serialise_wait,param->dstruct->current_len);
 }
-#include <stdio.h>
 
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
-    struct __d_struct_thrd_serialise_param param = {
-        .dstruct = dstruct,
-        .output_type = calloc(dstruct->current_len,sizeof(*param.output_type)),
-        .input = calloc(dstruct->current_len,sizeof(*param.input)),
-    };
-    assert(param.input);
+    struct __d_struct_thrd_serialise_param param;
+    param.dstruct = dstruct;
+    size_t alloc_len = (dstruct->current_len == 0 ? 1 : dstruct->current_len); //ESP-IDF fix
+    param.output_type = malloc(alloc_len * sizeof(*param.output_type));
+    param.keys = malloc(alloc_len * sizeof(char*));
     assert(param.output_type);
+    assert(param.keys);
 
     sem_init(&param.pre_serialise_wait,0,0);
     sem_init(&param.final_serialise_wait,0,0);
@@ -397,7 +390,7 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     sem_destroy(&param.final_serialise_wait);
 
     drpc_types_free(param.output_type,dstruct->current_len);
-    free(param.input);
+    free(param.keys);
 
     *buflen = output->buflen;
     char* buf = output->buf;

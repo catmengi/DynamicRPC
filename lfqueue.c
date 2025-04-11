@@ -1,32 +1,32 @@
 /*
-*
-* BSD 2-Clause License
-*
-* Copyright (c) 2018, Taymindis Woon
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-* * Redistributions of source code must retain the above copyright notice, this
-*   list of conditions and the following disclaimer.
-*
-* * Redistributions in binary form must reproduce the above copyright notice,
-*   this list of conditions and the following disclaimer in the documentation
-*   and/or other materials provided with the distribution.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+ *
+ * BSD 2-Clause License
+ *
+ * Copyright (c) 2018, Taymindis Woon
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -52,9 +52,9 @@ inline BOOL __SYNC_BOOL_CAS(LONG64 volatile *dest, LONG64 input, LONG64 comparan
 	return InterlockedCompareExchangeNoFence64(dest, input, comparand) == comparand;
 }
 #define __LFQ_VAL_COMPARE_AND_SWAP(dest, comparand, input) \
-    InterlockedCompareExchangeNoFence64((LONG64 volatile *)dest, (LONG64)input, (LONG64)comparand)
+InterlockedCompareExchangeNoFence64((LONG64 volatile *)dest, (LONG64)input, (LONG64)comparand)
 #define __LFQ_BOOL_COMPARE_AND_SWAP(dest, comparand, input) \
-    __SYNC_BOOL_CAS((LONG64 volatile *)dest, (LONG64)input, (LONG64)comparand)
+__SYNC_BOOL_CAS((LONG64 volatile *)dest, (LONG64)input, (LONG64)comparand)
 #define __LFQ_FETCH_AND_ADD InterlockedExchangeAddNoFence64
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence64
 #define __LFQ_SYNC_MEMORY MemoryBarrier
@@ -67,9 +67,9 @@ inline BOOL __SYNC_BOOL_CAS(LONG volatile *dest, LONG input, LONG comparand) {
 	return InterlockedCompareExchangeNoFence(dest, input, comparand) == comparand;
 }
 #define __LFQ_VAL_COMPARE_AND_SWAP(dest, comparand, input) \
-    InterlockedCompareExchangeNoFence((LONG volatile *)dest, (LONG)input, (LONG)comparand)
+InterlockedCompareExchangeNoFence((LONG volatile *)dest, (LONG)input, (LONG)comparand)
 #define __LFQ_BOOL_COMPARE_AND_SWAP(dest, comparand, input) \
-    __SYNC_BOOL_CAS((LONG volatile *)dest, (LONG)input, (LONG)comparand)
+__SYNC_BOOL_CAS((LONG volatile *)dest, (LONG)input, (LONG)comparand)
 #define __LFQ_FETCH_AND_ADD InterlockedExchangeAddNoFence
 #define __LFQ_ADD_AND_FETCH InterlockedAddNoFence
 #define __LFQ_SYNC_MEMORY() asm mfence
@@ -144,7 +144,7 @@ _dequeue(lfqueue_t *lfqueue) {
 	}
 
 	__lfq_recycle_free(lfqueue, head);
-_done:
+	_done:
 	// __asm volatile("" ::: "memory");
 	__LFQ_SYNC_MEMORY();
 	__lfq_check_free(lfqueue);
@@ -311,7 +311,7 @@ void*
 lfqueue_deq(lfqueue_t *lfqueue) {
 	void *v;
 	if (//__LFQ_ADD_AND_FETCH(&lfqueue->size, 0) &&
-	    (v = _dequeue(lfqueue))
+		(v = _dequeue(lfqueue))
 	) {
 
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
@@ -336,7 +336,7 @@ void*
 lfqueue_single_deq(lfqueue_t *lfqueue) {
 	void *v;
 	if (//__LFQ_ADD_AND_FETCH(&lfqueue->size, 0) &&
-	    (v = _single_dequeue(lfqueue))
+		(v = _single_dequeue(lfqueue))
 	) {
 
 		__LFQ_FETCH_AND_ADD(&lfqueue->size, -1);
@@ -364,14 +364,14 @@ lfqueue_size(lfqueue_t *lfqueue) {
 
 void
 lfqueue_sleep(unsigned int milisec) {
-#if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
+	#if defined __GNUC__ || defined __CYGWIN__ || defined __MINGW32__ || defined __APPLE__
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 	usleep(milisec * 1000);
-#pragma GCC diagnostic pop
-#else
+	#pragma GCC diagnostic pop
+	#else
 	Sleep(milisec);
-#endif
+	#endif
 }
 
 #ifdef __cplusplus
