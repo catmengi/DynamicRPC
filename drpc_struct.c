@@ -272,10 +272,6 @@ enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){
     return ret;
 }
 
-struct __d_struct_preser_thrd_input{
-    char* key;
-    struct d_struct_element* el;
-};
 struct __d_struct_thrd_serialise_param{
     struct d_struct* dstruct;
     char** keys;
@@ -419,7 +415,7 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
         void* type_packed = packed_types[i].packed_data + strlen(key) + 1;
         struct drpc_type* type = NULL;
 
-        struct d_struct_element* element = calloc(1,sizeof(*element)); assert(element);
+        struct d_struct_element* element = malloc(sizeof(*element)); assert(element);
         switch(packed_types[i].type){
             case d_str:
                 type = malloc(sizeof(*type)); assert(type);
@@ -469,12 +465,12 @@ void buf_d_struct(char* buf, struct d_struct* dstruct){
                 buf_drpc(element->data,type_packed);
                 break;
         }
-
         hashtable_set(dstruct->hashtable,key,element);
         dstruct->current_len++;
     }
     drpc_types_free(packed_types,packed_types_len);
 }
+
 char** d_struct_get_fields(struct d_struct* dstruct, size_t* len){
     *len = dstruct->current_len;
     if(*len > 0){
