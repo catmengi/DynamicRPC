@@ -266,7 +266,7 @@ enum drpc_types* drpc_types_extract_prototype(struct drpc_type* drpc_types,size_
 }
 enum drpc_types* drpc_create_client_prototype(enum drpc_types* serv, size_t servlen, size_t* client_len_output){
     if(serv == NULL) return NULL;
-    struct queue* client_prototype_parts = queue_create();
+    queue_t client_prototype_parts = queue_create();
     assert(client_prototype_parts);
     //creating server prototypes without server-only types
     for(size_t i = 0; i < servlen;i++){
@@ -315,7 +315,7 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
 }
 
 
-void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,struct queue* to_repack, struct queue* fill_later){
+void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,queue_t to_repack, queue_t fill_later){
     size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
     void** ffi_arguments = calloc(adjusted_len, sizeof(void*)); assert(ffi_arguments);
 
@@ -466,8 +466,8 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
         free(extracted_prototype);
         return 1;
     }
-    struct queue* to_repack = queue_create(); //this queue will be used for repackable arguments
-    struct queue* to_fill = queue_create();   //this queue will be used for server-only arguments
+    queue_t to_repack = queue_create(); //this queue will be used for repackable arguments
+    queue_t to_fill = queue_create();   //this queue will be used for server-only arguments
 
     size_t ffi_len = 0;
     ffi_arg native_return = 0;
@@ -485,7 +485,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
 
     //filling in server-only arguments
-    size_t to_fill_len = queue_get_len(to_fill);
+    size_t to_fill_len = queue_count(to_fill);
     for(size_t i = 0; i <to_fill_len; i++){
         struct drpc_type_update* to_fill_ = queue_pop(to_fill);
         switch(to_fill_->type){
@@ -509,7 +509,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     drpc_types_free(arguments,arguments_len);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
 
-    size_t repack_len = queue_get_len(to_repack);
+    size_t repack_len = queue_count(to_repack);
 
     if(repack_len > 0){
         returned->updated_arguments = calloc(repack_len,sizeof(*returned->updated_arguments));
@@ -812,7 +812,7 @@ exit:
 struct __drpc_executor_thread_params{
     struct drpc_connection* client;
     int client_perm;
-    struct queue* event_queue;
+    queue_t event_queue;
     sem_t wait; //used to fix issue when infinite loop was able to do this whole drpc_client_executor code WAAAAY ALOWER
 
     int already_disconnected;
@@ -829,7 +829,7 @@ void* drpc_client_executor(void* params_P){
 
     int stop = 0;
     //attempt to process remaining events
-    while(queue_get_len(params->event_queue) > 0 || stop == 0){
+    while(queue_count(params->event_queue) > 0 || stop == 0){
         struct drpc_message* event = queue_pop(params->event_queue);
         struct drpc_message send = {0};
         if(event == NULL){
@@ -901,7 +901,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     *self = pthread_self();
     hashtable_set(client->drpc_server->client_threads,client->clientid,self);
 
-    struct queue* event_queue = queue_create();
+    queue_t event_queue = queue_create();
 
     struct __drpc_executor_thread_params* params = calloc(1,sizeof(*params));
 
@@ -936,7 +936,7 @@ void drpc_handle_client(struct drpc_connection* client, int client_perm){
     pthread_join(executor_thread,NULL);
     sem_destroy(&params->wait); //system wide resourse leak fix
 
-    size_t l = queue_get_len(event_queue);
+    size_t l = queue_count(event_queue);
     for(size_t i = 0; i < l; i++) free(queue_pop(event_queue)); //somehow one in 2/5 test runs drpc_disconnect  event was able to stay in queue
 
 

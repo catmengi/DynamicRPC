@@ -60,15 +60,15 @@ struct d_queue* d_queue_check(struct d_queue* check, uint64_t maxpop,void* pstor
 }
 
 struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
-    // for(uint64_t i = 0; i <max_len; i++){
-    //     assert(d_array_get_type(check,i) == d_uint64 || d_array_get_type(check,i) == d_str);
-    //     if(d_array_get_type(check,i) == d_str){
-    //         char* out = NULL;
-    //         d_array_get(check,i,&out,d_str);
-    //         assert(strcmp(out,"     test") == 0);
-    //     }
-    //     d_array_remove(check,i);
-    // }
+     for(uint64_t i = 0; i <max_len; i++){
+         assert(d_array_get_type(check,i) == d_uint64 || d_array_get_type(check,i) == d_str);
+         if(d_array_get_type(check,i) == d_str){
+             char* out = NULL;
+             d_array_get(check,i,&out,d_str);
+             assert(strcmp(out,"     test") == 0);
+         }
+         d_array_remove(check,i);
+     }
     return check;
 }
 

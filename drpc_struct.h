@@ -8,7 +8,7 @@ struct d_struct{
     hashtable* hashtable;
     size_t current_len;   //ammount of elements in d_struct currently
 
-    struct queue* heap_keys;
+    queue_t heap_keys;
 };
 
 struct d_struct_element{

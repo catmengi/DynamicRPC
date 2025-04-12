@@ -3,7 +3,7 @@
 #include "drpc_types.h"
 
 struct d_queue{
-    struct queue* que;
+    queue_t que;
     enum drpc_types last_element_type; //i cannot access to queue raw without changing its order(((
 };
 

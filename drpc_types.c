@@ -205,8 +205,8 @@ void drpc_types_buf(struct drpc_type* types,size_t len,char* buf){
         buf += drpc_buf(&types[i],buf);
     }
 }
-
-struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct queue* types,sem_t* wait,size_t len){
+#include <stdio.h>
+struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(queue_t types,sem_t* wait,size_t len){
     uint64_t len64 = len;
     size_t buflen = sizeof(uint64_t);
     size_t buf_offset = 0;
@@ -218,7 +218,7 @@ struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct queue* typ
         struct drpc_type* type = queue_pop(types);
         size_t type_len = drpc_type_buflen(type);
         if(buf_offset + type_len > buflen){
-            size_t queue_len = queue_get_len(types);
+            size_t queue_len = queue_count(types);
             buflen += type_len + buf_offset;
             for(size_t i = 0; i < queue_len; i++){
                 struct drpc_type* popped_type = queue_pop(types);

@@ -316,62 +316,36 @@ struct __d_array_thrd_param{
     struct d_array* darray;
     struct d_struct* output;
 
-    struct queue* gathered;
+    queue_t gathered;
     sem_t wait;
+    int done;
 };
-
-void* d_array_data_gather_thrd(void* param_P){
-    struct __d_array_thrd_param* param = param_P;
-
-    for(size_t i = 0; i < param->darray->lookup_size; i++){
-        if(param->darray->lookup_table[i] == NULL) continue;
-        queue_push(param->gathered,(void*)i);
-        sem_post(&param->wait);
-    }
-    return NULL;
-}
-void* d_array_setter_thrd(void* param_P){
-    struct __d_array_thrd_param* param = param_P;
-    for(size_t i = 0; i < queue_get_len(param->gathered); i++){
-        assert(sem_wait(&param->wait) == 0);
-
-        size_t index = (size_t)queue_pop(param->gathered);
-        char* key = malloc(sizeof(size_t) * 2); assert(key);
-        sprintf(key,"%zu",index);
-
-        hashtable_set(param->output->hashtable,key,param->darray->lookup_table[index]);
-        queue_push(param->output->heap_keys,key);
-    }
-    return NULL;
-}
 
 char* d_array_buf(struct d_array* darray, size_t* buflen){
     pthread_mutex_lock(&darray->lock);
-    struct __d_array_thrd_param param = {
-        .darray = darray,
-        .output = new_d_struct(),
-        .gathered = queue_create(),
-    };
-    assert(sem_init(&param.wait,0,0) == 0);
+    struct d_struct* packed = new_d_struct();
 
-    pthread_t data_gather;
-    pthread_t setter;
+    for(size_t i = 0; i < darray->lookup_size; i++){
+        if(darray->lookup_table[i] == NULL) continue;
 
-    assert(pthread_create(&data_gather,NULL,d_array_data_gather_thrd,&param) == 0);
-    assert(pthread_create(&setter,NULL,d_array_setter_thrd,&param) == 0);
+        char key[64];
+        char* keyp;
+        sprintf(key,"%zu",i);
+        keyp = strdup(key);
 
-    assert(pthread_join(data_gather,NULL) == 0);
-    assert(pthread_join(setter,NULL) == 0);
+        hashtable_set(packed->hashtable,keyp,darray->lookup_table[i]);   //low level hashtable manipulations to set to already existing elements, because they are in the same format!
+        packed->current_len++;
+        queue_push(packed->heap_keys,keyp);
+    }
+    char* buf = d_struct_buf(packed,buflen);
 
-    queue_free(param.gathered);
-    char* buf = d_struct_buf(param.output,buflen);
     void* freep = NULL;
-    while((freep = queue_pop(param.output->heap_keys)) != NULL){
+    while((freep = queue_pop(packed->heap_keys)) != NULL){
         free(freep);
     }
-    queue_free(param.output->heap_keys);
-    hashtable_destroy(param.output->hashtable);
-    free(param.output);
+    queue_free(packed->heap_keys);
+    hashtable_destroy(packed->hashtable);
+    free(packed);
     pthread_mutex_unlock(&darray->lock);
     return buf;
 }

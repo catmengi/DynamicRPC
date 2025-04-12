@@ -9,8 +9,11 @@
 #include <assert.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 struct d_struct* new_d_struct(){
     struct d_struct* d_struct = malloc(sizeof(*d_struct)); assert(d_struct);
@@ -275,7 +278,7 @@ enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){
 struct __d_struct_thrd_serialise_param{
     struct d_struct* dstruct;
     char** keys;
-    struct queue* ready_type;
+    queue_t ready_type;
 
     sem_t pre_serialise_wait;
     sem_t final_serialise_wait;
@@ -399,7 +402,6 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     free(output);
     return buf;
 }
-
 void buf_d_struct(char* buf, struct d_struct* dstruct){
     uint64_t empty_header = 0;
     if(memcmp(buf,&empty_header,sizeof(uint64_t)) == 0) return;

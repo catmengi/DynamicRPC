@@ -5,9 +5,7 @@
 #include <stdint.h>
 #include <semaphore.h>
 
-
-
-
+#include "queue.h"
 
 enum drpc_types{
 /*  simple non resendable types  */
@@ -112,7 +110,7 @@ size_t drpc_types_buflen(struct drpc_type* types, size_t len);
 
 void drpc_types_buf(struct drpc_type* types,size_t len,char* buf);
 
-struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct queue* types,sem_t* wait,size_t len);
+struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(queue_t types,sem_t* wait,size_t len);
 
 struct drpc_type* buf_drpc_types(char* buf, size_t *len);
 

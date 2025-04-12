@@ -200,7 +200,7 @@ int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum dr
     if(client->client_stop != 0) return DRPC_CLIENTSTOPPED;
 
     struct drpc_type* arguments = calloc(prototype_len,sizeof(*arguments)); assert(arguments);
-    struct queue* updated_arguments_que = queue_create();
+    queue_t updated_arguments_que = queue_create();
 
     void* arg = NULL;
     struct drpc_type_update* update = NULL;
@@ -347,7 +347,7 @@ int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum dr
     if(ret->returned.type == d_return_is){
         return_is = drpc_to_return_is(&ret->returned);
     }
-    assert(queue_get_len(updated_arguments_que) == ret->updated_arguments_len);
+    assert(queue_count(updated_arguments_que) == ret->updated_arguments_len);
 
     for(uint8_t i = 0 ; i < ret->updated_arguments_len ; i++){
         struct drpc_type_update* to_update = queue_pop(updated_arguments_que);

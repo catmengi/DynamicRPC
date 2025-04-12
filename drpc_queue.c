@@ -277,7 +277,7 @@ int d_queue_pop_with_type(struct d_queue* dqueue, void* native_type, enum drpc_t
 void d_queue_free_internals(struct d_queue* dqueue){
     if(dqueue == NULL) return;
     if(dqueue->que == NULL) return;
-    size_t que_len = queue_get_len(dqueue->que);
+    size_t que_len = queue_count(dqueue->que);
 
     for(size_t i = 0; i < que_len; i++){
         struct d_struct_element* element = queue_pop(dqueue->que);
@@ -436,6 +436,6 @@ void buf_d_queue(char* buf, struct d_queue* dqueue){
 }
 
 size_t d_queue_len(struct d_queue* dqueue){
-    size_t len = queue_get_len(dqueue->que);
+    size_t len = queue_count(dqueue->que);
     return len;
 }
