@@ -292,7 +292,7 @@ static void* d_struct_thrd_data_gather(void* param_P){
         if(param->dstruct->hashtable->body[i].value != NULL && param->dstruct->hashtable->body[i].key != NULL && param->dstruct->hashtable->body[i].key != (char*)0xDEAD){
 
             param->keys[j] = param->dstruct->hashtable->body[i].key; j++;
-            sem_post(&param->pre_serialise_wait);
+            assert(sem_post(&param->pre_serialise_wait) == 0);
         }
     }
     return NULL;

@@ -214,7 +214,7 @@ struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(struct queue* typ
     memcpy(buf,&len64,sizeof(uint64_t)); buf_offset += sizeof(uint64_t);
 
     for(size_t i = 0; i < len; i++){
-        sem_wait(wait);
+        assert(sem_wait(wait) == 0);
         struct drpc_type* type = queue_pop(types);
         size_t type_len = drpc_type_buflen(type);
         if(buf_offset + type_len > buflen){
