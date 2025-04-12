@@ -43,26 +43,9 @@ inline void queue_push_el(struct queue* drpcq, struct queue_el* new){
     drpcq->len++;
 }
 
-inline struct queue_el* queue_push_rp(struct queue* drpcq, void* el){
-    assert(drpcq != NULL || el != NULL);
-    struct queue_el* new = malloc(sizeof(*new));assert(new);
-
-    new->ptr = el;
-    new->next = NULL;
-
-    if(drpcq->ltop) drpcq->ltop->next = new;
-
-    drpcq->ltop = new;
-
-    if(drpcq->cur == NULL) drpcq->cur = drpcq->ltop;
-
-    drpcq->len++;
-    return drpcq->ltop;
-}
-
 struct queue_el* queue_pop_el(struct queue* drpcq){
     assert(drpcq != NULL);
-    if(drpcq->cur == NULL) {pthread_mutex_unlock(&drpcq->lock); return NULL;}
+    if(drpcq->cur == NULL) return NULL;
     struct queue_el* out = drpcq->cur;
 
     if(drpcq->cur == drpcq->ltop) drpcq->ltop = NULL;
@@ -76,7 +59,7 @@ struct queue_el* queue_pop_el(struct queue* drpcq){
 inline void* queue_pop(struct queue* drpcq){
     pthread_mutex_lock(&drpcq->lock);
     struct queue_el* pop = queue_pop_el(drpcq);
-    if(pop == NULL) return NULL;
+    if(pop == NULL) {pthread_mutex_unlock(&drpcq->lock); return NULL;}
 
     void* ret = pop->ptr;
 
