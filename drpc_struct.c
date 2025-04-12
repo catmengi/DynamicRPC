@@ -397,13 +397,17 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     queue_free(param.ready_type);
     free(param.keys);
 
-    *buflen = output->buflen;
     char* buf = output->buf;
+    *buflen = output->buflen;
+
     free(output);
     return buf;
 }
 
 void buf_d_struct(char* buf, struct d_struct* dstruct){
+    uint64_t empty_header = 0;
+    if(memcmp(buf,&empty_header,sizeof(uint64_t)) == 0) return;
+
     size_t packed_types_len = 0;
     struct drpc_type* packed_types = buf_drpc_types(buf,&packed_types_len);
 
