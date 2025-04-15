@@ -325,6 +325,7 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
             packed[j].packed_data = keyed_buf;
             packed[j].type = ((struct d_struct_element*)dstruct->hashtable->body[i].value)->type;
             packed[j].len = keylen + 1 + packed_buflen;
+            *buflen += drpc_type_buflen(&packed[j]);
             j++;
 
             if(((struct d_struct_element*)dstruct->hashtable->body[i].value)->is_packed == 0) {
@@ -334,7 +335,7 @@ char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
         }
     }
 
-    *buflen = drpc_types_buflen(packed,dstruct->current_len);
+    *buflen += sizeof(uint64_t);
     char* buf = malloc(*buflen); assert(buf);
 
     drpc_types_buf(packed,dstruct->current_len,buf);
