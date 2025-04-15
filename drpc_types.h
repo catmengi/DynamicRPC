@@ -46,10 +46,6 @@ struct drpc_type{
     size_t len;
     char* packed_data;
 };
-struct drpc_types_buf_threaded_output{
-    char* buf;
-    size_t buflen;
-};
 
 #include "drpc_struct.h"
 #include "drpc_queue.h"
@@ -109,8 +105,6 @@ size_t buf_drpc(struct drpc_type* type, char* buf);
 size_t drpc_types_buflen(struct drpc_type* types, size_t len);
 
 void drpc_types_buf(struct drpc_type* types,size_t len,char* buf);
-
-struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(queue_t types,sem_t* wait,size_t len);
 
 struct drpc_type* buf_drpc_types(char* buf, size_t *len);
 

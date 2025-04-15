@@ -275,131 +275,71 @@ enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){
     return ret;
 }
 
-struct __d_struct_thrd_serialise_param{
-    struct d_struct* dstruct;
-    char** keys;
-    queue_t ready_type;
-
-    sem_t pre_serialise_wait;
-    sem_t final_serialise_wait;
-};
-
-static void* d_struct_thrd_data_gather(void* param_P){
-    struct __d_struct_thrd_serialise_param* param = param_P;
-    size_t j = 0;
-    for(size_t i = 0; i < param->dstruct->hashtable->capacity; i++){
-        if(param->dstruct->hashtable->body[i].value != NULL && param->dstruct->hashtable->body[i].key != NULL && param->dstruct->hashtable->body[i].key != (char*)0xDEAD){
-
-            param->keys[j] = param->dstruct->hashtable->body[i].key; j++;
-            assert(sem_post(&param->pre_serialise_wait) == 0);
-        }
-    }
-    return NULL;
-}
-
-static void* d_struct_thrd_preserialise(void* param_P){
-    struct __d_struct_thrd_serialise_param* param = param_P;
-
-    for(size_t i = 0; i < param->dstruct->current_len; i++){
-        assert(sem_wait(&param->pre_serialise_wait) == 0);
-        char* key = param->keys[i];
-        struct d_struct_element* element = hashtable_get(param->dstruct->hashtable,key);
-
-        enum drpc_types type = element->type;
-        struct drpc_type* packed_type = NULL;
-        if(element->is_packed == 0){
-            packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
-            switch(type){
-                case d_sizedbuf:
-                    sizedbuf_to_drpc(packed_type,element->data,element->sizedbuf_len);
-                    break;
-                case d_struct:
-                    d_struct_to_drpc(packed_type,element->data);
-                    break;
-                case d_queue:
-                    d_queue_to_drpc(packed_type,element->data);
-                    break;
-                case d_array:
-                    d_array_to_drpc(packed_type,element->data);
-                    break;
-                case d_str:
-                    str_to_drpc(packed_type,element->data);
-                    break;
-                default: break;
-            }
-        } else packed_type = element->data;
-
-        size_t type_len = strlen(key) + 1 + drpc_type_buflen(packed_type);
-        char* keyed_buf = malloc(type_len); assert(keyed_buf);
-        char* edit_buf = keyed_buf;
-
-        memcpy(edit_buf,key,strlen(key) + 1); edit_buf += strlen(key) + 1;
-
-        drpc_buf(packed_type,edit_buf);
-
-        struct drpc_type* ready = malloc(sizeof(*ready)); assert(ready);
-
-        ready->packed_data = keyed_buf;
-        ready->type = type;
-        ready->len = type_len;
-
-        queue_push(param->ready_type,ready);
-        sem_post(&param->final_serialise_wait);
-
-        if(element->is_packed == 0) {
-            drpc_type_free(packed_type);
-            free(packed_type);
-        }
-    }
-    return NULL;
-}
-
-static void* d_struct_thrd_finalserialise(void* param_P){
-    struct __d_struct_thrd_serialise_param* param = param_P;
-
-    return drpc_types_buf_threaded(param->ready_type,&param->final_serialise_wait,param->dstruct->current_len);
-}
-
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
     if(dstruct->current_len == 0){
         *buflen = sizeof(uint64_t);
-        char* ret = calloc(1,*buflen); assert(ret);
-        return ret;
+        char* empty_buf = calloc(1,*buflen);
+        assert(empty_buf);
+        return empty_buf;
     }
-    struct __d_struct_thrd_serialise_param param;
-    param.dstruct = dstruct;
-    param.ready_type = queue_create();
-    param.keys = malloc(dstruct->current_len * sizeof(char*));
-    assert(param.keys);
+    struct drpc_type* packed = malloc(dstruct->current_len * sizeof(*packed));
+    assert(packed);
 
-    sem_init(&param.pre_serialise_wait,0,0);
-    sem_init(&param.final_serialise_wait,0,0);
+    size_t j = 0;
+    for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
 
-    pthread_t data_gather;
-    pthread_t pre_serialise;
-    pthread_t final_serialise;
+            struct drpc_type* packed_type = NULL;
+            if(((struct d_struct_element*)dstruct->hashtable->body[i].value)->is_packed == 0){
+                packed_type = malloc(sizeof(*packed_type)); assert(packed_type);
+                switch(((struct d_struct_element*)dstruct->hashtable->body[i].value)->type){
+                    case d_sizedbuf:
+                        sizedbuf_to_drpc(packed_type,((struct d_struct_element*)dstruct->hashtable->body[i].value)->data,
+                                         ((struct d_struct_element*)dstruct->hashtable->body[i].value)->sizedbuf_len);
+                        break;
+                    case d_struct:
+                        d_struct_to_drpc(packed_type,((struct d_struct_element*)dstruct->hashtable->body[i].value)->data);
+                        break;
+                    case d_queue:
+                        d_queue_to_drpc(packed_type,((struct d_struct_element*)dstruct->hashtable->body[i].value)->data);
+                        break;
+                    case d_array:
+                        d_array_to_drpc(packed_type,((struct d_struct_element*)dstruct->hashtable->body[i].value)->data);
+                        break;
+                    case d_str:
+                        str_to_drpc(packed_type,((struct d_struct_element*)dstruct->hashtable->body[i].value)->data);
+                        break;
+                    default: break;
+                }
+            } else packed_type = ((struct d_struct_element*)dstruct->hashtable->body[i].value)->data;
 
-    assert(pthread_create(&data_gather,NULL,d_struct_thrd_data_gather,&param) == 0);
-    assert(pthread_create(&pre_serialise,NULL,d_struct_thrd_preserialise,&param) == 0);
-    assert(pthread_create(&final_serialise,NULL,d_struct_thrd_finalserialise,&param) == 0);
+            size_t keylen = strlen(dstruct->hashtable->body[i].key);
+            size_t packed_buflen = drpc_type_buflen(packed_type);
+            char* keyed_buf = malloc(keylen + 1 + packed_buflen); assert(keyed_buf);
+            char* edit_buf = keyed_buf;
 
-    void* ret = NULL;
-    struct drpc_types_buf_threaded_output* output;
-    assert(pthread_join(data_gather,NULL) == 0);
-    assert(pthread_join(pre_serialise,NULL) == 0);
-    assert(pthread_join(final_serialise,&ret) == 0);
-    output = ret;
+            memcpy(edit_buf,dstruct->hashtable->body[i].key,keylen + 1); edit_buf += keylen + 1;
 
-    sem_destroy(&param.pre_serialise_wait);
-    sem_destroy(&param.final_serialise_wait);
+            drpc_buf(packed_type,edit_buf);
 
-    queue_free(param.ready_type);
-    free(param.keys);
+            packed[j].packed_data = keyed_buf;
+            packed[j].type = ((struct d_struct_element*)dstruct->hashtable->body[i].value)->type;
+            packed[j].len = keylen + 1 + packed_buflen;
+            j++;
 
-    char* buf = output->buf;
-    *buflen = output->buflen;
+            if(((struct d_struct_element*)dstruct->hashtable->body[i].value)->is_packed == 0) {
+                drpc_type_free(packed_type);
+                free(packed_type);
+            }
+        }
+    }
 
-    free(output);
+    *buflen = drpc_types_buflen(packed,dstruct->current_len);
+    char* buf = malloc(*buflen); assert(buf);
+
+    drpc_types_buf(packed,dstruct->current_len,buf);
+    drpc_types_free(packed,dstruct->current_len);
+
     return buf;
 }
 void buf_d_struct(char* buf, struct d_struct* dstruct){

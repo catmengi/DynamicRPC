@@ -205,37 +205,6 @@ void drpc_types_buf(struct drpc_type* types,size_t len,char* buf){
         buf += drpc_buf(&types[i],buf);
     }
 }
-#include <stdio.h>
-struct drpc_types_buf_threaded_output* drpc_types_buf_threaded(queue_t types,sem_t* wait,size_t len){
-    uint64_t len64 = len;
-    size_t buflen = sizeof(uint64_t);
-    size_t buf_offset = 0;
-    char* buf = malloc(buflen); assert(buflen);
-    memcpy(buf,&len64,sizeof(uint64_t)); buf_offset += sizeof(uint64_t);
-
-    for(size_t i = 0; i < len; i++){
-        assert(sem_wait(wait) == 0);
-        struct drpc_type* type = queue_pop(types);
-        size_t type_len = drpc_type_buflen(type);
-        if(buf_offset + type_len > buflen){
-            size_t queue_len = queue_count(types);
-            buflen += type_len + buf_offset;
-            for(size_t i = 0; i < queue_len; i++){
-                struct drpc_type* popped_type = queue_pop(types);
-                buflen += drpc_type_buflen(popped_type);
-                queue_push(types,popped_type);
-            }
-            assert((buf = realloc(buf,buflen)));
-        }
-        buf_offset += drpc_buf(type,buf + buf_offset);
-        drpc_type_free(type);
-        free(type);
-    }
-    struct drpc_types_buf_threaded_output* out = malloc(sizeof(*out)); assert(out);
-    out->buf = buf;
-    out->buflen = buflen;
-    return out;
-}
 
 struct drpc_type* buf_drpc_types(char* buf, size_t *len){
     uint64_t len64 = 0;
