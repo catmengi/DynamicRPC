@@ -107,6 +107,7 @@ struct drpc_server* new_drpc_server(){
 
 #ifdef DRPC_TCP_SUPPORT
     drpc_serv->users = hashtable_create();
+    drpc_serv->accept_thread = 0;
 #endif
 
     drpc_serv->client_threads = hashtable_create();
@@ -176,7 +177,8 @@ void drpc_server_free(struct drpc_server* server){
 #ifdef DRPC_TCP_SUPPORT
     shutdown(server->server_fd, SHUT_RD);
     close(server->server_fd);
-    pthread_join(server->accept_thread,NULL); // waiting for accept thread
+    if(server->accept_thread != 0)
+        pthread_join(server->accept_thread,NULL); // waiting for accept thread
 
     for(size_t i = 0; i < server->users->capacity; i++){
         if(server->users->body[i].value != NULL && server->users->body[i].key != NULL && server->users->body[i].key != (char*)0xDEAD)
