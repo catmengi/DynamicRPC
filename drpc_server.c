@@ -328,7 +328,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
           to the next layer
         */
         if(prototype[i] == d_fnstorage || prototype[i] == d_clientinfo || prototype[i] == d_interfunc || prototype[i] == d_fninfo){
-            ffi_arguments[k] = calloc(1,sizeof(void*));
+            ffi_arguments[k] = malloc(sizeof(void*));
             assert(ffi_arguments[k]);
             struct drpc_type_update* fill_later_info = malloc(sizeof(*fill_later_info)); assert(fill_later_info);
             fill_later_info->type = prototype[i];
