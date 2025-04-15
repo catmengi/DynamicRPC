@@ -330,7 +330,7 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
         if(prototype[i] == d_fnstorage || prototype[i] == d_clientinfo || prototype[i] == d_interfunc || prototype[i] == d_fninfo){
             ffi_arguments[k] = calloc(1,sizeof(void*));
             assert(ffi_arguments[k]);
-            struct drpc_type_update* fill_later_info = calloc(1,sizeof(*fill_later_info)); assert(fill_later_info);
+            struct drpc_type_update* fill_later_info = malloc(sizeof(*fill_later_info)); assert(fill_later_info);
             fill_later_info->type = prototype[i];
             fill_later_info->ptr = &ffi_arguments[k];
             queue_push(fill_later,fill_later_info);
@@ -366,96 +366,97 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
                 j++; k++;
                 continue;
             }
-            if(arguments[j].type == d_sizedbuf){
-                ffi_arguments[k] = calloc(1,sizeof(void*));
-                assert(ffi_arguments[k]);
+            switch(arguments[j].type){
+                case d_sizedbuf:
+                    ffi_arguments[k] = calloc(1,sizeof(void*));
+                    assert(ffi_arguments[k]);
 
-                size_t sizedbuf_len = 0;
-                *(void**)ffi_arguments[k] = drpc_to_sizedbuf(&arguments[j],&sizedbuf_len);
+                    size_t sizedbuf_len = 0;
+                    *(void**)ffi_arguments[k] = drpc_to_sizedbuf(&arguments[j],&sizedbuf_len);
 
-                struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = d_sizedbuf;
-                update->ptr = *(void**)ffi_arguments[k];
-                update->len = sizedbuf_len;
-                k++;
-                ffi_arguments[k] = calloc(1,sizeof(size_t));
-                assert(ffi_arguments[k]);
-                *(size_t*)ffi_arguments[k] = sizedbuf_len;
+                    struct drpc_type_update* update = malloc(sizeof(*update)); assert(update);
+                    update->type = d_sizedbuf;
+                    update->ptr = *(void**)ffi_arguments[k];
+                    update->len = sizedbuf_len;
+                    k++;
+                    ffi_arguments[k] = malloc(sizeof(size_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    *(size_t*)ffi_arguments[k] = sizedbuf_len;
 
-                queue_push(to_repack,update);
+                    queue_push(to_repack,update);
 
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_int8){
-                ffi_arguments[k] = calloc(1,sizeof(int8_t));
-                assert(ffi_arguments[k]);
-                *(int8_t*)ffi_arguments[k] = drpc_to_int8(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_uint8){
-                ffi_arguments[k] = calloc(1,sizeof(uint8_t));
-                assert(ffi_arguments[k]);
-                *(uint8_t*)ffi_arguments[k] = drpc_to_uint8(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_int16){
-                ffi_arguments[k] = calloc(1,sizeof(int16_t));
-                assert(ffi_arguments[k]);
-                *(int16_t*)ffi_arguments[k] = drpc_to_int16(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_uint16){
-                ffi_arguments[k] = calloc(1,sizeof(uint16_t));
-                assert(ffi_arguments[k]);
-                *(uint16_t*)ffi_arguments[k] = drpc_to_uint16(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_int32){
-                ffi_arguments[k] = calloc(1,sizeof(int32_t));
-                assert(ffi_arguments[k]);
-                *(int32_t*)ffi_arguments[k] = drpc_to_int32(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_uint32){
-                ffi_arguments[k] = calloc(1,sizeof(uint32_t));
-                assert(ffi_arguments[k]);
-                *(uint32_t*)ffi_arguments[k] = drpc_to_uint32(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_int64){
-                ffi_arguments[k] = calloc(1,sizeof(int64_t));
-                assert(ffi_arguments[k]);
-                (*(int64_t*)ffi_arguments[k]) = drpc_to_int64(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_uint64){
-                ffi_arguments[k] = calloc(1,sizeof(uint64_t));
-                assert(ffi_arguments[k]);
-                (*(uint64_t*)ffi_arguments[k]) = drpc_to_uint64(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_float){
-                ffi_arguments[k] = calloc(1,sizeof(float));
-                assert(ffi_arguments[k]);
-                *(float*)ffi_arguments[k] = drpc_to_float(&arguments[j]);
-                j++;k++;
-                continue;
-            }
-            if(arguments[j].type == d_double){
-                ffi_arguments[k] = calloc(1,sizeof(double));
-                assert(ffi_arguments[k]);
-                (*(double*)ffi_arguments[k]) = drpc_to_double(&arguments[j]);
-                j++;k++;
-                continue;
+                    j++;k++;
+                    break;
+
+                case d_int8:
+                    ffi_arguments[k] = malloc(sizeof(int8_t));
+                    assert(ffi_arguments[k]);
+                    *(int8_t*)ffi_arguments[k] = drpc_to_int8(&arguments[j]); assert(ffi_arguments[k]);
+                    j++;k++;
+                    break;
+
+                case d_uint8:
+                    ffi_arguments[k] = malloc(sizeof(uint8_t));
+                    assert(ffi_arguments[k]);
+                    *(uint8_t*)ffi_arguments[k] = drpc_to_uint8(&arguments[j]); assert(ffi_arguments[k]);
+                    j++;k++;
+                    break;
+
+                case d_int16:
+                    ffi_arguments[k] = malloc(sizeof(int16_t));
+                    assert(ffi_arguments[k]);
+                    *(int16_t*)ffi_arguments[k] = drpc_to_int16(&arguments[j]); assert(ffi_arguments[k]);
+                    j++;k++;
+                    break;
+
+                case d_uint16:
+                    ffi_arguments[k] = malloc(sizeof(uint16_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    *(uint16_t*)ffi_arguments[k] = drpc_to_uint16(&arguments[j]); assert(ffi_arguments[k]);
+                    j++;k++;
+                    break;
+
+                case d_int32:
+                    ffi_arguments[k] = malloc(sizeof(int32_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    *(int32_t*)ffi_arguments[k] = drpc_to_int32(&arguments[j]);
+                    j++;k++;
+                    break;
+
+                case d_uint32:
+                    ffi_arguments[k] = malloc(sizeof(uint32_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    *(uint32_t*)ffi_arguments[k] = drpc_to_uint32(&arguments[j]);
+                    j++;k++;
+                    break;
+
+                case d_int64:
+                    ffi_arguments[k] = malloc(sizeof(int64_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    (*(int64_t*)ffi_arguments[k]) = drpc_to_int64(&arguments[j]);
+                    j++;k++;
+                    break;
+
+                case d_uint64:
+                    ffi_arguments[k] = malloc(sizeof(uint64_t)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    (*(uint64_t*)ffi_arguments[k]) = drpc_to_uint64(&arguments[j]);
+                    j++;k++;
+                    break;
+
+                case d_float:
+                    ffi_arguments[k] = malloc(sizeof(float)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    *(float*)ffi_arguments[k] = drpc_to_float(&arguments[j]);
+                    j++;k++;
+                    break;
+
+                case d_double:
+                    ffi_arguments[k] = malloc(sizeof(double)); assert(ffi_arguments[k]);
+                    assert(ffi_arguments[k]);
+                    (*(double*)ffi_arguments[k]) = drpc_to_double(&arguments[j]);
+                    j++;k++;
+                    break;
             }
             /*//////////////////////////////////////////////////*/
     }
@@ -479,7 +480,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     void** ffi_arguments = ffi_from_drpc(arguments,fn_info->prototype,fn_info->prototype_len,&ffi_len,to_repack,to_fill);
     if(fn_info->cif == NULL){
         //allocating CIF if it wasnt allocated already
-        fn_info->cif = calloc(1,sizeof(*fn_info->cif)); assert(fn_info->cif);
+        fn_info->cif = malloc(sizeof(*fn_info->cif)); assert(fn_info->cif);
         assert(ffi_prep_cif(fn_info->cif,FFI_DEFAULT_ABI,ffi_len,(ffi_type*)drpc_ffi_convert_table[fn_info->return_type],
                     (fn_info->ffi_prototype = drpc_proto_to_ffi(fn_info->prototype, fn_info->prototype_len))) == FFI_OK);
     }
@@ -622,7 +623,8 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
                 if((char*)native_return == NULL) void_to_drpc(&returned->returned);
                 else                             d_queue_to_drpc(&returned->returned,(void*)native_return);
                 if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_queue_free((void*)native_return);
-            break;
+                break;
+
             default: break;
         }
     }else{
@@ -734,7 +736,8 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
                 break;
         }
         send.message_type = drpc_ok;
-        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,
+                                    client->clientid,mailbox_name);
         goto exit;
     }
 
@@ -743,7 +746,8 @@ void drpc_handle_mailbox_recv(struct d_struct* received_message,struct drpc_conn
         queue_push(receiver_mailbox->que,queue_pop(messages->que));
     }
     send.message_type = drpc_ok;
-    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) succesfully received messages to %s\n",__PRETTY_FUNCTION__,client->username,
+                                client->clientid,mailbox_name);
 
 exit:
     drpc_send_message(client->io,&send);
@@ -762,7 +766,8 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
 
     struct d_queue* extracted_messages = NULL;
     if(d_struct_get(client->drpc_server->send_mailboxes,mailbox_name,&extracted_messages,d_queue) != 0){
-        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) no such mailbox %s, checking proxy\n",__PRETTY_FUNCTION__,client->username,
+                                    client->clientid,mailbox_name);
 
         struct drpc_client* proxy_client = hashtable_get(client->drpc_server->proxy_send_mailboxes,mailbox_name);
         if(proxy_client == NULL){
@@ -792,7 +797,8 @@ void drpc_handle_mailbox_send(struct d_struct* received_message,struct drpc_conn
         send.message_type = drpc_ok;
         send.message = new_d_struct();
         d_struct_set(send.message,"messages",output,d_queue);
-        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,client->clientid,mailbox_name);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: client (%s:%s) mailbox %s succesfully proxied\n\n",__PRETTY_FUNCTION__,client->username,
+                                    client->clientid,mailbox_name);
         goto exit;
 
     }
