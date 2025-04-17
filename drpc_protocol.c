@@ -157,7 +157,6 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
      memcpy(drpc_message_header + sizeof(DRPC_SIGNATURE),&send_buflen,sizeof(uint64_t));
 
      if(tcp_send_loop(*(int*)io->io_data,drpc_message_header,sizeof(drpc_message_header)) != 0){
-         // d_struct_free(prepacked_message);
          free(send_buf);
          return 1;
     }
@@ -168,7 +167,6 @@ int drpc_tcp_send_message(struct drpc_io* io, struct d_struct* prepacked_message
     }
 
     int ret = tcp_send_loop(*(int*)io->io_data,send_buf,send_buflen);
-    // d_struct_free(prepacked_message);
     free(send_buf);
     return ret;
 }

@@ -272,8 +272,9 @@ enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key){
     }
     return ret;
 }
-
+#include <stdio.h>
 char* d_struct_buf(struct d_struct* dstruct, size_t* buflen){
+    *buflen = 0;
     if(dstruct->current_len == 0){
         *buflen = sizeof(uint64_t);
         char* empty_buf = calloc(1,*buflen);

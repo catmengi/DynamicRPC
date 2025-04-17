@@ -310,7 +310,7 @@ int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum dr
                         *original_dqueue = *repacked_Q;
                         free(repacked_Q);
                     }
-                    if(return_is == i) *(struct d_queue**)native_return = repacked_Q;
+                    if(return_is == i) *(struct d_queue**)native_return = original_dqueue;
                     break;
 
                 case d_str:
@@ -323,7 +323,7 @@ int drpc_client_call_internal(struct drpc_client* client, char* fn_name, enum dr
                         memcpy(original_str,repacked_STR,strcpy_len);
                         free(repacked_STR);
                     }
-                    if(return_is == i) *(char**)native_return = repacked_STR;
+                    if(return_is == i) *(char**)native_return = original_str;
                     break;
 
                 case d_sizedbuf:
