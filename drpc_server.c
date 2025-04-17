@@ -472,8 +472,8 @@ int drpc_server_call_fn(struct d_array* arguments,struct drpc_function* fn_info,
 
     if(return_is == -1){
         if(fn_info->return_type != d_void){
-            if(fn_info->return_type == d_queue && fn_info->return_type == d_struct
-            && fn_info->return_type == d_array && fn_info->return_type == d_str){
+            if(fn_info->return_type == d_queue || fn_info->return_type == d_struct
+            || fn_info->return_type == d_array || fn_info->return_type == d_str){
                 d_struct_set(return_msg,"return",(void*)native_return,fn_info->return_type);
 
             } else d_struct_set(return_msg,"return",&native_return,fn_info->return_type);
