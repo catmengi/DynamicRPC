@@ -439,3 +439,51 @@ size_t d_queue_len(struct d_queue* dqueue){
     size_t len = queue_count(dqueue->que);
     return len;
 }
+
+struct d_queue* d_queue_copy(struct d_queue* dqueue){
+    struct d_queue* new = new_d_queue();
+    size_t len = queue_count(dqueue->que);
+    for(size_t i = 0; i < len; i++){
+        struct d_struct_element* element = queue_pop(dqueue->que);
+        assert(element); //IT CANT BE NULL WHEN EVERY THING IS OK;
+        struct d_struct_element* new_element = malloc(sizeof(*new_element)); assert(new_element);
+        new_element->is_packed = element->is_packed;
+        new_element->sizedbuf_len = element->sizedbuf_len;
+        new_element->type = element->type;
+        if(element->is_packed == 1){
+            new_element->data = malloc(sizeof(struct drpc_type)); assert(new_element->data);
+            struct drpc_type* original_el = element->data;
+            struct drpc_type* copy_el = new_element->data;
+
+            copy_el->packed_data = malloc(original_el->len); assert(copy_el->packed_data);
+            memcpy(copy_el->packed_data,original_el->packed_data,original_el->len);
+
+            copy_el->len = original_el->len;
+            copy_el->type = original_el->type;
+        } else {
+            switch(element->type){
+                case d_struct:
+                    new_element->data = d_struct_copy(element->data);
+                    break;
+                case d_str:
+                    new_element->data = strdup(element->data);
+                    assert(new_element->data);
+                    break;
+                case d_sizedbuf:
+                    new_element->data = malloc(element->sizedbuf_len);
+                    assert(new_element->data);
+                    memcpy(new_element->data,element->data,element->sizedbuf_len);
+                    break;
+                case d_array:
+                    new_element->data = d_array_copy(element->data);
+                    break;
+                case d_queue:
+                    new_element->data = d_queue_copy(element->data);
+                    break;
+            }
+        }
+        queue_push(new->que,new_element);
+        queue_push(dqueue->que,element); //it may change order but we should keep content of queue
+    }
+    return new;
+}

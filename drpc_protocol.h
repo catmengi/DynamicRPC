@@ -9,7 +9,7 @@
 #define DRPC_PROXY_SUPPORT
 #define DRPC_TCP_SUPPORT
 
-#define DRPC_SIGNATURE "DRPCv245+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
+#define DRPC_SIGNATURE "DRPCv250+E" // DRPC_SIGNATURE FORMAT: DPRC - name ; v:
                                     // FIRST DIGIT -- code version (changes ????).
                                     // SECOND DIGIT AND THIRD -- network compat version(changes on massive updates),
                                     // LAST LETTER: E -- encryption enabled, other letter -- encryption disabled
@@ -47,21 +47,6 @@ struct drpc_io{
     drpc_io_free free;
 };
 
-struct drpc_call{
-    char* fn_name;
-
-    uint8_t arguments_len;
-    struct drpc_type* arguments;
-};
-
-struct drpc_return{
-    struct drpc_type returned;
-
-    uint8_t updated_arguments_len;
-    struct drpc_type* updated_arguments;
-
-};
-
 struct drpc_message{
     uint8_t message_type;
     struct d_struct* message;
@@ -77,11 +62,6 @@ struct drpc_dqueue_io{
     struct drpc_dqueue_io* send;
 };
 #endif
-
-struct d_struct* drpc_call_to_message(struct drpc_call* call);
-struct drpc_call* message_to_drpc_call(struct d_struct* message);
-struct d_struct* drpc_return_to_message(struct drpc_return* drpc_return);
-struct drpc_return* message_to_drpc_return(struct d_struct* message);
 
 int drpc_send_message(struct drpc_io* io, struct drpc_message* msg);
 int drpc_recv_message(struct drpc_io* io, struct drpc_message* msg);
@@ -99,7 +79,4 @@ void drpc_dqueue_free(struct drpc_io* io);
 int drpc_dqueue_send_message(struct drpc_io* io, struct d_struct* prepacked_message);
 int drpc_dqueue_recv_message(struct drpc_io* io, struct d_struct** output_pointer);
 #endif
-
-void drpc_call_free(struct drpc_call* call);
-void drpc_return_free(struct drpc_return* ret);
 

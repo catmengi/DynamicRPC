@@ -53,6 +53,8 @@ void d_struct_free(struct d_struct* dstruct);                           //free d
 char** d_struct_get_fields(struct d_struct* dstruct, size_t* len);      //returns an array of string with d_struct elements' keys. length of this array will be placed into len
 enum drpc_types d_struct_get_type(struct d_struct* dstruct, char* key); //returns a type of element with name key. RETURN: d_void on error
 
+struct d_struct* d_struct_copy(struct d_struct* dstruct);               //return copy of dstruct
+
 
 
 

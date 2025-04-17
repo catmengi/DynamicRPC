@@ -22,6 +22,7 @@ struct d_array* new_d_array(size_t start_cappacity){
     new->lookup_size = start_cappacity;
 
     new->lookup_table = calloc(new->lookup_size,sizeof(*new->lookup_table));
+    new->real_size = 0;
     assert(new->lookup_table);
 
     assert(pthread_mutex_init(&new->lock,NULL) == 0);
@@ -31,16 +32,13 @@ struct d_array* new_d_array(size_t start_cappacity){
 static inline void d_array_set_internal(struct d_array* darray, size_t index, struct d_struct_element* el){
     if(index >= darray->lookup_size){
         size_t prev_size = darray->lookup_size;
-        void* realloced = realloc(darray->lookup_table,sizeof(*darray->lookup_table) * (index+1));
-        assert(realloced);
+        darray->lookup_size = (index+1) * 1.5;
+        darray->lookup_table = realloc(darray->lookup_table,sizeof(*darray->lookup_table) * darray->lookup_size);
+        assert(darray->lookup_table);
 
-        darray->lookup_table = realloced;
-        darray->lookup_size = index+1;
-        for(size_t i = prev_size; i < darray->lookup_size; i++){
-            darray->lookup_table[i] = NULL;
-        }
+        memset(darray->lookup_table + (prev_size * sizeof(*darray->lookup_table)),0,(darray->lookup_size - prev_size) * sizeof(*darray->lookup_table));
     }
-
+    darray->real_size++;
     darray->lookup_table[index] = el;
 }
 
@@ -54,6 +52,7 @@ static inline void d_array_del_internal(struct d_array* darray, size_t index){
     if(index >= darray->lookup_size) return;
     if(darray->lookup_table[index] == NULL) return;
 
+    if(darray->real_size > 0) darray->real_size--;
     darray->lookup_table[index] = NULL;
 }
 
@@ -312,14 +311,6 @@ void d_array_free(struct d_array* darray){
     d_array_free_internal(darray);
     free(darray);
 }
-struct __d_array_thrd_param{
-    struct d_array* darray;
-    struct d_struct* output;
-
-    queue_t gathered;
-    sem_t wait;
-    int done;
-};
 
 char* d_array_buf(struct d_array* darray, size_t* buflen){
     pthread_mutex_lock(&darray->lock);
@@ -378,5 +369,51 @@ struct d_array* buf_d_array(char* buf){
 
 size_t d_array_len(struct d_array* darray){
     assert(darray);
-    return darray->lookup_size;
+    return darray->real_size;
+}
+struct d_array* d_array_copy(struct d_array* darray){
+    struct d_array* new = new_d_array(darray->lookup_size);
+    for(size_t i = 0; i <darray->lookup_size; i++){
+        struct d_struct_element* element = d_array_get_internal(darray,i);
+        if(element){
+            struct d_struct_element* new_element = malloc(sizeof(*new_element)); assert(new_element);
+            new_element->is_packed = element->is_packed;
+            new_element->sizedbuf_len = element->sizedbuf_len;
+            new_element->type = element->type;
+            if(element->is_packed == 1){
+                new_element->data = malloc(sizeof(struct drpc_type)); assert(new_element->data);
+                struct drpc_type* original_el = element->data;
+                struct drpc_type* copy_el = new_element->data;
+
+                copy_el->packed_data = malloc(original_el->len); assert(copy_el->packed_data);
+                memcpy(copy_el->packed_data,original_el->packed_data,original_el->len);
+
+                copy_el->len = original_el->len;
+                copy_el->type = original_el->type;
+            } else {
+                switch(element->type){
+                    case d_struct:
+                        new_element->data = d_struct_copy(element->data);
+                        break;
+                    case d_str:
+                        new_element->data = strdup(element->data);
+                        assert(new_element->data);
+                        break;
+                    case d_sizedbuf:
+                        new_element->data = malloc(element->sizedbuf_len);
+                        assert(new_element->data);
+                        memcpy(new_element->data,element->data,element->sizedbuf_len);
+                        break;
+                    case d_array:
+                        new_element->data = d_array_copy(element->data);
+                        break;
+                    case d_queue:
+                        new_element->data = d_queue_copy(element->data);
+                        break;
+                }
+            }
+            d_array_set_internal(new,i,new_element);
+        }
+    }
+    return new;
 }

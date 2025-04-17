@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-
 struct d_struct* new_d_struct(){
     struct d_struct* d_struct = malloc(sizeof(*d_struct)); assert(d_struct);
 
@@ -472,4 +470,54 @@ void d_struct_free(struct d_struct* dstruct){
     if(dstruct == NULL) return;
     d_struct_free_internal(dstruct);
     free(dstruct);
+}
+#include <stdio.h>
+struct d_struct* d_struct_copy(struct d_struct* dstruct){
+    struct d_struct* new = new_d_struct();
+    for(size_t i = 0; i < dstruct->hashtable->capacity; i++){
+        if(dstruct->hashtable->body[i].value != NULL && dstruct->hashtable->body[i].key != NULL && dstruct->hashtable->body[i].key != (char*)0xDEAD){
+            struct d_struct_element* element = dstruct->hashtable->body[i].value;
+            struct d_struct_element* new_element = malloc(sizeof(*new_element)); assert(new_element);
+            new_element->is_packed = element->is_packed;
+            new_element->sizedbuf_len = element->sizedbuf_len;
+            new_element->type = element->type;
+            if(element->is_packed == 1){
+                new_element->data = malloc(sizeof(struct drpc_type)); assert(new_element->data);
+                struct drpc_type* original_el = element->data;
+                struct drpc_type* copy_el = new_element->data;
+
+                copy_el->packed_data = malloc(original_el->len); assert(copy_el->packed_data);
+                memcpy(copy_el->packed_data,original_el->packed_data,original_el->len);
+
+                copy_el->len = original_el->len;
+                copy_el->type = original_el->type;
+            } else {
+                switch(element->type){
+                    case d_struct:
+                        new_element->data = d_struct_copy(element->data);
+                        break;
+                    case d_str:
+                        new_element->data = strdup(element->data);
+                        assert(new_element->data);
+                        break;
+                    case d_sizedbuf:
+                        new_element->data = malloc(element->sizedbuf_len);
+                        assert(new_element->data);
+                        memcpy(new_element->data,element->data,element->sizedbuf_len);
+                        break;
+                    case d_array:
+                        new_element->data = d_array_copy(element->data);
+                        break;
+                    case d_queue:
+                        new_element->data = d_queue_copy(element->data);
+                        break;
+                }
+            }
+            char* new_key = strdup(dstruct->hashtable->body[i].key);
+            queue_push(new->heap_keys,new_key);
+            hashtable_set(new->hashtable,new_key,new_element);
+            new->current_len++;
+        }
+    }
+    return new;
 }

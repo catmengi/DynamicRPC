@@ -41,8 +41,9 @@ int d_queue_pop_with_type(struct d_queue* dqueue, void* native_type, enum drpc_t
 
 
 size_t d_queue_len(struct d_queue* dqueue);                       //return d_queue len
-// enum drpc_types d_queue_get_type(struct d_queue* dqueue);      I dont know how to make this with current queue implementaton
 void d_queue_free(struct d_queue* dqueue);                        //free d_queue and all it's data
+
+struct d_queue* d_queue_copy(struct d_queue* dqueue);             //return copy of dqueue
 
 
 

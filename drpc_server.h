@@ -96,6 +96,7 @@ struct drpc_connection{
 struct drpc_type_update{
     enum drpc_types type;
     size_t len; //if availible
+    size_t index; //if availible
     void* ptr;
 };
 

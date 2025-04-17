@@ -317,12 +317,13 @@ int is_arguments_equal_prototype(enum drpc_types* serv, size_t servlen, enum drp
 }
 
 
-void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,queue_t to_repack, queue_t fill_later){
+void** ffi_from_drpc(struct d_array* arguments,enum drpc_types* prototype,size_t prototype_len,size_t* ffi_len,queue_t fill_later,queue_t repack_que){
     size_t adjusted_len = drpc_proto_to_ffi_len_adjust(prototype,prototype_len);
     void** ffi_arguments = calloc(adjusted_len, sizeof(void*)); assert(ffi_arguments);
 
     *ffi_len = adjusted_len;
     size_t j = 0; size_t k = 0;
+    size_t r = 0;
     for(size_t i = 0; i < prototype_len; i++){
         /*those types does not exist on the client side, so extracting them from prototype, and then via que providing
           to the next layer
@@ -341,131 +342,52 @@ void** ffi_from_drpc(struct drpc_type* arguments,enum drpc_types* prototype,size
 
         /*Those types exist in arguments so unpacking them, some maybe pushed to the 'to_repack' and be provided to the
          next layer*/
-            if(arguments[j].type == d_array || arguments[j].type == d_struct || arguments[j].type == d_queue || arguments[j].type == d_str){
-                ffi_arguments[k] = calloc(1,sizeof(void*));
+            enum drpc_types type = d_array_get_type(arguments,j);
+            if(type == d_array || type == d_struct || type == d_queue || type == d_str || type == d_sizedbuf){
+                ffi_arguments[k] = malloc(sizeof(void*));
                 assert(ffi_arguments[k]);
-                switch(arguments[j].type){
-                    case d_array:
-                        *(void**)ffi_arguments[k] = drpc_to_d_array(&arguments[j]);
-                        break;
-                    case d_struct:
-                        *(void**)ffi_arguments[k] = drpc_to_d_struct(&arguments[j]);
-                        break;
-                    case d_queue:
-                        *(void**)ffi_arguments[k] = drpc_to_d_queue(&arguments[j]);
-                        break;
-                    case d_str:
-                        *(void**)ffi_arguments[k] = drpc_to_str(&arguments[j]);
-                        break;
-                }
-                struct drpc_type_update* update = calloc(1,sizeof(*update));
-                update->type = arguments[j].type;
-                update->ptr = *(void**)ffi_arguments[k];
-                queue_push(to_repack,update);
 
-                j++; k++;
+                size_t upd_index = k;
+                size_t sizedbuf_len = 0;
+                void* argument;
+                assert(d_array_get(arguments,j,&argument,type,&sizedbuf_len) == 0);
+
+                *(void**)ffi_arguments[k] = argument;
+                if(type == d_sizedbuf){
+                    k++;
+                    ffi_arguments[k] = malloc(sizeof(size_t));
+                    *(size_t*)ffi_arguments[k] = sizedbuf_len;
+                }
+                struct drpc_type_update* update = malloc(sizeof(*update));
+                update->type = type;
+                update->ptr = argument;
+                update->len = sizedbuf_len;
+                update->index = upd_index;
+                queue_push(repack_que,update);
+
+                j++; k++; r++;
                 continue;
             }
-            switch(arguments[j].type){
-                case d_sizedbuf:
-                    ffi_arguments[k] = calloc(1,sizeof(void*));
-                    assert(ffi_arguments[k]);
-
-                    size_t sizedbuf_len = 0;
-                    *(void**)ffi_arguments[k] = drpc_to_sizedbuf(&arguments[j],&sizedbuf_len);
-
-                    struct drpc_type_update* update = malloc(sizeof(*update)); assert(update);
-                    update->type = d_sizedbuf;
-                    update->ptr = *(void**)ffi_arguments[k];
-                    update->len = sizedbuf_len;
-                    k++;
-                    ffi_arguments[k] = malloc(sizeof(size_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    *(size_t*)ffi_arguments[k] = sizedbuf_len;
-
-                    queue_push(to_repack,update);
-
-                    j++;k++;
-                    break;
-
-                case d_int8:
-                    ffi_arguments[k] = malloc(sizeof(int8_t));
-                    assert(ffi_arguments[k]);
-                    *(int8_t*)ffi_arguments[k] = drpc_to_int8(&arguments[j]); assert(ffi_arguments[k]);
-                    j++;k++;
-                    break;
-
-                case d_uint8:
-                    ffi_arguments[k] = malloc(sizeof(uint8_t));
-                    assert(ffi_arguments[k]);
-                    *(uint8_t*)ffi_arguments[k] = drpc_to_uint8(&arguments[j]); assert(ffi_arguments[k]);
-                    j++;k++;
-                    break;
-
-                case d_int16:
-                    ffi_arguments[k] = malloc(sizeof(int16_t));
-                    assert(ffi_arguments[k]);
-                    *(int16_t*)ffi_arguments[k] = drpc_to_int16(&arguments[j]); assert(ffi_arguments[k]);
-                    j++;k++;
-                    break;
-
-                case d_uint16:
-                    ffi_arguments[k] = malloc(sizeof(uint16_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    *(uint16_t*)ffi_arguments[k] = drpc_to_uint16(&arguments[j]); assert(ffi_arguments[k]);
-                    j++;k++;
-                    break;
-
-                case d_int32:
-                    ffi_arguments[k] = malloc(sizeof(int32_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    *(int32_t*)ffi_arguments[k] = drpc_to_int32(&arguments[j]);
-                    j++;k++;
-                    break;
-
-                case d_uint32:
-                    ffi_arguments[k] = malloc(sizeof(uint32_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    *(uint32_t*)ffi_arguments[k] = drpc_to_uint32(&arguments[j]);
-                    j++;k++;
-                    break;
-
-                case d_int64:
-                    ffi_arguments[k] = malloc(sizeof(int64_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    (*(int64_t*)ffi_arguments[k]) = drpc_to_int64(&arguments[j]);
-                    j++;k++;
-                    break;
-
-                case d_uint64:
-                    ffi_arguments[k] = malloc(sizeof(uint64_t)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    (*(uint64_t*)ffi_arguments[k]) = drpc_to_uint64(&arguments[j]);
-                    j++;k++;
-                    break;
-
-                case d_float:
-                    ffi_arguments[k] = malloc(sizeof(float)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    *(float*)ffi_arguments[k] = drpc_to_float(&arguments[j]);
-                    j++;k++;
-                    break;
-
-                case d_double:
-                    ffi_arguments[k] = malloc(sizeof(double)); assert(ffi_arguments[k]);
-                    assert(ffi_arguments[k]);
-                    (*(double*)ffi_arguments[k]) = drpc_to_double(&arguments[j]);
-                    j++;k++;
-                    break;
-            }
-            /*//////////////////////////////////////////////////*/
+            ffi_arguments[k] = malloc(sizeof(uint64_t));
+            assert(ffi_arguments[k]);
+            assert(d_array_get(arguments,j,ffi_arguments[k],type) == 0);
+            j++; k++;
     }
     return (void**)ffi_arguments;
 }
 
-int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struct drpc_function* fn_info, struct drpc_connection* client_info, struct drpc_return* returned){
-    enum drpc_types* extracted_prototype = drpc_types_extract_prototype(arguments,arguments_len);
-    if(is_arguments_equal_prototype(fn_info->prototype,fn_info->prototype_len,extracted_prototype,arguments_len)){
+int drpc_server_call_fn(struct d_array* arguments,struct drpc_function* fn_info, struct drpc_connection* client_info,struct d_struct* return_msg){
+    enum drpc_types* extracted_prototype = NULL;
+    if(arguments != NULL){
+        extracted_prototype = calloc(d_array_len(arguments),sizeof(*extracted_prototype));
+        assert(extracted_prototype);
+        for(size_t i = 0; i < d_array_len(arguments); i++){
+            extracted_prototype[i] = d_array_get_type(arguments,i);
+        }
+    }
+
+
+    if(is_arguments_equal_prototype(fn_info->prototype,fn_info->prototype_len,extracted_prototype,d_array_len(arguments))){
         free(extracted_prototype);
         return 1;
     }
@@ -477,7 +399,7 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
     int8_t return_is = -1;
 
     //generating arguments for ffi_call
-    void** ffi_arguments = ffi_from_drpc(arguments,fn_info->prototype,fn_info->prototype_len,&ffi_len,to_repack,to_fill);
+    void** ffi_arguments = ffi_from_drpc(arguments,fn_info->prototype,fn_info->prototype_len,&ffi_len,to_fill,to_repack);
     if(fn_info->cif == NULL){
         //allocating CIF if it wasnt allocated already
         fn_info->cif = malloc(sizeof(*fn_info->cif)); assert(fn_info->cif);
@@ -488,76 +410,57 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
 
     //filling in server-only arguments
-    size_t to_fill_len = queue_count(to_fill);
-    for(size_t i = 0; i <to_fill_len; i++){
-        struct drpc_type_update* to_fill_ = queue_pop(to_fill);
-        switch(to_fill_->type){
+    size_t fill_len = queue_count(to_fill);
+    for(size_t i = 0; i < fill_len; i++){
+        struct drpc_type_update* fill = queue_pop(to_fill);
+        switch(fill->type){
             case d_fnstorage:
-                **(void***)to_fill_->ptr = fn_info->fnstorage;
+                **(void***)fill->ptr = fn_info->fnstorage;
                 break;
             case d_interfunc:
-                **(void***)to_fill_->ptr = client_info->drpc_server->interfunc;
+                **(void***)fill->ptr = client_info->drpc_server->interfunc;
                 break;
             case d_clientinfo:
-                **(void***)to_fill_->ptr = client_info;
+                **(void***)fill->ptr = client_info;
                 break;
             case d_fninfo:
-                **(void***)to_fill_->ptr = fn_info; //should only be used in proxy implementation, not in user code please it is a huge security issue
+                **(void***)fill->ptr = fn_info; //should only be used in proxy implementation, not in user code please it is a huge security issue
                 break;
             default:
                 break;
         }
-        free(to_fill_);
+        free(fill);
     }
-    drpc_types_free(arguments,arguments_len);
+    queue_free(to_fill);
     ffi_call(fn_info->cif,FFI_FN(fn_info->fn),&native_return,ffi_arguments);
 
     size_t repack_len = queue_count(to_repack);
-
-    if(repack_len > 0){
-        returned->updated_arguments = calloc(repack_len,sizeof(*returned->updated_arguments));
-        assert(returned->updated_arguments);
-    }else returned->updated_arguments = NULL;
-    returned->updated_arguments_len = repack_len;
-
+    struct d_array* repacked = NULL;
 
     //this types will be in ret->updated_arguments and be used on client side to "emulate" pointers
     //so we are getting pointer of raw arguments from to_repack que, then packing to drpc_type then free
-    for(size_t i = 0; i < repack_len; i++){
-        struct drpc_type_update* repack = queue_pop(to_repack);
+    if(repack_len > 0){
+        size_t r = 0;
+        repacked = new_d_array(repack_len);
+        for(size_t i = 0; i < repack_len; i++){
+            struct drpc_type_update* repack = queue_pop(to_repack);
 
-        //if pointer is the same as native_return then we setting return_is variable to i,native_return will
-        //not be packed, and on client native_return will be same as the same as returned argument pointer
-        if(repack->ptr == (void*)native_return) {
-            assert(repack->type == fn_info->return_type);    //dumb protection, you SHOULDNT return argument that is different type than return_type
-            return_is = i;
-        }
-
-        switch(repack->type){
-            case d_str:
-                str_to_drpc(&returned->updated_arguments[i],repack->ptr);
+            //if pointer is the same as native_return then we setting return_is variable to i,native_return will
+            //not be packed, and on client native_return will be same as the same as returned argument pointer
+            if(repack->ptr == (void*)native_return) {
+                assert(repack->type == fn_info->return_type);    //dumb protection, you SHOULDNT return argument that is different type than return_type
+                return_is = i;
+            }
+            d_array_unlink(arguments,repack->index);
+            d_array_set(repacked,r,repack->ptr,repack->type,repack->len);
+            if(repack->type == d_sizedbuf){
                 free(repack->ptr);
-                break;
-            case d_sizedbuf:
-                sizedbuf_to_drpc(&returned->updated_arguments[i],repack->ptr,repack->len);
-                free(repack->ptr);
-                break;
-            case d_struct:
-                d_struct_to_drpc(&returned->updated_arguments[i],repack->ptr);
-                d_struct_free(repack->ptr);
-                break;
-            case d_queue:
-                d_queue_to_drpc(&returned->updated_arguments[i],repack->ptr);
-                d_queue_free(repack->ptr);
-                break;
-            case d_array:
-                d_array_to_drpc(&returned->updated_arguments[i],repack->ptr);
-                d_array_free(repack->ptr);
-                break;
-            default: break;
-        }
-        free(repack);
+            }
+            r++;
 
+            free(repack);
+        }
+        d_struct_set(return_msg,"repacked_arguments",repacked,d_array);
     }
 
     //free arguments
@@ -568,70 +471,17 @@ int drpc_server_call_fn(struct drpc_type* arguments,uint8_t arguments_len, struc
 
 
     if(return_is == -1){
-        switch(fn_info->return_type){
-            case d_void:
-                void_to_drpc(&returned->returned);
-                break;
-            case d_int8:
-                int8_to_drpc(&returned->returned,(int8_t)native_return);
-                break;
-            case d_uint8:
-                uint8_to_drpc(&returned->returned,(uint8_t)native_return);
-                break;
-            case d_int16:
-                int16_to_drpc(&returned->returned,(int16_t)native_return);
-                break;
-            case d_uint16:
-                uint16_to_drpc(&returned->returned,(uint16_t)native_return);
-                break;
-            case d_int32:
-                int32_to_drpc(&returned->returned,(int32_t)native_return);
-                break;
-            case d_uint32:
-                uint32_to_drpc(&returned->returned,(uint32_t)native_return);
-                break;
-            case d_int64:
-                int64_to_drpc(&returned->returned,(int64_t)native_return);
-                break;
-            case d_uint64:
-                uint64_to_drpc(&returned->returned,(uint64_t)native_return);
-                break;
+        if(fn_info->return_type != d_void){
+            if(fn_info->return_type == d_queue && fn_info->return_type == d_struct
+            && fn_info->return_type == d_array && fn_info->return_type == d_str){
+                d_struct_set(return_msg,"return",(void*)native_return,fn_info->return_type);
 
-            case d_float:
-                float_to_drpc(&returned->returned,(float)native_return);
-                break;
-            case d_double:
-                double_to_drpc(&returned->returned,(double)native_return);
-                break;
-
-            case d_str:
-                if((char*)native_return == NULL) void_to_drpc(&returned->returned);
-                else                             str_to_drpc(&returned->returned,(char*)native_return);
-                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) free((char*)native_return);
-                break;
-            case d_array:
-                if((char*)native_return == NULL) void_to_drpc(&returned->returned);
-                else                             d_array_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_array_free((void*)native_return);
-                break;
-            case d_struct:
-                if((char*)native_return == NULL) void_to_drpc(&returned->returned);
-                else                             d_struct_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_struct_free((void*)native_return);
-                break;
-            case d_queue:
-                if((char*)native_return == NULL) void_to_drpc(&returned->returned);
-                else                             d_queue_to_drpc(&returned->returned,(void*)native_return);
-                if(fn_info->fnstorage != (void*)native_return && client_info->userdata != (void*)native_return) d_queue_free((void*)native_return);
-                break;
-
-            default: break;
+            } else d_struct_set(return_msg,"return",&native_return,fn_info->return_type);
         }
     }else{
-        return_is_to_drpc(&returned->returned,return_is);
+        d_struct_set(return_msg,"return_is",&return_is,d_int8);
     }
     queue_free(to_repack);
-    queue_free(to_fill);
     return 0;
 }
 int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* client, int client_perm){
@@ -642,46 +492,42 @@ int drpc_handle_call(struct d_struct* received_message, struct drpc_connection* 
     };
     int handle_ret = 0;
 
-    struct drpc_call* call = message_to_drpc_call(received_message);
-
-    if(call == NULL){
+    char* fn_name;
+    struct d_array* arguments = NULL;
+    if(d_struct_get(received_message,"fn_name",&fn_name,d_str) != 0){
         client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: malformed call message\n",__PRETTY_FUNCTION__);
         send.message_type = drpc_bad;
         handle_ret = 1; goto exit;
     }
+    d_struct_get(received_message,"arguments",&arguments,d_array); //we can live if it is NULL
+
     struct drpc_function* call_fn = NULL;
-    if((call_fn = hashtable_get(client->drpc_server->functions,call->fn_name)) == NULL){
-        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: no such function %s!\n",__PRETTY_FUNCTION__,call->fn_name);
-        drpc_call_free(call);
-        free(call);
+    if((call_fn = hashtable_get(client->drpc_server->functions,fn_name)) == NULL){
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: no such function %s!\n",__PRETTY_FUNCTION__,fn_name);
         send.message_type = drpc_notfound;
         handle_ret = 1; goto exit;
     }
 
-    struct drpc_return ret;
     if((client_perm > call_fn->minimal_permission_level && call_fn->minimal_permission_level != -1) || client_perm == -1){
-        if(drpc_server_call_fn(call->arguments,call->arguments_len,call_fn,client,&ret) != 0){
+        struct d_struct* return_msg = new_d_struct();
+        if(drpc_server_call_fn(arguments,call_fn,client,return_msg) != 0){
             client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: bad arguments for function '%s'! \n",__PRETTY_FUNCTION__,call_fn->fn_name);
-            drpc_call_free(call);
-            free(call);
             send.message_type = drpc_bad;
-            handle_ret = 1; goto exit;
+            handle_ret = 1;
+            d_struct_free(return_msg);
+            goto exit;
         }
-        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,call->fn_name);
-        free(call->fn_name);
-        free(call);
+        client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: call of '%s' succesfull \n",__PRETTY_FUNCTION__,fn_name);
 
 
         send.message_type = drpc_return;
-        send.message = drpc_return_to_message(&ret);
-        drpc_return_free(&ret);
+        send.message = return_msg;
         handle_ret = 0; goto exit;
     }
 
-    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name, client_perm,call_fn->minimal_permission_level);
+    client->drpc_server->logger(client->drpc_server->logger_userdata,"%s: user permission is too low for %s (have: %d, require %d)!\n",__PRETTY_FUNCTION__,call_fn->fn_name
+                                ,client_perm,call_fn->minimal_permission_level);
 
-    drpc_call_free(call);
-    free(call);
     send.message_type = drpc_eperm;
 exit:
     drpc_send_message(client->io, &send);

@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STRUCT_LEN (uint64_t)12500 //uint64_t was added because of windows/msys2
+#define STRUCT_LEN (uint64_t)100000 //uint64_t was added because of windows/msys2
 #define QUEUE_LEN  (uint64_t)100000
 #define ARRAY_LEN  (uint64_t)100000
 #define TEST_ITERATIONS 8
@@ -31,6 +31,7 @@ void condiscon_cb(struct drpc_connection* connection,enum drpc_connection_event 
 }
 
 struct d_struct* d_struct_check(struct d_struct* check, uint64_t max_len, void* pstorage){
+    printf("%p :: %lu\n",check,max_len);
     printf("pstorage %p\n", pstorage);
 
     char str[64];
@@ -72,11 +73,12 @@ struct d_array* d_array_check(struct d_array* check,uint64_t max_len){
     return check;
 }
 
+
 void check_client(struct drpc_server* server, struct drpc_client* client){
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
-    enum drpc_types int_check[] = {d_int8, d_int16, d_int32};
+    enum drpc_types int_check[] = {d_int8, d_int16, d_int32,d_sizedbuf};
     struct d_struct* check1 = new_d_struct();
     struct d_queue* check2 = new_d_queue();
     // struct d_queue* delayed_check = new_d_queue();
@@ -147,8 +149,10 @@ void check_client(struct drpc_server* server, struct drpc_client* client){
     d_array_free(darray);
     d_struct_free(check1);
     d_queue_free(check2);
-
-    drpc_client_call(client,"int_check",int_check,sizeof(int_check) / sizeof(int_check[0]),NULL,123,5555,1234567);
+    uint64_t ret_int;
+    char szbuf[17] = "huetashka\0";
+    drpc_client_call(client,"int_check",int_check,sizeof(int_check) / sizeof(int_check[0]),&ret_int,123,5555,1234567,szbuf,sizeof(szbuf));
+    assert(ret_int == 228777336);
 
 }
 
@@ -174,8 +178,10 @@ void mailbox_test(struct drpc_server* server, struct drpc_client* client){
     printf("len %zu\n",d_queue_len(len));
 }
 
-void int_checkF(int8_t a, int16_t b, int32_t c){
+uint64_t int_checkF(int8_t a, int16_t b, int32_t c, char* szbuf, size_t szbuf_L){
+    assert(szbuf != NULL && szbuf_L == 17);
     printf("%d %d %zu\n",a,b,(size_t)c);
+    return 228777336;
 }
 
 void test_log(void* userdata, const char* fmt,...){
@@ -184,13 +190,13 @@ void test_log(void* userdata, const char* fmt,...){
     vprintf(fmt,args);
 }
 
-int main(void){
+void drpc_test(void){
     struct drpc_server* server = new_drpc_server();
 
     enum drpc_types dstruct_check[] = {d_struct,d_uint64, d_fnstorage};
     enum drpc_types dqueue_check[] = {d_queue,d_uint64, d_fnstorage};
     enum drpc_types darray_check[] = {d_array,d_uint64};
-    enum drpc_types int_check[] = {d_int8, d_int16, d_int32};
+    enum drpc_types int_check[] = {d_int8, d_int16, d_int32,d_sizedbuf};
 
     drpc_server_register_fn(server,"dstruct_check",d_struct_check,d_struct,dstruct_check,sizeof(dstruct_check) / sizeof(dstruct_check[0]),(void*)0x123,0);
 
@@ -198,7 +204,7 @@ int main(void){
 
     drpc_server_register_fn(server,"darray_check",d_array_check,d_array,darray_check,sizeof(darray_check) / sizeof(darray_check[0]),(void*)"abcdefg",0);
 
-    drpc_server_register_fn(server,"int_check",int_checkF,d_void,int_check,sizeof(int_check) / sizeof(int_check[0]),NULL,0);
+    drpc_server_register_fn(server,"int_check",int_checkF,d_uint64,int_check,sizeof(int_check) / sizeof(int_check[0]),NULL,0);
 
 
     drpc_server_set_connection_event_cb(server,condiscon_cb);
@@ -216,10 +222,10 @@ int main(void){
     new_drpc_recv_mailbox(server,"mailbox_123");
     new_drpc_send_mailbox(server,"send_mailbox_123");
 
-     for(int i = 0; i < TEST_ITERATIONS;i++){
-         printf("%d : iteration of test\n",i);
-         check_client(server,dqueue_client);
-     }
+    for(int i = 0; i < TEST_ITERATIONS;i++){
+        printf("%d : iteration of test\n",i);
+        check_client(server,dqueue_client);
+    }
 
     for(int i = 0; i <TEST_ITERATIONS; i++){
         mailbox_test(server,dqueue_client);
@@ -227,5 +233,9 @@ int main(void){
 
     drpc_client_disconnect(dqueue_client);
     drpc_server_free(server);
+}
+
+int main(void){
+    drpc_test();
     return 0;
 }

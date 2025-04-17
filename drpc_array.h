@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 struct d_array{
+    size_t real_size;
     size_t lookup_size;
     struct d_struct_element** lookup_table;
     pthread_mutex_t lock;
@@ -49,6 +50,8 @@ enum drpc_types d_array_get_type(struct d_array* darray, size_t index); //return
 size_t d_array_len(struct d_array* darray);                             //returns d_array len.
 
 void d_array_free(struct d_array* darray);                              //free d_array and all it's data
+
+struct d_array* d_array_copy(struct d_array* darray);                   //return copy of darray
 
 
 
