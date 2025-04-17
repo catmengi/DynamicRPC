@@ -122,6 +122,9 @@ void drpc_server_register_fn(struct drpc_server* server,char* fn_name, void* fn,
                                                                                         // prototype_len - length of prototype
                                                                                         // fnstorage - pointer that will be used in d_fnstorage type
                                                                                         // perm - minimal permission to call this function. -1 means only -1 user can call this function
+
+//NOTE: if your function returns pointer type(d_array,d_struct,d_queue,d_str) that is NOT one of arguments, it WILL BE freed.
+// If you need this data after return consider using d_(array/struct/queue)_copy, strdup, or other copy technique(for d_sizedbuf)
 //======================================================================================================================================================================================
 
 int drpc_server_unregister_fn(struct drpc_server* server, char* fn_name); //removes and free function with name fn_name; RETURN: 0 on success
