@@ -1,3 +1,5 @@
+TCP IO is VERY buggy right now, it have A LOT OF MEMORY LEAKS. I think i should rewrite TCP in future to fix this
+
 DynamicRPC is a RPC framework that dont uses IDL and support argument-sync beetwen client a server
 
 **most APIs are documentated in drpc_*.h headers**
@@ -8,6 +10,3 @@ DynamicRPC is a RPC framework that dont uses IDL and support argument-sync beetw
 **supported platforms:** POSIX with support of libffi and pthread
 
 **tested on:** Linux (x86_64, aarch64), ESP32S3 n16r8
-
-
-Building without TCP should be supported but not tested on platform without unix socket headers
