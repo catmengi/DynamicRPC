@@ -1,4 +1,5 @@
-v2 branch is considered DEAD. v3 branch will be full rewrite of server and client to fully work with new protocol
+I dont want to continue this project anymore because it have no architecture and become very hard to fix
+I will start new RPC project sometime soon when i will have enough time
 
 TCP IO is VERY buggy right now, it have A LOT OF MEMORY LEAKS. I think i should rewrite TCP in future to fix this
 
