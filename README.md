@@ -1,5 +1,4 @@
-I think this DynamicRPC project can be considered dead, since i dont want to fix it. I will start new RPC project in future with same ideas about not using IDL, and support argument-sync beetwen client a server :(
-
+v2 branch is DEAD. V3 version is in development
 
 TCP IO is VERY buggy right now, it have A LOT OF MEMORY LEAKS. I think i should rewrite TCP in future to fix this
 
